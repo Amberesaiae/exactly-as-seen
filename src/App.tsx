@@ -10,9 +10,21 @@ import Index from "./pages/Index";
 import Welcome from "./pages/Welcome";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 import FarmSetup from "./pages/FarmSetup";
 import Dashboard from "./pages/Dashboard";
-import PlaceholderPage from "./pages/PlaceholderPage";
+import Batches from "./pages/Batches";
+import BatchCreate from "./pages/BatchCreate";
+import BatchDetail from "./pages/BatchDetail";
+import Feed from "./pages/Feed";
+import FeedFormulation from "./pages/FeedFormulation";
+import Health from "./pages/Health";
+import Eggs from "./pages/Eggs";
+import Finance from "./pages/Finance";
+import Stock from "./pages/Stock";
+import Records from "./pages/Records";
+import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,19 +41,24 @@ const App = () => (
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/register" element={<Register />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/farm-setup" element={<ProtectedRoute><FarmSetup /></ProtectedRoute>} />
 
             {/* App shell routes */}
             <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
               <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/batches" element={<PlaceholderPage />} />
-              <Route path="/feed" element={<PlaceholderPage />} />
-              <Route path="/health" element={<PlaceholderPage />} />
-              <Route path="/eggs" element={<PlaceholderPage />} />
-              <Route path="/finance" element={<PlaceholderPage />} />
-              <Route path="/stock" element={<PlaceholderPage />} />
-              <Route path="/records" element={<PlaceholderPage />} />
-              <Route path="/settings" element={<PlaceholderPage />} />
+              <Route path="/batches" element={<Batches />} />
+              <Route path="/batches/new" element={<BatchCreate />} />
+              <Route path="/batches/:id" element={<BatchDetail />} />
+              <Route path="/feed" element={<Feed />} />
+              <Route path="/feed/formulate" element={<FeedFormulation />} />
+              <Route path="/health" element={<Health />} />
+              <Route path="/eggs" element={<Eggs />} />
+              <Route path="/finance" element={<Finance />} />
+              <Route path="/stock" element={<Stock />} />
+              <Route path="/records" element={<Records />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />

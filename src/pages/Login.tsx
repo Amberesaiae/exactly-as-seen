@@ -77,7 +77,10 @@ export default function Login() {
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign In'}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm text-muted-foreground">
+          <div className="mt-3 text-center">
+            <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-primary">Forgot password?</Link>
+          </div>
+          <div className="mt-2 text-center text-sm text-muted-foreground">
             Don't have an account?{' '}
             <Link to="/register" className="font-medium text-primary hover:underline">Create one</Link>
           </div>
