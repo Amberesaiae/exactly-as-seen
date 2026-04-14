@@ -50,6 +50,8 @@
 
     --accent-gold: 42 87% 55%;
     --accent-gold-foreground: 42 87% 20%;
+    --accent-cyan: 190 90% 45%;
+    --accent-cyan-foreground: 0 0% 100%;
   }
 
   .dark {
@@ -97,6 +99,8 @@
 
     --accent-gold: 42 87% 50%;
     --accent-gold-foreground: 42 87% 85%;
+    --accent-cyan: 190 90% 50%;
+    --accent-cyan-foreground: 0 0% 100%;
   }
 }
 
