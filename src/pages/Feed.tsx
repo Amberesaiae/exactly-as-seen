@@ -70,7 +70,7 @@ export default function Feed() {
   }, [selectedBatch, farmId]);
 
   const batch = batches.find(b => b.id === selectedBatch);
-  const dynamics = batch ? computeBatchDynamics(batch.start_date) : null;
+  const dynamics = batch ? getBatchAge(batch.start_date, batch.species) : null;
   const phase = batch && dynamics ? getCurrentPhase(batch.species, dynamics.week) : null;
 
   const todaySchedule = schedules.find(s => s.day === (dynamics?.day ?? 0));
