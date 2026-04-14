@@ -37,10 +37,9 @@ type VaccinationRow = Database['public']['Tables']['vaccination_schedule']['Row'
 type WaterRecord = Database['public']['Tables']['water_records']['Row'];
 
 export default function Health() {
-  const { user } = useAuth();
+  const { user, farmId } = useAuth();
   const { costPrivacyEnabled } = useAppStore();
   const [loading, setLoading] = useState(true);
-  const [farmId, setFarmId] = useState<string | null>(null);
   const [batches, setBatches] = useState<Batch[]>([]);
   const [selectedBatch, setSelectedBatch] = useState('');
   const [vaccinations, setVaccinations] = useState<VaccinationRow[]>([]);
@@ -61,19 +60,16 @@ export default function Health() {
   const [medSubmitting, setMedSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !farmId) return;
     const load = async () => {
       setLoading(true);
-      const { data: farm } = await supabase.from('farms').select('id').eq('user_id', user.id).maybeSingle();
-      if (!farm) { setLoading(false); return; }
-      setFarmId(farm.id);
-      const { data: b } = await supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active');
+      const { data: b } = await supabase.from('batches').select('*').eq('farm_id', farmId).eq('status', 'active');
       setBatches(b ?? []);
       if (b?.length) setSelectedBatch(b[0].id);
       setLoading(false);
     };
     load();
-  }, [user]);
+  }, [user, farmId]);
 
   // Load batch-specific data
   useEffect(() => {
