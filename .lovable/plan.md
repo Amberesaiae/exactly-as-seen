@@ -1,86 +1,83 @@
 
 
-# Landing Page and Login Redesign Plan
+# Pixel-Perfect Landing Page & Auth Redesign
 
-## Design Inspiration from Reference
+## Current Problems
 
-The UPA DI annual report uses bold editorial design: oversized typography, organic leaf/flower motifs, generous whitespace, scroll-driven storytelling, asymmetric image placement, and animated counters. We will adapt these patterns for LampFarms while keeping it a single-page landing that converts visitors into users.
+1. **Hero text is nearly invisible** — `text-foreground` renders as very light gray, making "Grow Smarter. Farm Better." almost unreadable
+2. **SVG decorations are too faint** — opacity values of 0.12-0.20 make them invisible on white backgrounds
+3. **Generic SaaS layout** — centered text, symmetrical grid, no editorial personality
+4. **No visual storytelling** — the reference uses bold asymmetric layouts, oversized typography, organic botanical shapes, and dramatic scroll reveals
+5. **Auth panel is bland** — the decorative right panel has barely visible shapes on a green background
 
-## What Gets Built
+## Design Direction (from reference)
 
-### 1. New Landing Page (`src/pages/Welcome.tsx`) — Full Rewrite
+The UPA DI report uses: oversized condensed typography (huge numbers, bold headlines), asymmetric image-text layouts, bold organic motifs (yellow sunflower, green leaf branch) at high opacity, dramatic whitespace, and scroll-triggered content reveals. We adapt this for LampFarms.
 
-A scroll-driven marketing page with these sections:
+## Changes
 
-**Hero Section (viewport height)**
-- Large hero image area with a subtle green gradient overlay (no stock photos needed — use CSS gradient + organic SVG shapes like leaves/feathers as decorative elements)
-- Oversized display heading: "Grow Smarter. Farm Better." in bold Manrope
-- Subheading with the value proposition
-- Two CTAs: "Get Started Free" (primary, rounded-full) and "Sign In" (ghost)
-- Decorative organic shape (stylized feather/leaf) as a floating SVG accent, inspired by the reference's yellow flower and green branch motifs
+### 1. `src/pages/Welcome.tsx` — Editorial Rewrite
 
-**Social Proof / Stats Section (animated counters)**
-- Inspired by the reference's "OUR YEAR IN NUMBERS" section
-- Three large animated counter stats: "500+ Farms", "1M+ Birds Tracked", "12+ Countries"
-- Each with a label beneath, using the same oversized number + small text pattern
-- Numbers animate on scroll into view using framer-motion
+**Hero (full viewport):**
+- Left-aligned layout on desktop (not centered) — headline occupies ~60% width
+- Headline uses `text-foreground` at full weight with proper contrast — massive size (text-6xl to text-8xl)
+- A bold decorative SVG (stylized golden wheat/sunflower motif) placed asymmetrically on the right side at HIGH opacity (0.6-0.8), inspired by the reference's yellow flower
+- A green leaf/branch SVG on the opposite side
+- Subheading with clear contrast, generous line-height
+- CTAs left-aligned below the heading
 
-**Features Grid**
-- 3-column grid (stacks on mobile) showing core modules:
-  - Batch Management (Bird icon)
-  - Feed Calculator (Wheat icon)
-  - Health Tracking (Heart icon)
-  - Egg Production (Egg icon)
-  - Finance & Stock (Wallet icon)
-  - Offline-First (Wifi icon)
-- Each card: icon + title + one-line description, with subtle hover lift
+**Stats section — "Our Year in Numbers":**
+- Full-width section with the heading in oversized condensed uppercase (like reference's "OUR YEAR IN NUMBERS")
+- Stats displayed in a staggered, asymmetric layout (not a boring 3-column grid) — numbers at text-7xl/8xl with labels below, offset vertically like the reference
+- Thin hairline separators under each number
+- Generous vertical spacing between stats
 
-**CTA Banner**
-- Full-width green gradient section
-- "Ready to transform your farm?" + "Create Free Account" button
+**Features section:**
+- Asymmetric 2-column layout: left side has a large headline + description, right side has the feature cards
+- Or: features displayed as a vertical list with large icons, not small cards
 
-**Footer**
-- Minimal: LampFarms logo + copyright + links to login/register
+**CTA Banner:**
+- Keep the green gradient but add the botanical SVG motifs at higher opacity
+- Bold condensed heading
 
-### 2. Redesigned Login Page (`src/pages/Login.tsx`)
+**Footer:** Keep minimal, refine spacing
 
-Split-screen layout on desktop (form left, visual right). Mobile: form-only with decorative top section.
+### 2. `src/components/landing/LandingDecorations.tsx` — Bold Botanical Motifs
 
-- Left: Clean login form (current functionality preserved — Google OAuth, email/password, forgot password link)
-- Right: Green gradient panel with decorative organic SVG shapes and a tagline
-- Refined input styling: slightly larger, more padding, softer borders
-- Smooth entrance animations via framer-motion
+- **New `SunflowerMotif`** — inspired by the reference's yellow burst shape, rendered in primary-gold/amber at 0.5-0.7 opacity
+- **Enhanced `LeafDecoration`** — thicker strokes, higher fill opacity (0.3-0.5 instead of 0.12)
+- **New `WaveDivider`** — the organic wavy line from the reference used as section dividers
+- **`AuthPanel`** — increase all decoration opacities, add the sunflower motif, make the tagline larger
 
-### 3. Redesigned Register Page (`src/pages/Register.tsx`)
+### 3. `src/components/landing/AnimatedCounter.tsx` — Editorial Number Style
 
-Same split-screen pattern as Login for consistency. All existing fields preserved (Full Name, Email, Password with strength indicator, Farm Name, Google OAuth).
+- Numbers rendered at text-7xl/8xl with a condensed font-weight
+- Staggered layout (not grid) with hairline separator under each
+- Label text smaller, uppercase, wide tracking
 
-### 4. Auth Pages Consistency (`ForgotPassword.tsx`, `ResetPassword.tsx`)
+### 4. `src/pages/Login.tsx`, `Register.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`
 
-Apply the same split-screen layout with the decorative green panel for visual cohesion.
+- Keep split-screen layout but enhance the right decorative panel
+- Higher opacity decorations, add the sunflower motif
+- Slightly warmer, more inviting feel on the form side
 
-### 5. Shared Decorative Component
+### 5. `src/index.css` — Possible additions
 
-Create `src/components/landing/LandingDecorations.tsx` — reusable SVG organic shapes (feather, leaf, abstract farm motifs) used across the landing and auth pages. Pure CSS/SVG, no external images needed.
+- Add a CSS variable for an accent gold color (`--accent-gold`) for the sunflower motifs
+- Any keyframe animations for section reveals
 
-## Files Changed
+## Files Modified
 
-| File | Action |
+| File | Change |
 |------|--------|
-| `src/pages/Welcome.tsx` | Full rewrite — multi-section landing page |
-| `src/pages/Login.tsx` | Redesign — split-screen layout |
-| `src/pages/Register.tsx` | Redesign — split-screen layout |
-| `src/pages/ForgotPassword.tsx` | Redesign — split-screen layout |
-| `src/pages/ResetPassword.tsx` | Redesign — split-screen layout |
-| `src/components/landing/LandingDecorations.tsx` | New — shared SVG decorations |
-| `src/components/landing/AnimatedCounter.tsx` | New — scroll-triggered number animation |
-| `src/index.css` | Add any needed keyframes for scroll animations |
+| `src/pages/Welcome.tsx` | Full rewrite — editorial asymmetric layout |
+| `src/components/landing/LandingDecorations.tsx` | New SVG motifs, higher opacities, sunflower shape |
+| `src/components/landing/AnimatedCounter.tsx` | Oversized condensed numbers, staggered layout |
+| `src/pages/Login.tsx` | Enhanced auth panel styling |
+| `src/pages/Register.tsx` | Enhanced auth panel styling |
+| `src/pages/ForgotPassword.tsx` | Enhanced auth panel styling |
+| `src/pages/ResetPassword.tsx` | Enhanced auth panel styling |
+| `src/index.css` | Accent gold CSS variable |
 
-## Technical Notes
-
-- All animations via framer-motion (already installed) and CSS keyframes
-- No external images or assets — decorative elements are inline SVGs
-- Responsive: mobile-first, split-screen collapses to single column
-- All existing auth logic (Google OAuth, email/password, redirects, farmReady checks) is preserved exactly
-- No database changes needed
+No database changes. All existing auth logic preserved exactly.
 
