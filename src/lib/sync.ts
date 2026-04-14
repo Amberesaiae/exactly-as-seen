@@ -1,0 +1,103 @@
+import { supabase } from '@/integrations/supabase/client';
+import { db, type SyncOutbox } from '@/lib/db';
+
+// Cache Supabase data into Dexie after fetch
+export async function cacheFarms(userId: string) {
+  const { data } = await supabase.from('farms').select('*').eq('user_id', userId);
+  if (data && data.length > 0) {
+    await db.farms.bulkPut(data);
+  }
+  return data;
+}
+
+export async function cacheBatches(farmId: string) {
+  const { data } = await supabase.from('batches').select('*').eq('farm_id', farmId);
+  if (data && data.length > 0) {
+    await db.batches.bulkPut(data);
+  }
+  return data;
+}
+
+export async function cacheHouses(farmId: string) {
+  const { data } = await supabase.from('houses').select('*').eq('farm_id', farmId);
+  if (data && data.length > 0) {
+    await db.houses.bulkPut(data);
+  }
+  return data;
+}
+
+export async function cacheActivities(farmId: string) {
+  const { data } = await supabase
+    .from('activity_log')
+    .select('*')
+    .eq('farm_id', farmId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+  if (data && data.length > 0) {
+    await db.activity_log.bulkPut(data);
+  }
+  return data;
+}
+
+// Read from Dexie cache when offline
+export async function getCachedFarms(userId: string) {
+  return db.farms.where('user_id').equals(userId).toArray();
+}
+
+export async function getCachedBatches(farmId: string) {
+  return db.batches.where('farm_id').equals(farmId).toArray();
+}
+
+export async function getCachedActivities(farmId: string) {
+  return db.activity_log.where('farm_id').equals(farmId).toArray();
+}
+
+// Queue a write operation for later sync
+export async function queueWrite(
+  table: string,
+  operation: 'insert' | 'update' | 'delete',
+  recordId: string,
+  data: Record<string, unknown>
+) {
+  const entry: SyncOutbox = {
+    table,
+    operation,
+    record_id: recordId,
+    data,
+    created_at: new Date().toISOString(),
+  };
+  await db.sync_outbox.add(entry);
+}
+
+// Flush all queued writes to Supabase
+export async function flushOutbox() {
+  const pending = await db.sync_outbox.toArray();
+  if (pending.length === 0) return;
+
+  for (const item of pending) {
+    try {
+      if (item.operation === 'insert') {
+        const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
+        if (error) throw error;
+      } else if (item.operation === 'update') {
+        const { error } = await supabase.from(item.table as 'farms').update(item.data as never).eq('id', item.record_id);
+        if (error) throw error;
+      } else if (item.operation === 'delete') {
+        const { error } = await supabase.from(item.table as 'farms').delete().eq('id', item.record_id);
+        if (error) throw error;
+      }
+      // Remove from outbox on success
+      if (item.id) await db.sync_outbox.delete(item.id);
+    } catch (err) {
+      console.error(`Sync failed for ${item.table}/${item.record_id}:`, err);
+      break; // Stop on first failure to maintain order
+    }
+  }
+}
+
+// Auto-flush when coming back online
+export function setupOnlineListener() {
+  window.addEventListener('online', () => {
+    flushOutbox();
+  });
+}

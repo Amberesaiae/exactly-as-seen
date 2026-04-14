@@ -6,12 +6,14 @@ import { useAppStore } from '@/stores/useAppStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Layers, ClipboardList, Wallet, TrendingUp, Plus, Eye, EyeOff,
   AlertCircle, Clock
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -26,44 +28,68 @@ const sampleChartData = [
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { costPrivacyEnabled, toggleCostPrivacy } = useAppStore();
+  const { costPrivacyEnabled, setCostPrivacy, toggleCostPrivacy } = useAppStore();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [farmName, setFarmName] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
 
     const loadData = async () => {
-      const { data: farms } = await supabase
-        .from('farms')
-        .select('id, name')
-        .eq('user_id', user.id)
-        .limit(1)
-        .maybeSingle();
+      setIsLoading(true);
+      try {
+        const { data: farms, error: farmError } = await supabase
+          .from('farms')
+          .select('id, name')
+          .eq('user_id', user.id)
+          .limit(1)
+          .maybeSingle();
 
-      if (farms) {
-        setFarmName(farms.name);
+        if (farmError) throw farmError;
 
-        const { data: batchData } = await supabase
-          .from('batches')
-          .select('*')
-          .eq('farm_id', farms.id)
-          .eq('status', 'active');
-        if (batchData) setBatches(batchData);
+        // Fetch user preferences and hydrate store
+        const { data: prefs } = await supabase
+          .from('user_preferences')
+          .select('cost_privacy_enabled')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (prefs) setCostPrivacy(prefs.cost_privacy_enabled);
 
-        const { data: activityData } = await supabase
-          .from('activity_log')
-          .select('*')
-          .eq('farm_id', farms.id)
-          .order('created_at', { ascending: false })
-          .limit(10);
-        if (activityData) setActivities(activityData);
+        if (farms) {
+          setFarmName(farms.name);
+
+          const [batchResult, activityResult] = await Promise.all([
+            supabase.from('batches').select('*').eq('farm_id', farms.id).eq('status', 'active'),
+            supabase.from('activity_log').select('*').eq('farm_id', farms.id).order('created_at', { ascending: false }).limit(10),
+          ]);
+
+          if (batchResult.error) throw batchResult.error;
+          if (activityResult.error) throw activityResult.error;
+
+          setBatches(batchResult.data ?? []);
+          setActivities(activityResult.data ?? []);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
+        toast.error('Loading error', { description: message });
+      } finally {
+        setIsLoading(false);
       }
     };
 
     loadData();
-  }, [user]);
+  }, [user, setCostPrivacy]);
+
+  const handleToggleCostPrivacy = async () => {
+    toggleCostPrivacy();
+    // Persist to DB
+    if (user) {
+      const newValue = !costPrivacyEnabled;
+      await supabase.from('user_preferences').update({ cost_privacy_enabled: newValue }).eq('user_id', user.id);
+    }
+  };
 
   const maskedValue = (value: string) => costPrivacyEnabled ? '* * * *' : value;
 
@@ -74,9 +100,25 @@ export default function Dashboard() {
     { title: 'Monthly Revenue', value: maskedValue('GHS 0.00'), icon: TrendingUp, masked: true },
   ];
 
+  if (isLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-6">
+        <div className="space-y-1">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-36" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
+        </div>
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">{farmName || 'Dashboard'}</h1>
@@ -84,7 +126,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {statCards.map((stat) => (
           <Card key={stat.title} className="relative">
@@ -92,7 +133,7 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-2">
                 <stat.icon className="h-5 w-5 text-muted-foreground" />
                 {stat.masked && (
-                  <button onClick={toggleCostPrivacy} className="text-muted-foreground hover:text-foreground transition-colors">
+                  <button onClick={handleToggleCostPrivacy} className="text-muted-foreground hover:text-foreground transition-colors">
                     {costPrivacyEnabled ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
                 )}
@@ -105,9 +146,7 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          {/* Active Batches */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-foreground">Active Batches</h2>
@@ -137,7 +176,7 @@ export default function Dashboard() {
                           <p className="font-semibold text-foreground">{batch.name}</p>
                           <p className="text-xs text-muted-foreground capitalize">{batch.species}</p>
                         </div>
-                        <span className="rounded-full bg-success/10 px-2 py-0.5 text-xs font-medium text-success capitalize">
+                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize">
                           {batch.phase}
                         </span>
                       </div>
@@ -166,7 +205,6 @@ export default function Dashboard() {
             )}
           </div>
 
-          {/* Charts */}
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Analytics</CardTitle>
@@ -222,7 +260,6 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Activity Sidebar */}
         <div className="hidden lg:block">
           <Card>
             <CardHeader>
