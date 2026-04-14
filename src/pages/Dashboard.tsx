@@ -4,6 +4,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
 import { getBatchAge } from '@/lib/batch-utils';
+import {
+  cacheFarms, cacheBatches, cacheActivities,
+  getCachedFarms, getCachedBatches, getCachedActivities
+} from '@/lib/sync';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -34,7 +38,7 @@ const sampleChartData = [
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { costPrivacyEnabled, setCostPrivacy, toggleCostPrivacy } = useAppStore();
+  const { costPrivacyEnabled, setCostPrivacy, toggleCostPrivacy, isOnline, setSyncing } = useAppStore();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [farmName, setFarmName] = useState('');
@@ -53,48 +57,74 @@ export default function Dashboard() {
 
     const loadData = async () => {
       setIsLoading(true);
+
+      // Online path: fetch from Supabase, cache into Dexie
+      if (navigator.onLine) {
+        try {
+          setSyncing(true);
+
+          // Cache farms & get user's farm
+          const farms = await cacheFarms(user.id);
+          const farm = farms?.[0];
+
+          // Sync cost privacy preference
+          const { data: prefs } = await supabase
+            .from('user_preferences')
+            .select('cost_privacy_enabled')
+            .eq('user_id', user.id)
+            .maybeSingle();
+          if (prefs) setCostPrivacy(prefs.cost_privacy_enabled);
+
+          if (farm) {
+            setFarmName(farm.name);
+            setFarmId(farm.id);
+
+            // Cache batches & activities in parallel
+            const [batchData, activityData] = await Promise.all([
+              cacheBatches(farm.id),
+              cacheActivities(farm.id),
+            ]);
+
+            const activeBatches = (batchData ?? []).filter(b => b.status === 'active');
+            setBatches(activeBatches as Batch[]);
+            setActivities((activityData ?? []).slice(0, 10) as Activity[]);
+          }
+        } catch (err: unknown) {
+          console.warn('Online fetch failed, falling back to cache:', err);
+          await loadFromCache();
+        } finally {
+          setSyncing(false);
+        }
+      } else {
+        // Offline path: read from Dexie cache
+        await loadFromCache();
+      }
+
+      setIsLoading(false);
+    };
+
+    const loadFromCache = async () => {
       try {
-        const { data: farm, error: farmError } = await supabase
-          .from('farms')
-          .select('id, name')
-          .eq('user_id', user.id)
-          .limit(1)
-          .maybeSingle();
-
-        if (farmError) throw farmError;
-
-        const { data: prefs } = await supabase
-          .from('user_preferences')
-          .select('cost_privacy_enabled')
-          .eq('user_id', user.id)
-          .maybeSingle();
-        if (prefs) setCostPrivacy(prefs.cost_privacy_enabled);
-
+        const cachedFarms = await getCachedFarms(user!.id);
+        const farm = cachedFarms[0];
         if (farm) {
           setFarmName(farm.name);
           setFarmId(farm.id);
-
-          const [batchResult, activityResult] = await Promise.all([
-            supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active'),
-            supabase.from('activity_log').select('*').eq('farm_id', farm.id).order('created_at', { ascending: false }).limit(10),
+          const [cachedBatches, cachedActivities] = await Promise.all([
+            getCachedBatches(farm.id),
+            getCachedActivities(farm.id),
           ]);
-
-          if (batchResult.error) throw batchResult.error;
-          if (activityResult.error) throw activityResult.error;
-
-          setBatches(batchResult.data ?? []);
-          setActivities(activityResult.data ?? []);
+          const activeBatches = cachedBatches.filter(b => b.status === 'active');
+          setBatches(activeBatches as unknown as Batch[]);
+          setActivities(cachedActivities.slice(0, 10) as unknown as Activity[]);
         }
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : 'Failed to load dashboard data';
-        toast.error('Loading error', { description: message });
-      } finally {
-        setIsLoading(false);
+      } catch (cacheErr) {
+        console.error('Cache read failed:', cacheErr);
       }
     };
 
     loadData();
-  }, [user, setCostPrivacy]);
+  }, [user, setCostPrivacy, setSyncing]);
 
   const handleToggleCostPrivacy = async () => {
     toggleCostPrivacy();
@@ -168,6 +198,11 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold text-foreground">{farmName || 'Dashboard'}</h1>
           <p className="text-sm text-muted-foreground">{format(new Date(), 'EEEE, MMMM d, yyyy')}</p>
         </div>
+        {!isOnline && (
+          <span className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 px-2 py-1 rounded-full">
+            Offline
+          </span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
