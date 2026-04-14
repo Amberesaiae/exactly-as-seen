@@ -9,6 +9,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { lovable } from '@/integrations/lovable/index';
 import { Sprout, Loader2, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
+import { isPasswordStrong } from '@/lib/password-validation';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 
 export default function Register() {
   const { user, loading, farmReady, signUp } = useAuth();
@@ -27,6 +29,10 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !email || !password || !farmName) return;
+    if (!isPasswordStrong(password)) {
+      toast.error('Password does not meet strength requirements');
+      return;
+    }
     setSubmitting(true);
     const { error } = await signUp(email, password, fullName, farmName);
     setSubmitting(false);
@@ -80,7 +86,8 @@ export default function Register() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 6 characters" required minLength={6} />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Strong password" required minLength={8} />
+              <PasswordStrengthIndicator password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="farmName">Farm Name</Label>

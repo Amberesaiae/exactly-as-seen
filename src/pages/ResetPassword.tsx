@@ -7,6 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Sprout, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { isPasswordStrong } from '@/lib/password-validation';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 
 export default function ResetPassword() {
   const navigate = useNavigate();
@@ -37,8 +39,8 @@ export default function ResetPassword() {
       toast.error('Passwords do not match');
       return;
     }
-    if (password.length < 6) {
-      toast.error('Password must be at least 6 characters');
+    if (!isPasswordStrong(password)) {
+      toast.error('Password does not meet strength requirements');
       return;
     }
     setSubmitting(true);
@@ -81,7 +83,8 @@ export default function ResetPassword() {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-2">
               <Label htmlFor="password">New Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Min. 6 characters" required minLength={6} />
+              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Strong password" required minLength={8} />
+              <PasswordStrengthIndicator password={password} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirm">Confirm Password</Label>
