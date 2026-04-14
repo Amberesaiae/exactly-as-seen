@@ -2,12 +2,12 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getBatchAge } from '@/lib/batch-utils';
+import { getBatchAge, recordMortality } from '@/lib/batch-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -19,10 +19,9 @@ import type { Database } from '@/integrations/supabase/types';
 type Batch = Database['public']['Tables']['batches']['Row'];
 
 export default function Batches() {
-  const { user } = useAuth();
+  const { user, farmId } = useAuth();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [loading, setLoading] = useState(true);
-  const [farmId, setFarmId] = useState<string | null>(null);
   const [speciesFilter, setSpeciesFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('active');
 
@@ -34,14 +33,10 @@ export default function Batches() {
   const [mortalitySubmitting, setMortalitySubmitting] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !farmId) return;
     const load = async () => {
       setLoading(true);
-      const { data: farm } = await supabase.from('farms').select('id').eq('user_id', user.id).maybeSingle();
-      if (!farm) { setLoading(false); return; }
-      setFarmId(farm.id);
-
-      let query = supabase.from('batches').select('*').eq('farm_id', farm.id);
+      let query = supabase.from('batches').select('*').eq('farm_id', farmId);
       if (statusFilter !== 'all') query = query.eq('status', statusFilter);
       if (speciesFilter !== 'all') query = query.eq('species', speciesFilter);
       const { data, error } = await query.order('created_at', { ascending: false });
@@ -50,7 +45,7 @@ export default function Batches() {
       setLoading(false);
     };
     load();
-  }, [user, speciesFilter, statusFilter]);
+  }, [user, farmId, speciesFilter, statusFilter]);
 
   const handleRecordMortality = async () => {
     if (!mortalityBatch || !farmId) return;
@@ -58,25 +53,21 @@ export default function Batches() {
     const count = parseInt(mortalityCount) || 0;
     if (count <= 0) { toast.error('Count must be positive'); setMortalitySubmitting(false); return; }
 
-    const { error: mrError } = await supabase.from('mortality_records').insert({
-      batch_id: mortalityBatch.id,
-      farm_id: farmId,
+    const newPop = await recordMortality({
+      batchId: mortalityBatch.id,
+      farmId,
+      batchName: mortalityBatch.name,
+      currentPopulation: mortalityBatch.current_population,
       count,
-      cause: mortalityCause || null,
-      notes: mortalityNotes || null,
+      cause: mortalityCause || undefined,
+      notes: mortalityNotes || undefined,
     });
-    if (mrError) { toast.error('Failed to record mortality', { description: mrError.message }); setMortalitySubmitting(false); return; }
 
-    const newPop = Math.max(0, mortalityBatch.current_population - count);
-    const { error: bError } = await supabase.from('batches').update({ current_population: newPop }).eq('id', mortalityBatch.id);
-    if (bError) toast.error('Failed to update population', { description: bError.message });
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: mortalityBatch.id,
-      event_type: 'mortality',
-      description: `Recorded ${count} mortality in ${mortalityBatch.name}${mortalityCause ? `: ${mortalityCause}` : ''}`,
-    });
+    if (newPop === null) {
+      toast.error('Failed to record mortality');
+      setMortalitySubmitting(false);
+      return;
+    }
 
     setBatches(prev => prev.map(b => b.id === mortalityBatch.id ? { ...b, current_population: newPop } : b));
     setMortalityBatch(null);
@@ -190,6 +181,7 @@ export default function Batches() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Mortality — {mortalityBatch?.name}</DialogTitle>
+            <DialogDescription>Record bird deaths for this batch. The population count will be updated automatically.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">

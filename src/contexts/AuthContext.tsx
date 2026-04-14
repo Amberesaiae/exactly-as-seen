@@ -1,12 +1,16 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useAppStore } from '@/stores/useAppStore';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  farmReady: boolean | null; // null = not checked yet, true = setup_complete, false = needs setup
+  farmReady: boolean | null;
+  farmId: string | null;
+  farmName: string;
+  currency: string;
   signUp: (email: string, password: string, fullName: string, farmName: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -20,38 +24,60 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [farmReady, setFarmReady] = useState<boolean | null>(null);
+  const [farmId, setFarmId] = useState<string | null>(null);
+  const [farmName, setFarmName] = useState('My Farm');
+  const [currency, setCurrency] = useState('GHS');
 
   const checkFarmSetup = async (userId: string) => {
     const { data } = await supabase
       .from('farms')
-      .select('setup_complete')
+      .select('id, name, setup_complete')
       .eq('user_id', userId)
       .maybeSingle();
-    setFarmReady(data?.setup_complete ?? false);
+    if (data) {
+      setFarmId(data.id);
+      setFarmName(data.name);
+      setFarmReady(data.setup_complete);
+    } else {
+      setFarmReady(false);
+    }
+
+    // Load preferences
+    const { data: prefs } = await supabase
+      .from('user_preferences')
+      .select('currency, cost_privacy_enabled')
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (prefs) {
+      setCurrency(prefs.currency);
+      useAppStore.getState().setCostPrivacy(prefs.cost_privacy_enabled);
+    }
   };
 
-  const ensureFarmAndPrefs = async (userId: string, fullName?: string, farmName?: string) => {
-    // Check if farm exists
+  const ensureFarmAndPrefs = async (userId: string, fullName?: string, farmNameArg?: string) => {
     const { data: existingFarm } = await supabase
       .from('farms')
-      .select('id, setup_complete')
+      .select('id, name, setup_complete')
       .eq('user_id', userId)
       .maybeSingle();
 
     if (existingFarm) {
+      setFarmId(existingFarm.id);
+      setFarmName(existingFarm.name);
       setFarmReady(existingFarm.setup_complete);
       return;
     }
 
-    // Create farm + preferences for new users
-    const { error: farmError } = await supabase.from('farms').insert({
+    const { data: newFarm, error: farmError } = await supabase.from('farms').insert({
       user_id: userId,
-      name: farmName || 'My Farm',
+      name: farmNameArg || 'My Farm',
       farm_type: 'poultry',
       setup_complete: false,
-    });
+    }).select('id, name').single();
 
-    if (!farmError) {
+    if (!farmError && newFarm) {
+      setFarmId(newFarm.id);
+      setFarmName(newFarm.name);
       await supabase.from('user_preferences').insert({
         user_id: userId,
         cost_privacy_enabled: true,
@@ -70,12 +96,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
 
       if (session?.user) {
-        // Defer to avoid Supabase auth deadlock
         setTimeout(() => {
           checkFarmSetup(session.user.id);
         }, 0);
       } else {
         setFarmReady(null);
+        setFarmId(null);
+        setFarmName('My Farm');
+        setCurrency('GHS');
       }
     });
 
@@ -91,7 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, fullName: string, farmName: string) => {
+  const signUp = async (email: string, password: string, fullName: string, farmNameArg: string) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -103,9 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (error) return { error };
 
-    // With auto-confirm enabled, user gets a session immediately
     if (data.user) {
-      await ensureFarmAndPrefs(data.user.id, fullName, farmName);
+      await ensureFarmAndPrefs(data.user.id, fullName, farmNameArg);
     }
 
     return { error: null };
@@ -119,6 +146,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setFarmReady(null);
+    setFarmId(null);
+    setFarmName('My Farm');
+    setCurrency('GHS');
   };
 
   const recheckFarm = async () => {
@@ -126,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, farmReady, signUp, signIn, signOut, recheckFarm }}>
+    <AuthContext.Provider value={{ user, session, loading, farmReady, farmId, farmName, currency, signUp, signIn, signOut, recheckFarm }}>
       {children}
     </AuthContext.Provider>
   );

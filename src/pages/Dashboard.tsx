@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
-import { getBatchAge } from '@/lib/batch-utils';
+import { getBatchAge, recordMortality } from '@/lib/batch-utils';
 import {
   cacheFarms, cacheBatches, cacheActivities,
   getCachedFarms, getCachedBatches, getCachedActivities
@@ -12,40 +12,40 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Layers, ClipboardList, Wallet, TrendingUp, Plus, Eye, EyeOff,
-  AlertCircle, Clock, Skull
+  Clock, Skull
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { format } from 'date-fns';
+import { format, subDays, startOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type Activity = Database['public']['Tables']['activity_log']['Row'];
 
-const sampleChartData = [
-  { name: 'Mon', value: 0 }, { name: 'Tue', value: 0 },
-  { name: 'Wed', value: 0 }, { name: 'Thu', value: 0 },
-  { name: 'Fri', value: 0 }, { name: 'Sat', value: 0 },
-  { name: 'Sun', value: 0 },
-];
-
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, farmId, farmName, currency } = useAuth();
   const navigate = useNavigate();
-  const { costPrivacyEnabled, setCostPrivacy, toggleCostPrivacy, isOnline, setSyncing } = useAppStore();
+  const { costPrivacyEnabled, toggleCostPrivacy, isOnline, setSyncing } = useAppStore();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
-  const [farmName, setFarmName] = useState('');
-  const [farmId, setFarmId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Mortality modal state
+  // Real stat data
+  const [tasksToday, setTasksToday] = useState(0);
+  const [weeklyExpenses, setWeeklyExpenses] = useState(0);
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0);
+
+  // Chart data
+  const [expenseChartData, setExpenseChartData] = useState<{ name: string; value: number }[]>([]);
+  const [eggChartData, setEggChartData] = useState<{ name: string; value: number }[]>([]);
+
+  // Mortality modal
   const [mortalityBatch, setMortalityBatch] = useState<Batch | null>(null);
   const [mortalityCount, setMortalityCount] = useState('1');
   const [mortalityCause, setMortalityCause] = useState('');
@@ -58,28 +58,13 @@ export default function Dashboard() {
     const loadData = async () => {
       setIsLoading(true);
 
-      // Online path: fetch from Supabase, cache into Dexie
       if (navigator.onLine) {
         try {
           setSyncing(true);
-
-          // Cache farms & get user's farm
           const farms = await cacheFarms(user.id);
           const farm = farms?.[0];
 
-          // Sync cost privacy preference
-          const { data: prefs } = await supabase
-            .from('user_preferences')
-            .select('cost_privacy_enabled')
-            .eq('user_id', user.id)
-            .maybeSingle();
-          if (prefs) setCostPrivacy(prefs.cost_privacy_enabled);
-
           if (farm) {
-            setFarmName(farm.name);
-            setFarmId(farm.id);
-
-            // Cache batches & activities in parallel
             const [batchData, activityData] = await Promise.all([
               cacheBatches(farm.id),
               cacheActivities(farm.id),
@@ -88,6 +73,9 @@ export default function Dashboard() {
             const activeBatches = (batchData ?? []).filter(b => b.status === 'active');
             setBatches(activeBatches as Batch[]);
             setActivities((activityData ?? []).slice(0, 10) as Activity[]);
+
+            // Fetch real stats
+            await loadStats(farm.id);
           }
         } catch (err: unknown) {
           console.warn('Online fetch failed, falling back to cache:', err);
@@ -96,11 +84,46 @@ export default function Dashboard() {
           setSyncing(false);
         }
       } else {
-        // Offline path: read from Dexie cache
         await loadFromCache();
       }
 
       setIsLoading(false);
+    };
+
+    const loadStats = async (fId: string) => {
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      const weekAgoStr = format(subDays(new Date(), 7), 'yyyy-MM-dd');
+      const monthStartStr = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+
+      const [batchTasksRes, healthTasksRes, expensesRes, revenueRes, dailyExpensesRes, eggRecordsRes] = await Promise.all([
+        supabase.from('batch_tasks').select('id', { count: 'exact', head: true }).eq('farm_id', fId).eq('completed', false).lte('due_date', todayStr),
+        supabase.from('health_tasks').select('id', { count: 'exact', head: true }).eq('farm_id', fId).eq('completed', false).lte('scheduled_date', todayStr),
+        supabase.from('expenses').select('amount').eq('farm_id', fId).gte('date', weekAgoStr),
+        supabase.from('revenue').select('amount').eq('farm_id', fId).gte('date', monthStartStr),
+        supabase.from('expenses').select('amount, date').eq('farm_id', fId).gte('date', weekAgoStr).order('date'),
+        supabase.from('egg_records').select('total_eggs, date').eq('farm_id', fId).gte('date', weekAgoStr).order('date'),
+      ]);
+
+      setTasksToday((batchTasksRes.count ?? 0) + (healthTasksRes.count ?? 0));
+      setWeeklyExpenses((expensesRes.data ?? []).reduce((s, e) => s + Number(e.amount), 0));
+      setMonthlyRevenue((revenueRes.data ?? []).reduce((s, r) => s + Number(r.amount), 0));
+
+      // Build 7-day expense chart
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const expByDay: Record<string, number> = {};
+      const eggByDay: Record<string, number> = {};
+      for (let i = 6; i >= 0; i--) {
+        const d = subDays(new Date(), i);
+        const key = format(d, 'yyyy-MM-dd');
+        const label = dayNames[d.getDay()];
+        expByDay[key] = 0;
+        eggByDay[key] = 0;
+      }
+      for (const e of dailyExpensesRes.data ?? []) expByDay[e.date] = (expByDay[e.date] ?? 0) + Number(e.amount);
+      for (const e of eggRecordsRes.data ?? []) eggByDay[e.date] = (eggByDay[e.date] ?? 0) + e.total_eggs;
+
+      setExpenseChartData(Object.entries(expByDay).map(([d, v]) => ({ name: dayNames[new Date(d).getDay()], value: v })));
+      setEggChartData(Object.entries(eggByDay).map(([d, v]) => ({ name: dayNames[new Date(d).getDay()], value: v })));
     };
 
     const loadFromCache = async () => {
@@ -108,8 +131,6 @@ export default function Dashboard() {
         const cachedFarms = await getCachedFarms(user!.id);
         const farm = cachedFarms[0];
         if (farm) {
-          setFarmName(farm.name);
-          setFarmId(farm.id);
           const [cachedBatches, cachedActivities] = await Promise.all([
             getCachedBatches(farm.id),
             getCachedActivities(farm.id),
@@ -124,7 +145,7 @@ export default function Dashboard() {
     };
 
     loadData();
-  }, [user, setCostPrivacy, setSyncing]);
+  }, [user, setSyncing]);
 
   const handleToggleCostPrivacy = async () => {
     toggleCostPrivacy();
@@ -140,23 +161,21 @@ export default function Dashboard() {
     const count = parseInt(mortalityCount) || 0;
     if (count <= 0) { toast.error('Count must be positive'); setMortalitySubmitting(false); return; }
 
-    const { error: mrError } = await supabase.from('mortality_records').insert({
-      batch_id: mortalityBatch.id,
-      farm_id: farmId,
+    const newPop = await recordMortality({
+      batchId: mortalityBatch.id,
+      farmId,
+      batchName: mortalityBatch.name,
+      currentPopulation: mortalityBatch.current_population,
       count,
-      cause: mortalityCause || null,
-      notes: mortalityNotes || null,
+      cause: mortalityCause || undefined,
+      notes: mortalityNotes || undefined,
     });
-    if (mrError) { toast.error('Failed to record mortality', { description: mrError.message }); setMortalitySubmitting(false); return; }
 
-    const newPop = Math.max(0, mortalityBatch.current_population - count);
-    await supabase.from('batches').update({ current_population: newPop }).eq('id', mortalityBatch.id);
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: mortalityBatch.id,
-      event_type: 'mortality',
-      description: `Recorded ${count} mortality in ${mortalityBatch.name}${mortalityCause ? `: ${mortalityCause}` : ''}`,
-    });
+    if (newPop === null) {
+      toast.error('Failed to record mortality');
+      setMortalitySubmitting(false);
+      return;
+    }
 
     setBatches(prev => prev.map(b => b.id === mortalityBatch.id ? { ...b, current_population: newPop } : b));
     setMortalityBatch(null);
@@ -167,13 +186,17 @@ export default function Dashboard() {
     toast.success(`Recorded ${count} mortality`);
   };
 
+  const formatCurrency = (amount: number) => {
+    return `${currency} ${amount.toFixed(2)}`;
+  };
+
   const maskedValue = (value: string) => costPrivacyEnabled ? '• • • •' : value;
 
   const statCards = [
     { title: 'Active Batches', value: String(batches.length), icon: Layers, masked: false },
-    { title: 'Tasks Today', value: '0', icon: ClipboardList, masked: false },
-    { title: 'Weekly Expenses', value: maskedValue('GHS 0.00'), icon: Wallet, masked: true },
-    { title: 'Monthly Revenue', value: maskedValue('GHS 0.00'), icon: TrendingUp, masked: true },
+    { title: 'Tasks Today', value: String(tasksToday), icon: ClipboardList, masked: false },
+    { title: 'Weekly Expenses', value: maskedValue(formatCurrency(weeklyExpenses)), icon: Wallet, masked: true },
+    { title: 'Monthly Revenue', value: maskedValue(formatCurrency(monthlyRevenue)), icon: TrendingUp, masked: true },
   ];
 
   if (isLoading) {
@@ -276,20 +299,10 @@ export default function Dashboard() {
                           </div>
                         </div>
                         <div className="flex gap-2 mt-3">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 rounded-full text-xs gap-1"
-                            onClick={() => navigate(`/batches/${batch.id}`)}
-                          >
+                          <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" onClick={() => navigate(`/batches/${batch.id}`)}>
                             <Eye className="h-3 w-3" /> View
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1 rounded-full text-xs gap-1"
-                            onClick={() => setMortalityBatch(batch)}
-                          >
+                          <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" onClick={() => setMortalityBatch(batch)}>
                             <Skull className="h-3 w-3" /> Mortality
                           </Button>
                         </div>
@@ -306,57 +319,48 @@ export default function Dashboard() {
               <CardTitle className="text-base">Analytics</CardTitle>
             </CardHeader>
             <CardContent>
-              <Tabs defaultValue="overview">
+              <Tabs defaultValue="expenses">
                 <TabsList className="mb-4">
-                  <TabsTrigger value="overview">Overview</TabsTrigger>
                   <TabsTrigger value="expenses">Expenses</TabsTrigger>
-                  <TabsTrigger value="production">Production</TabsTrigger>
-                  <TabsTrigger value="performance">Performance</TabsTrigger>
+                  <TabsTrigger value="production">Egg Production</TabsTrigger>
                 </TabsList>
-                <TabsContent value="overview">
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                      <p className="text-sm">No data yet. Create a batch to see analytics.</p>
-                    </div>
-                  </div>
-                </TabsContent>
                 <TabsContent value="expenses">
-                  <ResponsiveContainer width="100%" height={256}>
-                    <BarChart data={sampleChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip />
-                      <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {expenseChartData.some(d => d.value > 0) ? (
+                    <ResponsiveContainer width="100%" height={256}>
+                      <BarChart data={expenseChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
+                        <YAxis className="text-xs fill-muted-foreground" />
+                        <Tooltip formatter={(v: number) => formatCurrency(v)} />
+                        <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">No expenses this week</div>
+                  )}
                 </TabsContent>
                 <TabsContent value="production">
-                  <ResponsiveContainer width="100%" height={256}>
-                    <LineChart data={sampleChartData}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                      <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
-                      <YAxis className="text-xs fill-muted-foreground" />
-                      <Tooltip />
-                      <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </TabsContent>
-                <TabsContent value="performance">
-                  <div className="h-64 flex items-center justify-center text-muted-foreground">
-                    <div className="text-center">
-                      <AlertCircle className="h-8 w-8 mx-auto mb-2 text-muted-foreground/40" />
-                      <p className="text-sm">Performance data requires at least one completed batch.</p>
-                    </div>
-                  </div>
+                  {eggChartData.some(d => d.value > 0) ? (
+                    <ResponsiveContainer width="100%" height={256}>
+                      <LineChart data={eggChartData}>
+                        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                        <XAxis dataKey="name" className="text-xs fill-muted-foreground" />
+                        <YAxis className="text-xs fill-muted-foreground" />
+                        <Tooltip />
+                        <Line type="monotone" dataKey="value" stroke="hsl(var(--primary))" strokeWidth={2} />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-64 flex items-center justify-center text-sm text-muted-foreground">No egg production data this week</div>
+                  )}
                 </TabsContent>
               </Tabs>
             </CardContent>
           </Card>
         </div>
 
-        <div className="hidden lg:block">
+        {/* Activity feed — visible on all sizes */}
+        <div>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Recent Activity</CardTitle>
@@ -368,7 +372,7 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground">No activity yet</p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-3 max-h-80 overflow-y-auto">
                   {activities.map((activity) => (
                     <div key={activity.id} className="flex gap-3 text-sm">
                       <div className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
@@ -392,6 +396,7 @@ export default function Dashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Record Mortality — {mortalityBatch?.name}</DialogTitle>
+            <DialogDescription>Record bird deaths for this batch. The population count will be updated automatically.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
