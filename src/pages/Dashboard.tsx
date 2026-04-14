@@ -1,15 +1,20 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
+import { getBatchAge } from '@/lib/batch-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Layers, ClipboardList, Wallet, TrendingUp, Plus, Eye, EyeOff,
-  AlertCircle, Clock
+  AlertCircle, Clock, Skull
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { format } from 'date-fns';
@@ -28,11 +33,20 @@ const sampleChartData = [
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { costPrivacyEnabled, setCostPrivacy, toggleCostPrivacy } = useAppStore();
   const [batches, setBatches] = useState<Batch[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [farmName, setFarmName] = useState('');
+  const [farmId, setFarmId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mortality modal state
+  const [mortalityBatch, setMortalityBatch] = useState<Batch | null>(null);
+  const [mortalityCount, setMortalityCount] = useState('1');
+  const [mortalityCause, setMortalityCause] = useState('');
+  const [mortalityNotes, setMortalityNotes] = useState('');
+  const [mortalitySubmitting, setMortalitySubmitting] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -40,7 +54,7 @@ export default function Dashboard() {
     const loadData = async () => {
       setIsLoading(true);
       try {
-        const { data: farms, error: farmError } = await supabase
+        const { data: farm, error: farmError } = await supabase
           .from('farms')
           .select('id, name')
           .eq('user_id', user.id)
@@ -49,7 +63,6 @@ export default function Dashboard() {
 
         if (farmError) throw farmError;
 
-        // Fetch user preferences and hydrate store
         const { data: prefs } = await supabase
           .from('user_preferences')
           .select('cost_privacy_enabled')
@@ -57,12 +70,13 @@ export default function Dashboard() {
           .maybeSingle();
         if (prefs) setCostPrivacy(prefs.cost_privacy_enabled);
 
-        if (farms) {
-          setFarmName(farms.name);
+        if (farm) {
+          setFarmName(farm.name);
+          setFarmId(farm.id);
 
           const [batchResult, activityResult] = await Promise.all([
-            supabase.from('batches').select('*').eq('farm_id', farms.id).eq('status', 'active'),
-            supabase.from('activity_log').select('*').eq('farm_id', farms.id).order('created_at', { ascending: false }).limit(10),
+            supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active'),
+            supabase.from('activity_log').select('*').eq('farm_id', farm.id).order('created_at', { ascending: false }).limit(10),
           ]);
 
           if (batchResult.error) throw batchResult.error;
@@ -84,14 +98,46 @@ export default function Dashboard() {
 
   const handleToggleCostPrivacy = async () => {
     toggleCostPrivacy();
-    // Persist to DB
     if (user) {
       const newValue = !costPrivacyEnabled;
       await supabase.from('user_preferences').update({ cost_privacy_enabled: newValue }).eq('user_id', user.id);
     }
   };
 
-  const maskedValue = (value: string) => costPrivacyEnabled ? '* * * *' : value;
+  const handleRecordMortality = async () => {
+    if (!mortalityBatch || !farmId) return;
+    setMortalitySubmitting(true);
+    const count = parseInt(mortalityCount) || 0;
+    if (count <= 0) { toast.error('Count must be positive'); setMortalitySubmitting(false); return; }
+
+    const { error: mrError } = await supabase.from('mortality_records').insert({
+      batch_id: mortalityBatch.id,
+      farm_id: farmId,
+      count,
+      cause: mortalityCause || null,
+      notes: mortalityNotes || null,
+    });
+    if (mrError) { toast.error('Failed to record mortality', { description: mrError.message }); setMortalitySubmitting(false); return; }
+
+    const newPop = Math.max(0, mortalityBatch.current_population - count);
+    await supabase.from('batches').update({ current_population: newPop }).eq('id', mortalityBatch.id);
+    await supabase.from('activity_log').insert({
+      farm_id: farmId,
+      batch_id: mortalityBatch.id,
+      event_type: 'mortality',
+      description: `Recorded ${count} mortality in ${mortalityBatch.name}${mortalityCause ? `: ${mortalityCause}` : ''}`,
+    });
+
+    setBatches(prev => prev.map(b => b.id === mortalityBatch.id ? { ...b, current_population: newPop } : b));
+    setMortalityBatch(null);
+    setMortalityCount('1');
+    setMortalityCause('');
+    setMortalityNotes('');
+    setMortalitySubmitting(false);
+    toast.success(`Recorded ${count} mortality`);
+  };
+
+  const maskedValue = (value: string) => costPrivacyEnabled ? '• • • •' : value;
 
   const statCards = [
     { title: 'Active Batches', value: String(batches.length), icon: Layers, masked: false },
@@ -108,9 +154,7 @@ export default function Dashboard() {
           <Skeleton className="h-4 w-36" />
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-24 rounded-xl" />
-          ))}
+          {[1, 2, 3, 4].map((i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
         <Skeleton className="h-64 rounded-xl" />
       </div>
@@ -151,7 +195,7 @@ export default function Dashboard() {
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-foreground">Active Batches</h2>
               <Button variant="outline" size="sm" className="gap-1.5 rounded-full" asChild>
-                <Link to="/batches"><Plus className="h-4 w-4" /> New Batch</Link>
+                <Link to="/batches/new"><Plus className="h-4 w-4" /> New Batch</Link>
               </Button>
             </div>
 
@@ -162,45 +206,62 @@ export default function Dashboard() {
                   <h3 className="text-lg font-semibold text-foreground mb-1">No active batches</h3>
                   <p className="text-sm text-muted-foreground mb-4">Create your first batch to start tracking your flock.</p>
                   <Button className="gap-1.5 rounded-full" asChild>
-                    <Link to="/batches"><Plus className="h-4 w-4" /> Create First Batch</Link>
+                    <Link to="/batches/new"><Plus className="h-4 w-4" /> Create First Batch</Link>
                   </Button>
                 </CardContent>
               </Card>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {batches.map((batch) => (
-                  <Card key={batch.id}>
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-2">
-                        <div>
-                          <p className="font-semibold text-foreground">{batch.name}</p>
-                          <p className="text-xs text-muted-foreground capitalize">{batch.species}</p>
+                {batches.map((batch) => {
+                  const age = getBatchAge(batch.start_date, batch.species);
+                  return (
+                    <Card key={batch.id}>
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-2">
+                          <div>
+                            <p className="font-semibold text-foreground">{batch.name}</p>
+                            <p className="text-xs text-muted-foreground capitalize">{batch.species}</p>
+                          </div>
+                          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize">
+                            {age.phase}
+                          </span>
                         </div>
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary capitalize">
-                          {batch.phase}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mt-3">
-                        <div>
-                          <p className="font-medium text-foreground">{batch.current_population}</p>
-                          <p>Birds</p>
+                        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mt-3">
+                          <div>
+                            <p className="font-medium text-foreground">{batch.current_population}</p>
+                            <p>Birds</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">Wk {age.week}</p>
+                            <p>Day {age.day}</p>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{format(new Date(batch.start_date), 'MMM d')}</p>
+                            <p>Started</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">Wk {batch.current_week}</p>
-                          <p>Day {batch.current_day}</p>
+                        <div className="flex gap-2 mt-3">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 rounded-full text-xs gap-1"
+                            onClick={() => navigate(`/batches/${batch.id}`)}
+                          >
+                            <Eye className="h-3 w-3" /> View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 rounded-full text-xs gap-1"
+                            onClick={() => setMortalityBatch(batch)}
+                          >
+                            <Skull className="h-3 w-3" /> Mortality
+                          </Button>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">0</p>
-                          <p>Tasks</p>
-                        </div>
-                      </div>
-                      <div className="flex gap-2 mt-3">
-                        <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs">View</Button>
-                        <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs">Mortality</Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -290,6 +351,33 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
+
+      {/* Mortality Modal */}
+      <Dialog open={!!mortalityBatch} onOpenChange={() => setMortalityBatch(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Record Mortality — {mortalityBatch?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Count</Label>
+              <Input type="number" min="1" value={mortalityCount} onChange={e => setMortalityCount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Cause (optional)</Label>
+              <Input value={mortalityCause} onChange={e => setMortalityCause(e.target.value)} placeholder="e.g., Disease, Predator, Unknown" />
+            </div>
+            <div className="space-y-2">
+              <Label>Notes (optional)</Label>
+              <Textarea value={mortalityNotes} onChange={e => setMortalityNotes(e.target.value)} placeholder="Additional details..." />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMortalityBatch(null)}>Cancel</Button>
+            <Button onClick={handleRecordMortality} disabled={mortalitySubmitting}>Record</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

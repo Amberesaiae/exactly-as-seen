@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { getBatchAge } from '@/lib/batch-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -140,45 +141,48 @@ export default function Batches() {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {batches.map(batch => (
-            <Card key={batch.id}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-semibold text-foreground">{batch.name}</p>
-                    <p className="text-xs text-muted-foreground capitalize">{batch.species} • {batch.production_system.replace('_', ' ')}</p>
+          {batches.map(batch => {
+            const age = getBatchAge(batch.start_date, batch.species);
+            return (
+              <Card key={batch.id}>
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-semibold text-foreground">{batch.name}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{batch.species} • {batch.production_system.replace('_', ' ')}</p>
+                    </div>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
+                      batch.status === 'active' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
+                    }`}>
+                      {age.phase}
+                    </span>
                   </div>
-                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${
-                    batch.status === 'active' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'
-                  }`}>
-                    {batch.phase}
-                  </span>
-                </div>
-                <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mt-3">
-                  <div>
-                    <p className="font-medium text-foreground">{batch.current_population}</p>
-                    <p>Birds</p>
+                  <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground mt-3">
+                    <div>
+                      <p className="font-medium text-foreground">{batch.current_population}</p>
+                      <p>Birds</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">Wk {age.week}</p>
+                      <p>Day {age.day}</p>
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{format(new Date(batch.start_date), 'MMM d')}</p>
+                      <p>Started</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">Wk {batch.current_week}</p>
-                    <p>Day {batch.current_day}</p>
+                  <div className="flex gap-2 mt-3">
+                    <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" asChild>
+                      <Link to={`/batches/${batch.id}`}><Eye className="h-3 w-3" /> View</Link>
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" onClick={() => setMortalityBatch(batch)}>
+                      <Skull className="h-3 w-3" /> Mortality
+                    </Button>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{format(new Date(batch.start_date), 'MMM d')}</p>
-                    <p>Started</p>
-                  </div>
-                </div>
-                <div className="flex gap-2 mt-3">
-                  <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" asChild>
-                    <Link to={`/batches/${batch.id}`}><Eye className="h-3 w-3" /> View</Link>
-                  </Button>
-                  <Button variant="outline" size="sm" className="flex-1 rounded-full text-xs gap-1" onClick={() => setMortalityBatch(batch)}>
-                    <Skull className="h-3 w-3" /> Mortality
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
