@@ -1,4 +1,4 @@
-// Vaccination schedules and medication reference data
+// Vaccination schedules, medication reference data, and species health alerts
 
 export interface VaccineTemplate {
   name: string;
@@ -82,4 +82,135 @@ export function getExpectedRate(species: string, week: number): { min: number; m
   const phase = curves.find(p => week >= p.weekStart && week <= p.weekEnd);
   if (!phase) return null;
   return { min: phase.rateMin, max: phase.rateMax };
+}
+
+// ─── Species-Specific Health Alerts ───────────────────────────────────
+
+export interface HealthAlert {
+  id: string;
+  species: string[];
+  phases?: string[];        // if set, only show during these phases
+  minWeek?: number;
+  maxWeek?: number;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  description: string;
+}
+
+export const SPECIES_HEALTH_ALERTS: HealthAlert[] = [
+  {
+    id: 'duck-niacin',
+    species: ['duck'],
+    severity: 'warning',
+    title: 'Niacin Supplementation Required',
+    description: 'Ducks require higher niacin than chickens. Add 100–150 mg niacin per gallon of drinking water or use niacin-fortified feed to prevent leg problems.',
+  },
+  {
+    id: 'turkey-blackhead',
+    species: ['turkey'],
+    severity: 'critical',
+    title: 'Blackhead (Histomoniasis) Risk',
+    description: 'Never house turkeys near chickens or on ground previously used by chickens. Chickens carry the protozoan asymptomatically but it is often fatal to turkeys.',
+  },
+  {
+    id: 'turkey-starve-out',
+    species: ['turkey'],
+    phases: ['starter'],
+    maxWeek: 2,
+    severity: 'warning',
+    title: 'Turkey Poult Starve-Out Risk',
+    description: 'Turkey poults may not find feed/water initially. Use bright lights, coloured marbles in waterers, and tap feeders to stimulate eating in the first 72 hours.',
+  },
+  {
+    id: 'broiler-ascites',
+    species: ['broiler'],
+    phases: ['finisher'],
+    minWeek: 4,
+    severity: 'warning',
+    title: 'Ascites & Sudden Death Risk',
+    description: 'Fast-growing broilers in finisher phase are prone to ascites and sudden death syndrome. Ensure adequate ventilation and consider feed restriction if mortality spikes.',
+  },
+  {
+    id: 'broiler-processing',
+    species: ['broiler'],
+    phases: ['finisher'],
+    minWeek: 5,
+    severity: 'info',
+    title: 'Processing Preparation',
+    description: 'Review all active medication withdrawal periods before scheduling processing. Ensure all drugs have cleared the required withdrawal days.',
+  },
+  {
+    id: 'layer-calcium',
+    species: ['layer'],
+    phases: ['layer'],
+    minWeek: 16,
+    severity: 'info',
+    title: 'Begin Calcium Supplementation',
+    description: 'Switch to layer feed (3.5–4% calcium) or provide oyster shell free-choice. Inadequate calcium leads to soft shells and cage layer fatigue.',
+  },
+  {
+    id: 'layer-prelay',
+    species: ['layer'],
+    phases: ['grower'],
+    minWeek: 14,
+    maxWeek: 18,
+    severity: 'info',
+    title: 'Pre-Lay Transition',
+    description: 'Begin transitioning from grower to pre-layer feed. Increase light exposure gradually to 14–16 hours to stimulate onset of lay.',
+  },
+  {
+    id: 'heat-stress-general',
+    species: ['broiler', 'layer', 'duck', 'turkey'],
+    severity: 'warning',
+    title: 'Heat Stress Management',
+    description: 'When ambient temperature exceeds 32°C: increase ventilation, add electrolytes to water, provide cool drinking water, and reduce feed during peak heat hours.',
+  },
+  {
+    id: 'coccidiosis-risk',
+    species: ['broiler', 'layer'],
+    phases: ['starter', 'chick'],
+    minWeek: 2,
+    maxWeek: 6,
+    severity: 'warning',
+    title: 'Peak Coccidiosis Risk',
+    description: 'Weeks 2–6 carry highest coccidiosis risk. Monitor for bloody droppings, hunched posture, and reduced feed intake. Keep litter dry and consider preventive Amprolium.',
+  },
+];
+
+/**
+ * Get active health alerts for a given species, phase, and week.
+ * Also checks temperature for heat stress trigger.
+ */
+export function getActiveAlerts(
+  species: string,
+  phase: string,
+  week: number,
+  latestTempC?: number | null,
+): HealthAlert[] {
+  return SPECIES_HEALTH_ALERTS.filter(alert => {
+    if (!alert.species.includes(species)) return false;
+    if (alert.phases && !alert.phases.includes(phase)) return false;
+    if (alert.minWeek && week < alert.minWeek) return false;
+    if (alert.maxWeek && week > alert.maxWeek) return false;
+    // Only show heat-stress-general when temp is actually high
+    if (alert.id === 'heat-stress-general' && (!latestTempC || latestTempC < 32)) return false;
+    return true;
+  });
+}
+
+/**
+ * Get the vaccination route from the template for a given vaccine name and species.
+ */
+export function getVaccineRoute(vaccineName: string, species: string): string | null {
+  const template = VACCINATION_TEMPLATES.find(
+    t => t.name === vaccineName && t.species.includes(species)
+  );
+  return template?.route ?? null;
+}
+
+/**
+ * Get the MedicationTemplate for a given product name.
+ */
+export function getMedTemplate(productName: string): MedicationTemplate | null {
+  return MEDICATION_TEMPLATES.find(m => m.name === productName) ?? null;
 }
