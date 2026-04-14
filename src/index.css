@@ -47,6 +47,9 @@
     --warning-foreground: 0 0% 100%;
     --success: 142 71% 35%;
     --success-foreground: 0 0% 100%;
+
+    --accent-gold: 42 87% 55%;
+    --accent-gold-foreground: 42 87% 20%;
   }
 
   .dark {
@@ -91,6 +94,9 @@
     --warning-foreground: 0 0% 100%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 100%;
+
+    --accent-gold: 42 87% 50%;
+    --accent-gold-foreground: 42 87% 85%;
   }
 }
 
