@@ -4,9 +4,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Sprout, Loader2, ArrowLeft, Mail } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'framer-motion';
+import { AuthPanel } from '@/components/landing/LandingDecorations';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -28,18 +29,26 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md animate-fade-in">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <Sprout className="h-6 w-6" />
-          </div>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
-          <CardDescription>
+    <div className="grid min-h-screen lg:grid-cols-2">
+      <div className="flex flex-col justify-center px-6 sm:px-12 lg:px-16 py-12">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+          className="mx-auto w-full max-w-sm"
+        >
+          <Link to="/welcome" className="inline-flex items-center gap-2 mb-10">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+              <Sprout className="h-5 w-5" />
+            </div>
+            <span className="text-xl font-bold tracking-tight text-foreground">LampFarms</span>
+          </Link>
+
+          <h1 className="text-2xl font-extrabold tracking-tight text-foreground mb-1">Reset Password</h1>
+          <p className="text-muted-foreground text-sm mb-8">
             {sent ? 'Check your email for a reset link' : "Enter your email and we'll send you a reset link"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+
           {sent ? (
             <div className="flex flex-col items-center gap-4 py-4">
               <Mail className="h-12 w-12 text-primary" />
@@ -52,22 +61,25 @@ export default function ForgotPassword() {
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required />
+                <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" required className="h-11 rounded-xl" />
               </div>
-              <Button type="submit" disabled={submitting} className="w-full rounded-full font-semibold">
+              <Button type="submit" disabled={submitting} className="w-full rounded-full font-semibold h-11">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Send Reset Link'}
               </Button>
             </form>
           )}
-          <div className="mt-4 text-center">
+
+          <div className="mt-6 text-center">
             <Link to="/login" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
               <ArrowLeft className="h-3 w-3" /> Back to Sign In
             </Link>
           </div>
-        </CardContent>
-      </Card>
+        </motion.div>
+      </div>
+
+      <AuthPanel />
     </div>
   );
 }
