@@ -14,6 +14,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { User, Home, Settings, LogOut, Trash2, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { GHANA_REGIONS, DISTRICTS_BY_REGION } from '@/lib/ghana-regions';
+import { isPasswordStrong } from '@/lib/password-validation';
+import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
 import type { Database } from '@/integrations/supabase/types';
 
 type Farm = Database['public']['Tables']['farms']['Row'];
@@ -110,7 +112,7 @@ export default function SettingsPage() {
 
   const changePassword = async () => {
     if (newPassword !== confirmPassword) { toast.error('Passwords do not match'); return; }
-    if (newPassword.length < 6) { toast.error('Min 6 characters'); return; }
+    if (!isPasswordStrong(newPassword)) { toast.error('Password does not meet strength requirements'); return; }
     setPasswordSubmitting(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     setPasswordSubmitting(false);
@@ -229,7 +231,7 @@ export default function SettingsPage() {
         <DialogContent>
           <DialogHeader><DialogTitle>Change Password</DialogTitle></DialogHeader>
           <div className="space-y-3">
-            <div className="space-y-1"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={6} /></div>
+            <div className="space-y-1"><Label>New Password</Label><Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} minLength={8} /><PasswordStrengthIndicator password={newPassword} /></div>
             <div className="space-y-1"><Label>Confirm Password</Label><Input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} /></div>
           </div>
           <DialogFooter>
