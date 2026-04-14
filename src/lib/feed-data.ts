@@ -48,6 +48,8 @@ export const INGREDIENTS: Ingredient[] = [
   { name: 'Wheat Bran', category: 'energy', proteinPct: 15, energyKcal: 1800, calciumPct: 0.12, defaultPricePerKg: 2.0 },
   { name: 'Rice Bran', category: 'energy', proteinPct: 12, energyKcal: 2200, calciumPct: 0.08, defaultPricePerKg: 1.8 },
   { name: 'Palm Kernel Cake (PKC)', category: 'energy', proteinPct: 18, energyKcal: 2200, calciumPct: 0.3, defaultPricePerKg: 2.5 },
+  { name: 'Sorghum (Low-Tannin)', category: 'energy', proteinPct: 10, energyKcal: 3200, calciumPct: 0.03, defaultPricePerKg: 3.2 },
+  { name: 'Cassava Peel (HQCP)', category: 'energy', proteinPct: 4, energyKcal: 2800, calciumPct: 0.1, defaultPricePerKg: 0.9 },
   // Protein sources
   { name: 'Soybean Meal', category: 'protein', proteinPct: 44, energyKcal: 2230, calciumPct: 0.3, defaultPricePerKg: 6.0 },
   { name: 'Fish Meal', category: 'protein', proteinPct: 60, energyKcal: 2800, calciumPct: 5.0, defaultPricePerKg: 8.0 },
@@ -66,6 +68,45 @@ export const INGREDIENTS: Ingredient[] = [
   { name: 'Niacin (Vitamin B3)', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 30.0 },
 ];
 
+// Commercial feed types per species
+export interface CommercialFeedType {
+  label: string;
+  proteinRange: string;
+  species: string[];
+  phase: string;
+}
+
+export const COMMERCIAL_FEED_TYPES: CommercialFeedType[] = [
+  { label: 'Broiler Starter (22–24% protein)', proteinRange: '22-24', species: ['broiler'], phase: 'starter' },
+  { label: 'Broiler Grower (20–22% protein)', proteinRange: '20-22', species: ['broiler'], phase: 'grower' },
+  { label: 'Broiler Finisher (18–20% protein)', proteinRange: '18-20', species: ['broiler'], phase: 'finisher' },
+  { label: 'Layer Chick Starter (20% protein)', proteinRange: '20', species: ['layer'], phase: 'chick' },
+  { label: 'Layer Grower (16% protein)', proteinRange: '16', species: ['layer'], phase: 'grower' },
+  { label: 'Layer Mash (17% protein)', proteinRange: '17', species: ['layer'], phase: 'layer' },
+  { label: 'Duck Starter (22% protein)', proteinRange: '22', species: ['duck'], phase: 'starter' },
+  { label: 'Duck Grower (18% protein)', proteinRange: '18', species: ['duck'], phase: 'grower' },
+  { label: 'Turkey Starter (28% protein)', proteinRange: '28', species: ['turkey'], phase: 'starter' },
+  { label: 'Turkey Grower (22% protein)', proteinRange: '22', species: ['turkey'], phase: 'grower' },
+  { label: 'Turkey Finisher (18% protein)', proteinRange: '18', species: ['turkey'], phase: 'finisher' },
+];
+
+// Concentrate products
+export interface ConcentrateProduct {
+  name: string;
+  proteinPct: number;
+  species: string[];
+  ratioRange: [number, number]; // min:max concentrate percentage
+  defaultRatio: number;
+  pricePerKg: number;
+}
+
+export const CONCENTRATE_PRODUCTS: ConcentrateProduct[] = [
+  { name: 'Broiler Concentrate 40%', proteinPct: 40, species: ['broiler'], ratioRange: [30, 50], defaultRatio: 40, pricePerKg: 8.0 },
+  { name: 'Layer Concentrate 35%', proteinPct: 35, species: ['layer'], ratioRange: [30, 45], defaultRatio: 35, pricePerKg: 7.5 },
+  { name: 'Super Concentrate 45%', proteinPct: 45, species: ['broiler', 'layer', 'turkey'], ratioRange: [30, 50], defaultRatio: 40, pricePerKg: 10.0 },
+  { name: 'Duck/Turkey Concentrate 38%', proteinPct: 38, species: ['duck', 'turkey'], ratioRange: [30, 50], defaultRatio: 40, pricePerKg: 8.5 },
+];
+
 export interface SafetyRule {
   id: string;
   description: string;
@@ -81,7 +122,7 @@ export const SAFETY_RULES: SafetyRule[] = [
       const hasGroundnut = names.some(n => n.toLowerCase().includes('groundnut'));
       const hasToxinBinder = names.some(n => n.toLowerCase().includes('toxin'));
       if ((hasMaize || hasGroundnut) && !hasToxinBinder) {
-        return { warning: true, message: 'Add Toxin Binder when using maize or groundnut cake' };
+        return { warning: true, message: 'Add Toxin Binder when using maize or groundnut cake — aflatoxin protection' };
       }
       return null;
     },
@@ -92,7 +133,7 @@ export const SAFETY_RULES: SafetyRule[] = [
     check: (species, names) => {
       const hasNiacin = names.some(n => n.toLowerCase().includes('niacin'));
       if (species === 'duck' && !hasNiacin) {
-        return { warning: true, message: 'Ducks require extra Niacin (Vitamin B3) supplementation' };
+        return { warning: true, message: '⚠️ CRITICAL: Ducks require extra Niacin (Vitamin B3) — 1.5 tsp/gallon for leg health' };
       }
       return null;
     },
@@ -103,7 +144,7 @@ export const SAFETY_RULES: SafetyRule[] = [
     check: (species, names) => {
       const hasCotton = names.some(n => n.toLowerCase().includes('cotton'));
       if (species === 'layer' && hasCotton) {
-        return { warning: true, message: 'Cotton Seed Meal is not recommended for layers (gossypol toxicity)' };
+        return { warning: true, message: 'Cotton Seed Meal is BLOCKED for layers — gossypol causes yolk discoloration' };
       }
       return null;
     },
@@ -127,7 +168,18 @@ export const SAFETY_RULES: SafetyRule[] = [
         ['oyster', 'limestone', 'bone meal'].some(c => n.toLowerCase().includes(c))
       );
       if (calciumSources.length > 1) {
-        return { warning: true, message: 'Use only one calcium source at a time' };
+        return { warning: true, message: 'Use only one calcium source — mixing causes mineral imbalances' };
+      }
+      return null;
+    },
+  },
+  {
+    id: 'pkc_enzyme',
+    description: 'PKC >10% needs enzyme',
+    check: (_, names) => {
+      const hasPKC = names.some(n => n.toLowerCase().includes('pkc') || n.toLowerCase().includes('palm kernel'));
+      if (hasPKC) {
+        return { warning: false, message: 'If PKC exceeds 10% of mix, add enzyme supplement for digestibility' };
       }
       return null;
     },
@@ -138,4 +190,29 @@ export function getCurrentPhase(species: string, weekNumber: number): FeedPhase 
   const phases = FEED_PHASES[species];
   if (!phases) return undefined;
   return phases.find(p => weekNumber >= p.weekStart && weekNumber <= p.weekEnd);
+}
+
+/**
+ * Get compulsory auto-add ingredients for a species + selected ingredients
+ */
+export function getCompulsorySupplements(species: string, selectedNames: string[]): Ingredient[] {
+  const result: Ingredient[] = [];
+  const hasMaize = selectedNames.some(n => n.toLowerCase().includes('maize'));
+  const hasGroundnut = selectedNames.some(n => n.toLowerCase().includes('groundnut'));
+  const hasToxin = selectedNames.some(n => n.toLowerCase().includes('toxin'));
+
+  if ((hasMaize || hasGroundnut) && !hasToxin) {
+    const toxin = INGREDIENTS.find(i => i.name.toLowerCase().includes('toxin'));
+    if (toxin) result.push(toxin);
+  }
+
+  if (species === 'duck') {
+    const hasNiacin = selectedNames.some(n => n.toLowerCase().includes('niacin'));
+    if (!hasNiacin) {
+      const niacin = INGREDIENTS.find(i => i.name.toLowerCase().includes('niacin'));
+      if (niacin) result.push(niacin);
+    }
+  }
+
+  return result;
 }
