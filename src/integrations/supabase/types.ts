@@ -14,7 +14,248 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      activity_log: {
+        Row: {
+          batch_id: string | null
+          created_at: string
+          description: string
+          event_type: string
+          farm_id: string
+          id: string
+        }
+        Insert: {
+          batch_id?: string | null
+          created_at?: string
+          description: string
+          event_type: string
+          farm_id: string
+          id?: string
+        }
+        Update: {
+          batch_id?: string | null
+          created_at?: string
+          description?: string
+          event_type?: string
+          farm_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_log_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "activity_log_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      batches: {
+        Row: {
+          created_at: string
+          current_day: number
+          current_population: number
+          current_week: number
+          farm_id: string
+          house_id: string | null
+          id: string
+          initial_quantity: number
+          name: string
+          notes: string | null
+          phase: string
+          production_system: string
+          species: string
+          start_date: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_day?: number
+          current_population?: number
+          current_week?: number
+          farm_id: string
+          house_id?: string | null
+          id?: string
+          initial_quantity?: number
+          name: string
+          notes?: string | null
+          phase?: string
+          production_system?: string
+          species?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_day?: number
+          current_population?: number
+          current_week?: number
+          farm_id?: string
+          house_id?: string | null
+          id?: string
+          initial_quantity?: number
+          name?: string
+          notes?: string | null
+          phase?: string
+          production_system?: string
+          species?: string
+          start_date?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "batches_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "batches_house_id_fkey"
+            columns: ["house_id"]
+            isOneToOne: false
+            referencedRelation: "houses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      farms: {
+        Row: {
+          created_at: string
+          farm_type: string
+          id: string
+          location_district: string | null
+          location_region: string | null
+          name: string
+          setup_complete: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          farm_type?: string
+          id?: string
+          location_district?: string | null
+          location_region?: string | null
+          name: string
+          setup_complete?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          farm_type?: string
+          id?: string
+          location_district?: string | null
+          location_region?: string | null
+          name?: string
+          setup_complete?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      houses: {
+        Row: {
+          capacity: number
+          created_at: string
+          farm_id: string
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          capacity?: number
+          created_at?: string
+          farm_id: string
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          capacity?: number
+          created_at?: string
+          farm_id?: string
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "houses_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          full_name: string | null
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          full_name?: string | null
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_preferences: {
+        Row: {
+          cost_privacy_enabled: boolean
+          created_at: string
+          currency: string
+          id: string
+          theme: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cost_privacy_enabled?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          theme?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cost_privacy_enabled?: boolean
+          created_at?: string
+          currency?: string
+          id?: string
+          theme?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
