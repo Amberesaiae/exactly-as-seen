@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Sprout, Loader2, Check } from 'lucide-react';
+import { Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { isPasswordStrong } from '@/lib/password-validation';
 import { PasswordStrengthIndicator } from '@/components/PasswordStrengthIndicator';
@@ -66,11 +66,8 @@ export default function ResetPassword() {
           transition={{ duration: 0.5 }}
           className="mx-auto w-full max-w-sm"
         >
-          <Link to="/welcome" className="inline-flex items-center gap-2 mb-10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-              <Sprout className="h-5 w-5" />
-            </div>
-            <span className="text-xl font-bold tracking-tight text-foreground">LampFarms</span>
+          <Link to="/welcome" className="inline-block mb-10 text-xl font-black uppercase tracking-tight text-foreground">
+            LampFarms
           </Link>
 
           <h1 className="text-2xl font-extrabold tracking-tight text-foreground mb-1">Set New Password</h1>
