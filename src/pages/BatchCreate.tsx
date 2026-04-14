@@ -164,7 +164,7 @@ export default function BatchCreate() {
                 <Select value={houseId} onValueChange={setHouseId}>
                   <SelectTrigger><SelectValue placeholder="Select a house" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {houses.map(h => (
                       <SelectItem key={h.id} value={h.id}>{h.name} (Cap: {h.capacity})</SelectItem>
                     ))}
