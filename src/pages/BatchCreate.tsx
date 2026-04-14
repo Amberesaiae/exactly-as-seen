@@ -64,7 +64,7 @@ export default function BatchCreate() {
       initial_quantity: qty,
       current_population: qty,
       start_date: startDate,
-      house_id: houseId || null,
+      house_id: houseId && houseId !== 'none' ? houseId : null,
       notes: notes || null,
       status: 'active',
       phase: 'starter',
@@ -187,7 +187,7 @@ export default function BatchCreate() {
                 <div className="flex justify-between"><span className="text-muted-foreground">System</span><span className="font-medium capitalize">{productionSystem.replace('_', ' ')}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Quantity</span><span className="font-medium">{quantity} birds</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Start Date</span><span className="font-medium">{startDate}</span></div>
-                {houseId && <div className="flex justify-between"><span className="text-muted-foreground">House</span><span className="font-medium">{houses.find(h => h.id === houseId)?.name}</span></div>}
+                {houseId && houseId !== 'none' && <div className="flex justify-between"><span className="text-muted-foreground">House</span><span className="font-medium">{houses.find(h => h.id === houseId)?.name}</span></div>}
                 {notes && <div className="flex justify-between"><span className="text-muted-foreground">Notes</span><span className="font-medium truncate max-w-[200px]">{notes}</span></div>}
               </div>
               <p className="text-xs text-muted-foreground">
