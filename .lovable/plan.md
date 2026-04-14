@@ -1,68 +1,137 @@
 
-# LampFarms Phase 1: Auth + Farm Setup + Dashboard
 
-## Overview
-Build the foundation of LampFarms — authentication, farm onboarding wizard, and the main dashboard — as a React frontend with Supabase (Lovable Cloud) for auth and database, plus Dexie.js for offline-first local storage.
+# LampFarms Phase 1 -- Thorough Improvement Plan
 
-## Design System
-- **Brand color**: Green (#16a34a) as primary, matching the spec's FarmVista design system
-- **Font**: Manrope (Google Fonts)
-- **Icons**: Lucide React (no emoji in UI)
-- **Border radius**: Rounded (pill buttons, 12px cards)
-- **Cost privacy**: Financial values masked with dots by default
+After a deep audit of every file in the current codebase, here are all the issues found and the fixes needed.
 
 ---
 
-## 1. Supabase Setup (Lovable Cloud)
-- Enable email/password auth
-- Create database tables via migrations:
-  - `farms` (id, user_id, name, location_region, location_district, farm_type, setup_complete)
-  - `houses` (id, farm_id, name, capacity)
-  - `user_preferences` (id, user_id, cost_privacy_enabled, theme, currency)
-  - `batches` (id, farm_id, house_id, name, species, production_system, status, initial_quantity, current_population, start_date, current_week, current_day, phase, notes)
-  - `activity_log` (id, farm_id, batch_id, event_type, description, created_at)
-- RLS policies: users can only access their own farm data
+## Issues Found
 
-## 2. Auth Pages
-- **Welcome/Landing page**: App name "LampFarms", tagline, Sign In and Create Account buttons
-- **Registration**: Full name, email, password, farm name — creates Supabase auth user + farm record
-- **Sign In**: Email + password, redirects to dashboard (or farm setup if incomplete)
-- **Auth context/provider**: Session management, protected routes, auto-redirect logic
+### 1. App.css contains Vite boilerplate that breaks layout
+`src/App.css` has `#root { max-width: 1280px; margin: 0 auto; padding: 2rem; text-align: center; }` -- this constrains the entire app width, adds unwanted padding, and centers text globally. It is not imported currently but could cause issues if it gets imported.
 
-## 3. Farm Setup Wizard (3 steps, cannot be skipped)
-- **Step 1 — Farm Details**: Farm name (pre-filled from registration), region/district dropdowns (Ghana regions), farm type (poultry, pre-selected)
-- **Step 2 — Houses**: Add at least one house with name + capacity. Can add multiple. Validate unique names.
-- **Step 3 — Preferences**: Currency (GHS default), cost privacy toggle (on by default), theme (light/dark)
-- Progress bar across steps, back navigation, validation before advancing
-- On finish: mark farm setup complete, redirect to dashboard
+**Fix**: Delete or empty `src/App.css` entirely.
 
-## 4. App Shell & Navigation
-- **Desktop**: 240px sidebar with 9 nav items (Dashboard, Batches, Feed, Water-Health, Eggs, Finance, Stock, Records, Settings) + user avatar footer. Active state highlight with green left border.
-- **Mobile**: Top header bar + bottom navigation (Home, Batches, Feed, Health, More). Responsive breakpoint at 768px.
-- Placeholder pages for all nav items (just page title + "Coming soon")
+### 2. Login redirects to /dashboard without checking farm setup
+When a user signs in, `Login.tsx` navigates to `/dashboard` unconditionally. If the user's farm `setup_complete` is `false`, they should go to `/farm-setup` instead.
 
-## 5. Main Dashboard
-- **Quick Stats**: 4 cards — Active Batches count, Tasks Today, Weekly Expenses (masked), Monthly Revenue (masked)
-- **Cost privacy toggle**: Eye icon on financial cards; toggles show/hide, persists preference to Supabase
-- **Active Batch Tiles**: Grid of cards showing species, batch name, week/day, population, phase, pending tasks, quick actions (View, Mortality)
-- **Tab-based Charts section**: 4 tabs (Overview, Expenses, Production, Performance) with Recharts — initially showing empty states or sample data
-- **Recent Activity panel**: Right sidebar on desktop showing last 10 events with timestamps
-- **Empty state**: When no batches exist, show "Create Your First Batch" CTA prominently
-- **Mobile layout**: 2x2 stat grid, stacked batch cards, chart section, no activity sidebar
+**Fix**: After successful `signIn`, query `farms` table for `setup_complete`. If `false`, navigate to `/farm-setup`; otherwise `/dashboard`.
 
-## 6. Offline-First Foundation (Dexie.js)
-- Install and configure Dexie.js with schema matching Supabase tables
-- Create a sync service that:
-  - Caches dashboard data locally on fetch
-  - Serves from cache when offline
-  - Shows sync status badge in header (online/offline/syncing)
-- Write operations save to Dexie first, queue in outbox for sync
-- Basic online/offline detection with visual indicator
+### 3. Register navigates to /farm-setup but email confirmation may be required
+Since auto-confirm is NOT enabled (per plan guidelines), after `signUp` the user gets an email confirmation. The code navigates to `/farm-setup` immediately, but the user won't have a session yet. The `ProtectedRoute` will bounce them to `/welcome`.
 
-## 7. Dependencies to Install
-- `dexie` (IndexedDB wrapper)
-- `recharts` (charts)
-- `lucide-react` (icons — already likely available)
-- `@fontsource/manrope` (font)
-- `zustand` (client state for UI prefs, wizard drafts)
-- `framer-motion` (micro-interactions/transitions)
+**Fix**: After successful signup, show a "Check your email to verify your account" message instead of navigating to `/farm-setup`. Add a confirmation notice page or toast.
+
+### 4. signUp creates farm + preferences with `data.user.id` before email confirmation
+When auto-confirm is off, `data.user` exists but is unconfirmed. The RLS policies use `auth.uid()` which will be null since there's no session. The `farms.insert` and `user_preferences.insert` calls will fail silently due to RLS.
+
+**Fix**: Move farm + preferences creation to a database trigger or handle it on first sign-in. Create a `handle_post_confirmation` approach: either (a) enable auto-confirm for this app since it's a farm management tool (not a public platform), or (b) move farm/prefs creation to the first time the user hits `/farm-setup` after confirming email.
+
+### 5. Cost privacy toggle in Zustand store is not synced with database
+The `useAppStore` initializes `costPrivacyEnabled: true` hardcoded. It never reads from `user_preferences` table. Toggling only changes local state, never persists.
+
+**Fix**: On dashboard load, fetch `user_preferences` and call `setCostPrivacy`. On toggle, also update `user_preferences` in the database.
+
+### 6. Dashboard data loading has no error handling or loading state
+The `useEffect` in Dashboard loads data but shows no loading spinner and silently swallows errors.
+
+**Fix**: Add a `loading` state, show a skeleton/spinner while fetching, and toast on error.
+
+### 7. Dexie.js (offline-first) is set up but never used
+`db.ts` defines the Dexie database and sync outbox, but no code reads from or writes to it. The offline-first foundation is incomplete.
+
+**Fix**: Create a `src/lib/sync.ts` service that:
+- After fetching from Supabase, caches data into Dexie
+- When offline, reads from Dexie cache
+- Write operations go to Dexie first, then queue in outbox
+- On reconnect, flush the outbox to Supabase
+
+### 8. FarmSetup `handleFinish` does not check for Supabase errors
+Each `await supabase.from(...)` call returns `{ error }` but the code doesn't check them. It's wrapped in try/catch, but Supabase client doesn't throw on errors -- it returns them.
+
+**Fix**: Check `error` on each Supabase call and surface the first failure with a toast.
+
+### 9. No Google authentication
+The plan says to add Google auth for signups/logins.
+
+**Fix**: Add Google OAuth sign-in button on Login and Register pages using `supabase.auth.signInWithOAuth({ provider: 'google' })`. Configure Google auth provider via Cloud auth settings.
+
+### 10. FarmSetup step 2 does not validate unique house names
+The plan requires unique house names but validation is missing.
+
+**Fix**: In `canAdvance()` for step 2, also check that all house names are unique (case-insensitive).
+
+### 11. Mobile header uses inline SVG instead of Lucide Sprout icon
+The `AppLayout.tsx` mobile header has a hand-coded SVG instead of using the `Sprout` icon from lucide-react for consistency.
+
+**Fix**: Import and use `Sprout` from lucide-react.
+
+### 12. NotFound page uses basic styling, not the app design system
+The 404 page uses `bg-muted` and basic anchor tags instead of the green-branded card style.
+
+**Fix**: Restyle NotFound to match the app design with the Sprout icon and a Button link.
+
+---
+
+## Implementation Steps
+
+### Step 1: Enable auto-confirm and Google auth
+- Use `cloud--configure_auth` to enable auto-confirm (this is a farm management tool, not a public platform, so email verification adds friction without security benefit)
+- Configure Google OAuth provider
+
+### Step 2: Fix auth flow
+- **AuthContext**: Remove farm + preferences creation from `signUp`. Instead, after the auth state changes to a signed-in user, check if a farm exists; if not, create one.
+- **Login**: After sign-in, check `setup_complete` and route accordingly
+- **Register**: After sign-up (with auto-confirm), navigate to `/farm-setup`
+
+### Step 3: Fix FarmSetup error handling
+- Check `{ error }` return on every Supabase call in `handleFinish`
+- Add unique house name validation in step 2
+
+### Step 4: Sync cost privacy with database
+- Dashboard: fetch `user_preferences` on mount and hydrate `useAppStore`
+- On toggle: persist to `user_preferences` table
+
+### Step 5: Dashboard loading and error states
+- Add loading skeleton while data fetches
+- Handle and display errors
+
+### Step 6: Implement offline-first sync service
+- Create `src/lib/sync.ts` with cache-on-fetch and serve-from-cache-when-offline logic
+- Wire Dashboard and FarmSetup to use the sync layer
+- Flush outbox on reconnect
+
+### Step 7: UI cleanup
+- Delete `App.css`
+- Replace inline SVG in AppLayout with `Sprout` icon
+- Restyle NotFound page
+- Add Google sign-in buttons to Login and Register
+
+### Step 8: Add Google OAuth button
+- Add "Sign in with Google" button to both Login and Register pages
+
+---
+
+## Technical Details
+
+**Files to create**:
+- `src/lib/sync.ts` -- offline sync service
+
+**Files to modify**:
+- `src/contexts/AuthContext.tsx` -- move farm creation to post-login check
+- `src/pages/Login.tsx` -- check setup_complete on login, add Google auth button
+- `src/pages/Register.tsx` -- add Google auth button
+- `src/pages/FarmSetup.tsx` -- fix error handling, add unique name validation
+- `src/pages/Dashboard.tsx` -- add loading state, sync cost privacy with DB
+- `src/stores/useAppStore.ts` -- no changes needed (already correct)
+- `src/components/AppLayout.tsx` -- use Sprout icon
+- `src/pages/NotFound.tsx` -- restyle
+
+**Files to delete**:
+- `src/App.css`
+
+**Auth configuration**:
+- Enable auto-confirm email signups
+- Enable Google OAuth provider
+
