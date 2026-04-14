@@ -25,7 +25,7 @@ import {
 } from 'date-fns';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend, LineChart, Line,
+  PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine,
 } from 'recharts';
 import type { Database } from '@/integrations/supabase/types';
 
