@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Calculator, Plus, CheckCircle2, Circle, Loader2, TrendingUp, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { FEED_PHASES, getCurrentPhase } from '@/lib/feed-data';
-import { computeBatchDynamics } from '@/lib/batch-utils';
+import { getBatchAge } from '@/lib/batch-utils';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
