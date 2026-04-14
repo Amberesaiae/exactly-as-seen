@@ -62,6 +62,10 @@ export default {
           DEFAULT: "hsl(var(--accent-gold))",
           foreground: "hsl(var(--accent-gold-foreground))",
         },
+        "accent-cyan": {
+          DEFAULT: "hsl(var(--accent-cyan))",
+          foreground: "hsl(var(--accent-cyan-foreground))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
