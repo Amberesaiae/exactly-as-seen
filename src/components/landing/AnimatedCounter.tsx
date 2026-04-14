@@ -32,16 +32,17 @@ export function AnimatedCounter({ target, suffix = '', label, duration = 2 }: An
   return (
     <motion.div
       ref={ref}
-      initial={{ opacity: 0, y: 30 }}
+      initial={{ opacity: 0, y: 40 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true }}
-      transition={{ duration: 0.5 }}
-      className="text-center"
+      transition={{ duration: 0.6 }}
+      className="relative"
     >
-      <div className="text-5xl md:text-6xl font-extrabold tracking-tight text-primary">
+      <div className="text-7xl md:text-8xl font-black tracking-tighter text-foreground leading-none">
         {count.toLocaleString()}{suffix}
       </div>
-      <div className="mt-2 text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+      <div className="mt-3 h-px w-16 bg-primary/40" />
+      <div className="mt-3 text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
         {label}
       </div>
     </motion.div>
