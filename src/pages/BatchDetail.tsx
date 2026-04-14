@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getBatchAge, mortalityRate } from '@/lib/batch-utils';
+import { getBatchAge, mortalityRate, recordMortality, cleanupBatchCompletion } from '@/lib/batch-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -29,16 +29,11 @@ export default function BatchDetail() {
   const [loading, setLoading] = useState(true);
   const [mortalities, setMortalities] = useState<MortalityRecord[]>([]);
 
-  // Mortality form
   const [mCount, setMCount] = useState('1');
   const [mCause, setMCause] = useState('');
   const [mNotes, setMNotes] = useState('');
   const [mSubmitting, setMSubmitting] = useState(false);
-
-  // Notes form
   const [noteText, setNoteText] = useState('');
-
-  // Completion
   const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
@@ -57,33 +52,29 @@ export default function BatchDetail() {
     load();
   }, [id]);
 
-  const recordMortality = async () => {
+  const handleRecordMortality = async () => {
     if (!batch) return;
     setMSubmitting(true);
     const count = parseInt(mCount) || 0;
     if (count <= 0) { toast.error('Count must be positive'); setMSubmitting(false); return; }
     if (count > batch.current_population) { toast.error('Count exceeds current population'); setMSubmitting(false); return; }
 
-    const { data: record, error } = await supabase.from('mortality_records').insert({
-      batch_id: batch.id,
-      farm_id: batch.farm_id,
+    const newPop = await recordMortality({
+      batchId: batch.id,
+      farmId: batch.farm_id,
+      batchName: batch.name,
+      currentPopulation: batch.current_population,
       count,
-      cause: mCause || null,
-      notes: mNotes || null,
-    }).select('*').single();
-    if (error) { toast.error(error.message); setMSubmitting(false); return; }
-
-    const newPop = Math.max(0, batch.current_population - count);
-    await supabase.from('batches').update({ current_population: newPop }).eq('id', batch.id);
-    await supabase.from('activity_log').insert({
-      farm_id: batch.farm_id,
-      batch_id: batch.id,
-      event_type: 'mortality',
-      description: `Recorded ${count} mortality${mCause ? `: ${mCause}` : ''}`,
+      cause: mCause || undefined,
+      notes: mNotes || undefined,
     });
 
+    if (newPop === null) { toast.error('Failed to record mortality'); setMSubmitting(false); return; }
+
+    // Re-fetch mortality records
+    const { data: newMortalities } = await supabase.from('mortality_records').select('*').eq('batch_id', batch.id).order('recorded_at', { ascending: false });
+    setMortalities(newMortalities ?? []);
     setBatch({ ...batch, current_population: newPop });
-    if (record) setMortalities(prev => [record, ...prev]);
     setMCount('1');
     setMCause('');
     setMNotes('');
@@ -109,6 +100,10 @@ export default function BatchDetail() {
     setCompleting(true);
     const { error } = await supabase.from('batches').update({ status: 'completed' }).eq('id', batch.id);
     if (error) { toast.error(error.message); setCompleting(false); return; }
+
+    // Cleanup related records
+    await cleanupBatchCompletion(batch.id);
+
     await supabase.from('activity_log').insert({
       farm_id: batch.farm_id,
       batch_id: batch.id,
@@ -169,7 +164,7 @@ export default function BatchDetail() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Complete this batch?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will mark "{batch.name}" as completed. The batch will move to your records and no longer appear as active.
+                  This will mark "{batch.name}" as completed. All pending feed schedules, vaccinations, and health tasks will be closed. The batch will move to your records.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -281,7 +276,7 @@ export default function BatchDetail() {
                   <Label>Notes</Label>
                   <Textarea value={mNotes} onChange={e => setMNotes(e.target.value)} placeholder="Details..." rows={2} />
                 </div>
-                <Button onClick={recordMortality} disabled={mSubmitting} size="sm" className="rounded-full">
+                <Button onClick={handleRecordMortality} disabled={mSubmitting} size="sm" className="rounded-full">
                   {mSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record'}
                 </Button>
               </CardContent>
