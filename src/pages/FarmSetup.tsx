@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { GHANA_REGIONS, DISTRICTS_BY_REGION } from '@/lib/ghana-regions';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
 import { Loader2, ArrowLeft, ArrowRight, Plus, Trash2, Sprout, Check } from 'lucide-react';
 
 interface House {
@@ -19,9 +19,8 @@ interface House {
 }
 
 export default function FarmSetup() {
-  const { user, loading } = useAuth();
+  const { user, loading, recheckFarm } = useAuth();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
   const [farmId, setFarmId] = useState<string | null>(null);
@@ -74,9 +73,19 @@ export default function FarmSetup() {
     setHouses(updated);
   };
 
+  const hasUniqueHouseNames = () => {
+    const names = houses.map((h) => h.name.trim().toLowerCase());
+    return new Set(names).size === names.length;
+  };
+
   const canAdvance = () => {
     if (step === 1) return farmName.trim().length > 0;
-    if (step === 2) return houses.every((h) => h.name.trim() && parseInt(h.capacity) > 0);
+    if (step === 2) {
+      return (
+        houses.every((h) => h.name.trim() && parseInt(h.capacity) > 0) &&
+        hasUniqueHouseNames()
+      );
+    }
     return true;
   };
 
@@ -84,45 +93,59 @@ export default function FarmSetup() {
     if (!farmId) return;
     setSubmitting(true);
 
-    try {
-      // Update farm details
-      await supabase.from('farms').update({
-        name: farmName,
-        location_region: region || null,
-        location_district: district || null,
-        setup_complete: true,
-      }).eq('id', farmId);
+    // Update farm details
+    const { error: farmError } = await supabase.from('farms').update({
+      name: farmName,
+      location_region: region || null,
+      location_district: district || null,
+      setup_complete: true,
+    }).eq('id', farmId);
 
-      // Insert houses
-      await supabase.from('houses').insert(
-        houses.map((h) => ({
-          farm_id: farmId,
-          name: h.name,
-          capacity: parseInt(h.capacity) || 0,
-        }))
-      );
-
-      // Update preferences
-      await supabase.from('user_preferences').update({
-        currency,
-        cost_privacy_enabled: costPrivacy,
-        theme,
-      }).eq('user_id', user.id);
-
-      // Log activity
-      await supabase.from('activity_log').insert({
-        farm_id: farmId,
-        event_type: 'farm_setup',
-        description: `Farm "${farmName}" setup completed`,
-      });
-
-      toast({ title: 'Farm setup complete', description: 'Welcome to your dashboard!' });
-      navigate('/dashboard', { replace: true });
-    } catch {
-      toast({ title: 'Setup failed', description: 'Please try again.', variant: 'destructive' });
-    } finally {
+    if (farmError) {
+      toast.error('Failed to save farm details', { description: farmError.message });
       setSubmitting(false);
+      return;
     }
+
+    // Insert houses
+    const { error: houseError } = await supabase.from('houses').insert(
+      houses.map((h) => ({
+        farm_id: farmId,
+        name: h.name,
+        capacity: parseInt(h.capacity) || 0,
+      }))
+    );
+
+    if (houseError) {
+      toast.error('Failed to save houses', { description: houseError.message });
+      setSubmitting(false);
+      return;
+    }
+
+    // Update preferences
+    const { error: prefError } = await supabase.from('user_preferences').update({
+      currency,
+      cost_privacy_enabled: costPrivacy,
+      theme,
+    }).eq('user_id', user.id);
+
+    if (prefError) {
+      toast.error('Failed to save preferences', { description: prefError.message });
+      setSubmitting(false);
+      return;
+    }
+
+    // Log activity
+    await supabase.from('activity_log').insert({
+      farm_id: farmId,
+      event_type: 'farm_setup',
+      description: `Farm "${farmName}" setup completed`,
+    });
+
+    await recheckFarm();
+    toast.success('Farm setup complete! Welcome to your dashboard.');
+    navigate('/dashboard', { replace: true });
+    setSubmitting(false);
   };
 
   const districts = region ? DISTRICTS_BY_REGION[region] || [] : [];
@@ -179,6 +202,9 @@ export default function FarmSetup() {
           {step === 2 && (
             <div className="flex flex-col gap-4">
               <p className="text-sm text-muted-foreground">Add at least one house/pen for your birds.</p>
+              {!hasUniqueHouseNames() && (
+                <p className="text-xs text-destructive">House names must be unique.</p>
+              )}
               {houses.map((house, i) => (
                 <div key={i} className="flex items-end gap-2">
                   <div className="flex-1 space-y-1">
