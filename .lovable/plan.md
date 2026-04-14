@@ -1,68 +1,96 @@
 
 
-# Plan: Rebuild Health Page with Full Coverage (Ticket 6)
+# Audit & Fix Plan: Cohesive System Workflows
 
-## What's Missing vs Tickets 4 & 5
+## Issues Found
 
-Comparing the current Health.tsx (586 lines) against the spec and the thoroughness of BatchDetail/Feed/FeedFormulation:
+### A. Dashboard Is a Shell — Not a Real Dashboard
+1. **Stat cards are hardcoded zeros** — "Tasks Today" always shows `0`, "Weekly Expenses" and "Monthly Revenue" show `GHS 0.00`. No actual queries to `expenses`, `revenue`, `batch_tasks`, or `health_tasks`.
+2. **Analytics charts use dummy data** — `sampleChartData` is all zeros. No real data from any module.
+3. **No farm setup redirect** — `Index.tsx` sends authenticated users to `/dashboard` even if `farmReady === false`. They should go to `/farm-setup`.
+4. **Activity feed hidden on mobile** — the Recent Activity column has `hidden lg:block`, invisible on 360px viewport.
+5. **Currency hardcoded as "GHS"** — ignores `user_preferences.currency`.
 
-1. **No auto-generation of vaccination schedules** — when a batch has no vaccinations, the user sees an empty state but has no way to generate them from the `VACCINATION_TEMPLATES` based on species and start date
-2. **No "Today's Health Summary" card** — Feed has a "Current Phase" info card; Health lacks an equivalent overview showing batch age, pending vaccines, active meds, withdrawal status at a glance
-3. **No water consumption chart** — Feed and Eggs both have Recharts line charts; Water tab only shows a list
-4. **No species-specific health alerts** — Feed has safety rules engine; Health should warn about duck niacin needs, turkey blackhead risk, etc.
-5. **No egg discard tracking during withdrawal** — spec says "Egg withdrawal tracking for layers (discard eggs count)" but current page only shows a date countdown
-6. **No heat stress water alert** — when logged temperature exceeds ~32°C, no warning appears
-7. **Medication dialog missing dosing route display** — the `MEDICATION_TEMPLATES` have `dosePerGallon` as a string but the dialog stores `dose_per_gallon` as null
-8. **No vaccination route info displayed** — template has `route` field but it's not shown
-9. **Missing DialogDescription** on some dialogs (accessibility warning)
-10. **No batch-specific health route** — spec defines `/health/schedule/:batchId`
+### B. Cross-Module Data Gaps
+6. **Feed purchase doesn't create stock transaction** — Stock page tracks purchases, but Feed page's formulation cost doesn't deduct from stock or create expense entries.
+7. **Egg sales create `revenue` entries** — confirmed working in Eggs.tsx. But Finance page loads revenue independently; no duplicate-prevention on source_ref.
+8. **Stock purchase creates expense** — confirmed in Stock.tsx. Good.
+9. **Health medication doesn't create expense** — when a medication is recorded in Health, no expense entry is created for the medication cost.
+10. **Batch completion doesn't propagate** — completing a batch in BatchDetail doesn't affect related feed schedules, health tasks, or show in Records performance tab.
 
-## Implementation Steps
+### C. Navigation & UX Gaps
+11. **Mobile nav "More" goes to `/settings`** — should open a menu with Eggs, Finance, Stock, Records, Settings. Users can't reach Eggs/Finance/Stock on mobile without the sidebar.
+12. **No `DialogDescription` on several dialogs** — Dashboard mortality dialog, Batches mortality dialog missing accessibility descriptions.
+13. **Records page Performance tab is a placeholder** — just shows static text, no actual FCR, mortality, or cost-per-bird calculations.
+14. **Records Compare tab** — only compares basic batch fields, doesn't pull mortality, feed, egg, or financial data.
 
-### Step 1: Auto-Generate Vaccination Schedule
-When a batch is selected and has zero vaccinations, offer a "Generate Schedule" button that:
-- Filters `VACCINATION_TEMPLATES` by the batch's species
-- Calculates `scheduled_date` from `batch.start_date + (scheduledWeek * 7) days`
-- Bulk-inserts into `vaccination_schedule` table
-- Shows the route (e.g., "Eye drop / Drinking water") alongside each vaccine
+### D. Data Consistency
+15. **Mortality recorded in 3 places** (Dashboard, Batches, BatchDetail) with duplicated logic — should be a shared utility.
+16. **Farm ID lookup duplicated** in every page — each page does its own `farms.select('id').eq('user_id', user.id)` query. Should be centralized.
+17. **`batch.current_week` / `current_day` / `phase`** stored in DB but computed client-side via `getBatchAge()` — stored values are never updated, creating drift.
 
-### Step 2: Today's Health Summary Card
-Add a summary card (like Feed's phase card) showing:
-- Batch age (week/day/phase)
-- Overdue vaccines count with red badge
-- Active medications with withdrawal countdown
-- Today's water logged status
-- Species-specific alerts (duck niacin, turkey blackhead)
+### E. Offline / Sync
+18. **Only Dashboard uses Dexie cache** — Feed, Health, Eggs, Finance, Stock all fail silently when offline.
+19. **`setupOnlineListener`** is defined but never called anywhere.
 
-### Step 3: Water Consumption Chart
-Add a Recharts `LineChart` to the Water tab showing 14-day gallons trend alongside the per-bird guideline line, matching the chart style in Eggs.tsx and BatchDetail.tsx.
+---
 
-### Step 4: Egg Discard Tracker During Withdrawal
-For layer/duck/turkey batches with active egg withdrawal periods:
-- Calculate eggs to discard = `batch.current_population × expected_rate × withdrawal_days_remaining`
-- Show a warning card: "Discard eggs until [date] — estimated [N] eggs affected"
+## Implementation Plan
 
-### Step 5: Heat Stress Water Alert
-When `temperature_c > 32`, show an orange alert recommending increased water + electrolytes (from `MEDICATION_TEMPLATES` supplements).
+### Step 1: Centralize Farm Context
+Create a `useFarm` hook (or add to AuthContext) that fetches `farmId`, `farmName`, and `currency` once after login, making them available everywhere. Removes 10+ duplicate farm queries.
 
-### Step 6: Enhance Medication Dialog
-- Store `dosePerGallon` string in the `notes` field or display it properly
-- Show the medication `indication` and `dosePerGallon` in the recorded task card
-- Add `DialogDescription` for accessibility
+### Step 2: Shared Mortality Utility
+Extract mortality recording logic into a single function in `lib/batch-utils.ts` used by Dashboard, Batches, and BatchDetail. Add `DialogDescription` to all mortality dialogs.
 
-### Step 7: Vaccination Route Display
-Show the administration route (e.g., "Wing web", "Drinking water") from `VACCINATION_TEMPLATES` next to each vaccine in the schedule list.
+### Step 3: Fix Dashboard with Real Data
+- Query `expenses` (last 7 days) and `revenue` (current month) for stat cards
+- Query `batch_tasks` + `health_tasks` due today for "Tasks Today"
+- Use `user_preferences.currency` for formatting
+- Build real weekly chart data from `expenses` and `egg_records`
+- Show activity feed on mobile (remove `hidden lg:block`, use horizontal scroll or collapsible)
 
-### Step 8: Species-Specific Health Alerts
-Add a rules engine (similar to `SAFETY_RULES` in feed-data.ts) in `health-data.ts`:
-- Duck: "Ensure niacin supplementation in water"
-- Turkey: "Monitor for blackhead (histomoniasis) — avoid housing near chickens"
-- Broiler finisher phase: "Prepare for processing — check withdrawal clearances"
-- Layer pre-lay: "Begin calcium supplementation"
+### Step 4: Fix Index Route + Farm Setup Guard
+- `Index.tsx`: redirect to `/farm-setup` when `farmReady === false`
+- `AppLayout`: redirect to `/farm-setup` if farm not set up
 
-### Files Changed
-- `src/pages/Health.tsx` — Major rewrite with all 8 enhancements
-- `src/lib/health-data.ts` — Add species health alerts array, export vaccination route info
+### Step 5: Fix Mobile Navigation
+Replace "More" with a bottom sheet or expanded nav that includes Eggs, Finance, Stock, Records, and Settings — all currently unreachable on mobile.
 
-No database migrations needed — existing tables cover all data requirements.
+### Step 6: Cross-Module Financial Integration
+- Health: create expense entry when medication is recorded (medication cost × duration)
+- Feed: when formulation is saved, optionally deduct from stock items and create expense
+
+### Step 7: Records Page — Real Performance Data
+- Performance tab: query `mortality_records`, `feed_schedules`, `egg_records`, `expenses` per batch
+- Calculate FCR (total feed kg / total weight gain), mortality %, cost-per-bird, egg production rate
+- Compare tab: include mortality %, total feed consumed, total eggs, total expenses for each batch
+
+### Step 8: Batch Lifecycle Cleanup
+- When batch is completed: mark pending feed schedules as skipped, mark pending vaccinations as missed
+- Ensure completed batches still show in Records but are excluded from active batch selectors across Feed/Health/Eggs
+
+### Step 9: Call `setupOnlineListener`
+Call it in `App.tsx` or `AppLayout` on mount. Add toast notification when sync completes.
+
+### Step 10: Remove Stale DB Fields
+Stop relying on `batches.current_week`, `current_day`, `phase` from DB — always compute from `getBatchAge()`. Or add a cron/trigger to update them daily.
+
+---
+
+## Files Changed
+- `src/contexts/AuthContext.tsx` — Add `farmId`, `farmName`, `currency` to context
+- `src/pages/Index.tsx` — Fix redirect logic
+- `src/components/AppLayout.tsx` — Add farm setup guard
+- `src/components/MobileNav.tsx` — Full nav with all pages
+- `src/pages/Dashboard.tsx` — Real stat queries, real charts, mobile activity feed
+- `src/pages/Health.tsx` — Add expense on medication
+- `src/pages/Records.tsx` — Performance metrics + enhanced compare
+- `src/pages/Batches.tsx` — Use shared mortality function
+- `src/pages/BatchDetail.tsx` — Use shared mortality, lifecycle cleanup
+- `src/lib/batch-utils.ts` — Add shared `recordMortality()` function
+- `src/App.tsx` — Call `setupOnlineListener`
+- Dialog accessibility fixes across multiple files
+
+No database migrations needed.
 
