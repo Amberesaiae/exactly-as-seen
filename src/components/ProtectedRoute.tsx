@@ -2,8 +2,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2 } from 'lucide-react';
 
-const Index = () => {
+export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -11,7 +12,10 @@ const Index = () => {
       </div>
     );
   }
-  return <Navigate to={user ? '/dashboard' : '/welcome'} replace />;
-};
 
-export default Index;
+  if (!user) {
+    return <Navigate to="/welcome" replace />;
+  }
+
+  return <>{children}</>;
+}
