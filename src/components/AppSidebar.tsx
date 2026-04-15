@@ -5,7 +5,6 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sprout } from 'lucide-react';
 import {
   Sidebar,
   SidebarContent,
@@ -17,7 +16,6 @@ import {
   SidebarFooter,
   useSidebar,
 } from '@/components/ui/sidebar';
-
 const navItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Batches', url: '/batches', icon: Layers },
