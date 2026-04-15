@@ -36,11 +36,11 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
-      <div className="flex h-16 items-center gap-2.5 px-4 border-b border-sidebar-border">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-          <Sprout className="h-5 w-5" />
-        </div>
-        {!collapsed && <span className="text-lg font-bold text-sidebar-foreground">LampFarms</span>}
+      <div className="flex h-16 items-center px-4 border-b border-sidebar-border">
+        {collapsed
+          ? <span className="text-sm font-black uppercase tracking-tight text-sidebar-foreground">LF</span>
+          : <span className="text-lg font-black uppercase tracking-tight text-sidebar-foreground">LampFarms</span>
+        }
       </div>
 
       <SidebarContent className="px-2 py-2">
