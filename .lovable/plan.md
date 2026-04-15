@@ -1,101 +1,147 @@
 
 
-# Pixel-Perfect Landing Page Redesign — Matching UPA DI Reference
+# Pixel-Perfect Clone of UPA DI Landing Page for LampFarms
 
-## Analysis of Reference Design
+## What's Wrong Now
 
-From the screenshot and HTML, the UPA DI annual report uses these exact patterns:
+1. **Broken images** — 6 local `.jpg` files are empty binary blobs that don't render
+2. **Brand icon still present** — Nav and footer show a green square "LF" icon; AppSidebar uses Sprout icon. Brand must be text-only everywhere
+3. **Layout doesn't match reference** — Current page uses generic SaaS patterns. The reference has very specific editorial patterns that are not replicated
+4. **Stats are inside colored blocks** — Reference shows numbers as plain black text with colored bars underneath, not inside colored rectangles
+5. **Missing content density** — Reference has much more narrative text, profile cards, pull quotes, and a full-width photo section
 
-1. **Hero**: Full-viewport with a photo mosaic/collage. Massive condensed bold uppercase title ("ANNUAL REPORT 2023-2024") bottom-left. Secondary title ("LANDS OF ENGAGEMENT") bottom-right. A large yellow star/burst accent shape overlapping content. Sticky minimal nav bar.
+## Exact Reference Patterns to Clone
 
-2. **Narrative Section**: White background, centered narrow column of body text with a serif-style feel. Large heading ("Lands of Engagement"). Below it, a small photo accent on the side.
+From the screenshot analysis:
 
-3. **Profile Cards**: Asymmetric two-column — large photo on one side, name in huge condensed bold + role + body text on the other. Colored accent shapes overlapping photos (yellow rectangles, green shapes). A "READ THE FULL TEXT +" link.
-
-4. **Stats ("OUR YEAR IN NUMBERS")**: Section heading centered in uppercase. Numbers displayed HUGE (text-7xl+) in a **staggered asymmetric 2-column layout** — not a grid. Each number has a **thick colored bar** underneath (yellow, green, cyan — not hairlines). Small label text below each number. The numbers are: 142, 90, 90, $9,919,915.
-
-5. **Section Cards ("VIEW THE SECTIONS")**: Bold colored rectangular cards in a 3x2 grid. Each card is a single solid color (green, cyan, yellow, orange) with white uppercase text. Card titles like "BRINGING EXPERTISE TOGETHER", "GENDER EQUALITY", etc.
-
-6. **Nav**: Ultra-minimal — logo text left, section label center, "MENU +" right. White background, no border, sticky.
-
-7. **Color Palette**: Black text, white backgrounds, accent colors: yellow (#F5C518-ish), green (#16a34a), cyan/teal (#06b6d4), orange (#f97316).
-
-## Key Correction: Brand Logo
-
-**LampFarms is text-only — NO icon.** Remove the Sprout icon from ALL instances: nav, auth pages, footer.
+```text
+┌─────────────────────────────────────────┐
+│ NAV: logo-text | center-label | MENU +  │  ← sticky, white/cream, no border
+├─────────┬───────────┬───────────────────┤
+│ PHOTO   │ CREAM+    │ PHOTO (top-right  │  ← hero: 3-col photo collage
+│ (left)  │ YELLOW    │ has small circle) │
+│         │ STAR      │                   │
+│         │           │ green block       │
+├─────────┴───────────┴───────────────────┤
+│ "ANNUAL REPORT"     "LANDS OF          │  ← massive condensed type over
+│ "2023-2024"          ENGAGEMENT"       │     dark gradient, bottom-aligned
+├─────────────────────────────────────────┤
+│ breadcrumb row                         │
+├──────┬──────────────────┬───────────────┤
+│ PHOTO│ "Lands of        │ PHOTO         │  ← narrative: 3-col, rotated
+│ blue │  Engagement"     │ green accent  │     photo with colored border
+│border│  body text...    │               │
+├──────┴──────────────────┴───────────────┤
+│ breadcrumb row                         │
+├──────────────┬──────────────────────────┤
+│ PHOTO        │ MARTIN CARON             │  ← profile card 1: photo left
+│ yellow bar   │ subtitle                 │     with yellow accent bar
+│              │ body text               │
+│              │ READ THE FULL TEXT +     │
+├──────────────┴──────────────────────────┤
+│ breadcrumb row                         │
+├──────────────────────────┬──────────────┤
+│ MARTIN CARON             │ PHOTO        │  ← profile card 2: reversed
+│ subtitle                 │ green/yellow │     text left, photo right
+│ body text               │ accent       │
+│ colored bars            │              │
+├──────────────────────────┴──────────────┤
+│ HUGO BEAUREGARD-LA...                  │  ← profile card 3 (like card 1)
+│ photo + text + "READ FULL TEXT +"      │
+├─────────────────────────────────────────┤
+│ breadcrumb row                         │
+├─────────────────────────────────────────┤
+│ THE FAMILLE AGRICOLE...                │  ← full-width text block
+│ COMPETITION INITIATIVE                 │
+│ body text...                           │
+├─────────────────────────────────────────┤
+│ WIDE PHOTO with caption overlay        │  ← panoramic photo
+│ "Wendlagounda Bernadette Kassongo"     │
+├─────────────────────────────────────────┤
+│ breadcrumb   OUR YEAR IN NUMBERS       │
+├──────────────┬──────────────────────────┤
+│ 142          │         90              │  ← PLAIN BLACK numbers, NOT
+│ ▬▬▬ (green)  │         ▬▬▬ (blue)      │     inside colored blocks
+│ label        │         label           │     Thick colored bar below
+├──────────────┼──────────────────────────┤
+│ 90           │                         │  ← staggered: 2nd row offset
+│ ▬▬▬ (yellow) │    $9,919,915           │
+│ label        │    ▬▬▬ (purple)         │
+│              │    label (multi-line)   │
+├──────────────┴──────────────────────────┤
+│ VIEW THE SECTIONS OF THE REPORT        │
+├────────┬─────────┬──────────────────────┤
+│ GREEN  │ CYAN    │ BLUE                │  ← 3x2 solid-color cards
+│ card   │ card    │ card                │     rounded corners, white text
+├────────┼─────────┼──────────────────────┤
+│ YELLOW │ ORANGE  │ GREEN               │
+│ card   │ card    │ card                │
+└────────┴─────────┴──────────────────────┘
+```
 
 ## Implementation Plan
 
-### 1. `src/pages/Welcome.tsx` — Full Rewrite
+### 1. Delete broken image files
+Remove all 6 `src/assets/landing/*.jpg` files (binary garbage).
 
-Pixel-perfect adaptation of the reference layout:
+### 2. `src/pages/Welcome.tsx` — Complete Rewrite
 
-**Nav**: Sticky, white bg, no border. "LampFarms" as bold text left (no icon). "Smart Poultry Management" center label. "MENU +" or "Sign In" / "Get Started" right.
+Use **Unsplash URLs** for real images (no local files):
+- Hero farmer: `https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80` (farming/agriculture)
+- Landscape: `https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80`
+- Community: `https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80`
+- Poultry: `https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=800&q=80`
+- Person portrait 1: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80`
+- Person portrait 2: `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80`
+- Wide farm panorama: `https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1200&q=80`
 
-**Hero Section** (full viewport):
-- CSS gradient background (deep green to black) since we have no photos — or a geometric pattern made of colored SVG shapes
-- Bottom-left: "GROW SMARTER FARM BETTER" in massive condensed uppercase bold (matching reference's "ANNUAL REPORT 2023-2024" positioning)
-- Bottom-right: "WEST AFRICA'S LEADING POULTRY PLATFORM" in condensed uppercase
-- Large yellow star/burst SVG accent overlapping from top-right (matching reference exactly)
-- Green leaf SVG accent on the left edge
+**Sections (matching reference exactly):**
 
-**Narrative Section** (white, centered):
-- "Lands of Growth" or similar heading
-- Body text in a narrow centered column (max-w-2xl)
-- Small decorative accent shape on the side
+- **Nav**: Sticky, cream bg, no border. Text-only "LampFarms" bold uppercase left (NO green square, NO icon). Center: "Smart Poultry Management" in 10px uppercase. Right: "Sign In" link + "MENU +" button.
+- **Hero**: 3-column photo collage. Left = large photo. Center = cream panel with `YellowStarBurst`. Right = photo with small circular inset + green block. Bottom: massive condensed title over dark gradient overlay, left-aligned. Subtitle right-aligned.
+- **Narrative**: Breadcrumb row. 3-column: rotated photo with blue border | heading + body text | photo with green accent block.
+- **Profile Card 1**: Breadcrumb. 2-col: photo left with yellow accent bar underneath | name in huge condensed bold + subtitle + body text + "READ THE FULL TEXT +" link.
+- **Profile Card 2**: Reversed: text left (huge name, body) | photo right with colored border accent. Colored bars decoration.
+- **Profile Card 3**: Same as card 1 but different person/content, about offline-first technology.
+- **Full-width Text Block**: Heading + body text, no photo.
+- **Wide Photo**: Full-width panoramic with dark gradient overlay and caption text at bottom.
+- **Stats**: "OUR YEAR IN NUMBERS" heading. **Plain black numbers** (text-7xl+) with **thick colored bars underneath** (not inside colored blocks). Staggered 2-column layout. Numbers: 500+, 90, 12, ₵9,919,915. Bar colors: green, blue, yellow, purple.
+- **Section Cards**: "EXPLORE THE PLATFORM" heading. 3x2 grid of solid-colored rounded cards with white bold uppercase text.
+- **CTA**: Dark bg, gold button, star decoration.
+- **Footer**: Text-only "LampFarms" (no icon, no square), links, copyright.
 
-**Stats Section** — "OUR YEAR IN NUMBERS":
-- Exact reference layout: heading centered uppercase
-- 2-column staggered grid with numbers at text-7xl/8xl
-- **Thick colored bars** (not hairlines) under each number — yellow for first, green for second, cyan for third, yellow for fourth
-- Numbers: 500+, 1M+, 12+, and a cost figure
-- Small uppercase labels below
+### 3. `src/components/landing/AnimatedCounter.tsx` — Fix Stats Style
 
-**Features Section** — "EXPLORE LAMPFARMS":
-- 3x2 grid of solid-color cards (matching reference's "VIEW THE SECTIONS" exactly)
-- Each card: solid background color (green, cyan, yellow, orange, teal, amber)
-- White uppercase bold text inside
-- Cards for: Batch Management, Feed Calculator, Health Tracking, Egg Production, Finance & Stock, Offline-First
+Remove the `inBlock` mode entirely. Stats should render as:
+- **Plain black numbers** at text-7xl/8xl (not white, not inside colored blocks)
+- **Thick colored bar** underneath (h-2, w-20) using `barColor` prop
+- Small uppercase label below
+- This matches the reference exactly
 
-**CTA + Footer**: Minimal
+### 4. `src/components/landing/LandingDecorations.tsx` — Keep + Fix AuthPanel
 
-### 2. `src/components/landing/LandingDecorations.tsx` — Rebuild
+- Keep `YellowStarBurst`, `LeafBranch`, `WaveDivider` as-is
+- Fix `AuthPanel`: ensure no icon in the brand name
 
-- **YellowStarBurst**: Matches the reference's yellow star shape exactly — a multi-pointed star, not a sunflower
-- **LeafBranch**: Green organic shape for overlapping photos/sections
-- **AuthPanel**: Text-only logo (no Sprout icon), higher opacity decorations
-- Remove unused components (DotsGrid, FeatherDecoration)
+### 5. `src/components/AppSidebar.tsx` — Text-Only Brand
 
-### 3. `src/components/landing/AnimatedCounter.tsx` — Restyle
+Replace the green square with Sprout icon:
+- When expanded: bold uppercase "LampFarms" text only
+- When collapsed: "LF" as plain text (no colored square, no icon)
+- Remove `Sprout` import
 
-- Thick colored bar underneath (8px height, 80px width) instead of 1px hairline
-- Bar color passed as prop (yellow, green, cyan)
-- Number style: text-7xl font-black, black color
-- Label: small uppercase tracking-widest
+### 6. Auth Pages — Already Fixed
 
-### 4. Auth Pages — Text-Only Logo
-
-All four auth pages (`Login.tsx`, `Register.tsx`, `ForgotPassword.tsx`, `ResetPassword.tsx`):
-- Replace icon+text logo with **text-only "LampFarms"** in bold
-- Keep all existing auth logic exactly as-is
-- AuthPanel gets matching updates
-
-### 5. `src/index.css` — Add accent cyan variable
-
-Add `--accent-cyan` for the third accent color used in stats bars and feature cards.
+Login, Register, ForgotPassword, ResetPassword already use text-only "LampFarms". No changes needed.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/pages/Welcome.tsx` | Full rewrite — pixel-perfect reference match |
-| `src/components/landing/LandingDecorations.tsx` | Yellow star burst, text-only AuthPanel, remove unused |
-| `src/components/landing/AnimatedCounter.tsx` | Thick colored bars, prop-driven accent color |
-| `src/pages/Login.tsx` | Text-only logo (remove Sprout icon) |
-| `src/pages/Register.tsx` | Text-only logo (remove Sprout icon) |
-| `src/pages/ForgotPassword.tsx` | Text-only logo (remove Sprout icon) |
-| `src/pages/ResetPassword.tsx` | Text-only logo (remove Sprout icon) |
-| `src/index.css` | Add --accent-cyan CSS variable |
+| `src/pages/Welcome.tsx` | Full rewrite — pixel-perfect reference clone with Unsplash images |
+| `src/components/landing/AnimatedCounter.tsx` | Remove `inBlock`, use plain black numbers with colored bars |
+| `src/components/AppSidebar.tsx` | Remove Sprout icon, text-only brand |
+| Delete `src/assets/landing/*.jpg` | Remove 6 broken binary files |
 
-No database changes. All auth logic preserved exactly.
+No database changes. All auth logic preserved.
 
