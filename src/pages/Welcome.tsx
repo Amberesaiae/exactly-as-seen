@@ -124,7 +124,7 @@ export default function Welcome() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
             className="absolute top-12 left-0 right-0 bg-[#F5F0EB] border-t border-black/5 shadow-2xl z-50"
           >
             <div className="max-w-[1400px] mx-auto px-5 lg:px-10 py-8">
@@ -178,7 +178,7 @@ export default function Welcome() {
             className="relative overflow-hidden"
             initial={{ scale: 1.1 }}
             animate={{ scale: 1 }}
-            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
           >
             <img src={IMG.heroFarmer} alt="West African farmer with poultry" className="absolute inset-0 w-full h-full object-cover" />
           </motion.div>
@@ -188,7 +188,7 @@ export default function Welcome() {
             <motion.div
               initial={{ scale: 0, rotate: -90, opacity: 0 }}
               animate={{ scale: 1, rotate: 0, opacity: 0.9 }}
-              transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
             >
               <YellowStarBurst className="w-40 h-40 md:w-56 md:h-56 lg:w-72 lg:h-72 text-[hsl(var(--accent-gold))]" />
             </motion.div>
@@ -202,13 +202,13 @@ export default function Welcome() {
               className="absolute inset-0 w-full h-full object-cover"
               initial={{ scale: 1.1 }}
               animate={{ scale: 1 }}
-              transition={{ duration: 1.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 1.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
             />
             <motion.div
               className="absolute top-8 right-8 w-44 h-44 rounded-full overflow-hidden border-4 border-[#F5F0EB] shadow-xl"
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.8, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.6, delay: 0.8, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
             >
               <img src={IMG.poultry} alt="Poultry house" className="w-full h-full object-cover" />
             </motion.div>
@@ -216,7 +216,7 @@ export default function Welcome() {
               className="absolute bottom-0 right-0 w-24 h-32 bg-primary/80 rounded-tl-2xl"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
-              transition={{ duration: 0.6, delay: 1, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.6, delay: 1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
             />
           </div>
         </div>
@@ -228,7 +228,7 @@ export default function Welcome() {
               <motion.h1
                 initial={{ opacity: 0, y: 60 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
                 className="text-[clamp(2.5rem,8vw,7rem)] font-black uppercase leading-[0.88] tracking-[-0.03em] text-white"
               >
                 Grow Smarter<br />Farm Better
@@ -236,7 +236,7 @@ export default function Welcome() {
               <motion.p
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
                 className="text-base md:text-lg font-black uppercase tracking-tight text-white/90 md:text-right leading-tight"
               >
                 West Africa's<br />Poultry<br />Platform
@@ -293,7 +293,7 @@ export default function Welcome() {
                 initial={{ width: 0 }}
                 whileInView={{ width: '100%' }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
               />
             </motion.div>
             <motion.div {...fadeUp}>
@@ -364,7 +364,7 @@ export default function Welcome() {
                 initial={{ width: 0 }}
                 whileInView={{ width: '66%' }}
                 viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
               />
             </motion.div>
             <motion.div {...fadeUp}>
