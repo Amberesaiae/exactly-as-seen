@@ -38,11 +38,13 @@ const menuLinks = [
 ];
 
 /* ── Animation variants ── */
+const easeOut = [0.22, 1, 0.36, 1] as const;
+
 const fadeUp = {
   initial: { opacity: 0, y: 40 },
   whileInView: { opacity: 1, y: 0 },
   viewport: { once: true } as const,
-  transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] },
+  transition: { duration: 0.7, ease: easeOut as unknown as [number, number, number, number] },
 };
 
 const staggerContainer = {
