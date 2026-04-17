@@ -40,19 +40,48 @@ export default function FarmSetup() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('farms')
-      .select('id, name, setup_complete')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.setup_complete) {
-          navigate('/dashboard', { replace: true });
-        } else if (data) {
-          setFarmId(data.id);
-          setFarmName(data.name);
-        }
-      });
+    (async () => {
+      const { data } = await supabase
+        .from('farms')
+        .select('id, name, setup_complete')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (data?.setup_complete) {
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+      if (data) {
+        setFarmId(data.id);
+        setFarmName(data.name);
+        return;
+      }
+
+      // No farm yet (e.g. Google OAuth users) — create one now
+      const { data: newFarm, error } = await supabase
+        .from('farms')
+        .insert({
+          user_id: user.id,
+          name: 'My Farm',
+          farm_type: 'poultry',
+          setup_complete: false,
+        })
+        .select('id, name')
+        .single();
+      if (!error && newFarm) {
+        setFarmId(newFarm.id);
+        setFarmName(newFarm.name);
+        // Ensure prefs row exists for later update
+        await supabase.from('user_preferences').insert({
+          user_id: user.id,
+          cost_privacy_enabled: true,
+          theme: 'light',
+          currency: 'GHS',
+        });
+      } else if (error) {
+        toast.error('Failed to initialize farm', { description: error.message });
+      }
+    })();
   }, [user, navigate]);
 
   if (loading) return <div className="flex min-h-screen items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
