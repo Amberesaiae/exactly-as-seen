@@ -151,12 +151,13 @@ export default function FarmSetup() {
       return;
     }
 
-    // Update preferences
-    const { error: prefError } = await supabase.from('user_preferences').update({
+    // Upsert preferences (handles OAuth users without an initial prefs row)
+    const { error: prefError } = await supabase.from('user_preferences').upsert({
+      user_id: user.id,
       currency,
       cost_privacy_enabled: costPrivacy,
       theme,
-    }).eq('user_id', user.id);
+    }, { onConflict: 'user_id' });
 
     if (prefError) {
       toast.error('Failed to save preferences', { description: prefError.message });
