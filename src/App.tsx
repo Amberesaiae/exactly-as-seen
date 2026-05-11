@@ -44,7 +44,13 @@ function AppInner() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/welcome" element={<Welcome />} />
+      <Route element={<LandingLayout />}>
+        <Route path="/welcome" element={<Welcome />} />
+        <Route path="/platform" element={<Platform />} />
+        <Route path="/solutions" element={<Solutions />} />
+        <Route path="/impact" element={<Impact />} />
+        <Route path="/resources" element={<Resources />} />
+      </Route>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
