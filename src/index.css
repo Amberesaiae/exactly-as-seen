@@ -4,26 +4,27 @@
 
 @layer base {
   :root {
-    --background: 0 0% 99%;
-    --foreground: 150 10% 10%;
+    /* Grawing palette */
+    --background: 70 56% 95%;        /* #F9FAEA cream */
+    --foreground: 90 50% 6%;          /* #101804 near-black */
 
     --card: 0 0% 100%;
-    --card-foreground: 150 10% 10%;
+    --card-foreground: 90 50% 6%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 150 10% 10%;
+    --popover: 70 56% 95%;
+    --popover-foreground: 90 50% 6%;
 
-    --primary: 142 71% 35%;
-    --primary-foreground: 0 0% 100%;
+    --primary: 67 41% 25%;            /* #555C26 deep olive */
+    --primary-foreground: 70 56% 95%;
 
-    --secondary: 140 20% 95%;
-    --secondary-foreground: 150 10% 10%;
+    --secondary: 78 32% 76%;          /* #CAD6AE sage */
+    --secondary-foreground: 90 50% 6%;
 
-    --muted: 140 10% 95%;
-    --muted-foreground: 150 5% 45%;
+    --muted: 70 30% 90%;
+    --muted-foreground: 120 4% 45%;   /* #8F988E warm gray */
 
-    --accent: 140 20% 93%;
-    --accent-foreground: 150 10% 10%;
+    --accent: 60 25% 45%;             /* #8F8D53 olive-tan */
+    --accent-foreground: 70 56% 95%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
