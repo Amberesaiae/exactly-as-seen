@@ -267,26 +267,6 @@ export default function Welcome() {
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-foreground/10">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 py-16">
-          <div className="grid gap-10 md:grid-cols-5">
-            <div className="md:col-span-2">
-              <div className="text-2xl font-black tracking-tight">LampFarms<sup className="ml-0.5 text-xs">®</sup></div>
-              <p className="mt-4 max-w-sm text-sm text-muted-foreground leading-relaxed">
-                Smart poultry management for the next generation of West African farmers.
-              </p>
-            </div>
-            <FooterCol title="Platform" links={['Overview', 'Flocks', 'Feed Lab', 'Care & Water', 'Ledger']} />
-            <FooterCol title="Company" links={['About', 'Contact', 'Careers', 'Press']} />
-            <FooterCol title="Legal" links={['Privacy', 'Terms', 'Cookies', 'Security']} />
-          </div>
-          <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-foreground/10 pt-6 text-xs text-muted-foreground">
-            <span>© {new Date().getFullYear()} LampFarms. All rights reserved.</span>
-            <span>EN · FR · TWI</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }
