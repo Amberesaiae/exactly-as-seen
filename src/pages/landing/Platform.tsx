@@ -7,7 +7,7 @@ const IMG = {
   hero: 'https://images.unsplash.com/photo-1535086181678-5a5c4d22f56b?w=1800&q=80&auto=format&fit=crop',
   arch: 'https://images.unsplash.com/photo-1581094288338-2314dddb7ece?w=1400&q=80&auto=format&fit=crop',
   field: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80&auto=format&fit=crop',
-  device: 'https://images.unsplash.com/photo-1551836022-deb4988cc6c0?w=1200&q=80&auto=format&fit=crop',
+  device: 'https://images.unsplash.com/photo-1592982537447-7440770faae9?w=1200&q=80&auto=format&fit=crop',
 };
 
 const fadeUp: Variants = {
