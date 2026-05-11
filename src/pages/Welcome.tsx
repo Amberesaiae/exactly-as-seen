@@ -341,16 +341,3 @@ function BlogCard({ image, tag, title, date }: { image: string; tag: string; tit
     </motion.article>
   );
 }
-
-function FooterCol({ title, links }: { title: string; links: string[] }) {
-  return (
-    <div>
-      <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{title}</div>
-      <ul className="mt-4 space-y-2">
-        {links.map(l => (
-          <li key={l}><a href="#" className="text-sm hover:underline underline-offset-4">{l}</a></li>
-        ))}
-      </ul>
-    </div>
-  );
-}
