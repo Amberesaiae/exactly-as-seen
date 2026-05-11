@@ -9,6 +9,11 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
 import { setupOnlineListener } from "@/lib/sync";
 import Index from "./pages/Index";
+import LandingLayout from "./components/landing/LandingLayout";
+import Platform from "./pages/landing/Platform";
+import Solutions from "./pages/landing/Solutions";
+import Impact from "./pages/landing/Impact";
+import Resources from "./pages/landing/Resources";
 import Welcome from "./pages/Welcome";
 import Register from "./pages/Register";
 import Login from "./pages/Login";
@@ -39,7 +44,13 @@ function AppInner() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/welcome" element={<Welcome />} />
+      <Route element={<LandingLayout />}>
+        <Route path="/welcome" element={<Welcome />} />
+        <Route path="/platform" element={<Platform />} />
+        <Route path="/solutions" element={<Solutions />} />
+        <Route path="/impact" element={<Impact />} />
+        <Route path="/resources" element={<Resources />} />
+      </Route>
       <Route path="/register" element={<Register />} />
       <Route path="/login" element={<Login />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
