@@ -31,14 +31,14 @@
 
     --border: 70 20% 86%;
     --input: 70 20% 84%;
-    --ring: 67 41% 25%;
+    --ring: 142 71% 32%;
 
     --radius: 0.75rem;
 
     --sidebar-background: 70 50% 96%;
     --sidebar-foreground: 90 50% 12%;
-    --sidebar-primary: 67 41% 25%;
-    --sidebar-primary-foreground: 70 56% 95%;
+    --sidebar-primary: 142 71% 32%;
+    --sidebar-primary-foreground: 0 0% 100%;
     --sidebar-accent: 78 32% 88%;
     --sidebar-accent-foreground: 90 50% 6%;
     --sidebar-border: 70 20% 86%;
