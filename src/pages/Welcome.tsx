@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
-import { ArrowUpRight, Menu, X, Bird, FlaskConical, HeartPulse, LineChart } from 'lucide-react';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { ArrowUpRight, Bird, FlaskConical, HeartPulse, LineChart } from 'lucide-react';
 import { AnimatedCounter } from '@/components/landing/AnimatedCounter';
+import { Eyebrow } from '@/components/landing/LandingLayout';
 
 const IMG = {
   hero: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&q=80&auto=format&fit=crop',
@@ -20,81 +19,14 @@ const IMG = {
   blog3: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=900&q=80&auto=format&fit=crop',
 };
 
-const NAV = [
-  { label: 'Platform', href: '#platform' },
-  { label: 'Solutions', href: '#solutions' },
-  { label: 'Impact', href: '#impact' },
-  { label: 'Resources', href: '#resources' },
-];
-
 const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
   show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
 };
 
-function Eyebrow({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-      <span className="h-px w-6 bg-foreground/40" />
-      {children}
-    </span>
-  );
-}
-
 export default function Welcome() {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="min-h-screen bg-background text-foreground antialiased">
-      {/* NAV */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 lg:px-10">
-          <Link to="/welcome" className="text-xl font-black tracking-tight">
-            LampFarms<sup className="ml-0.5 text-[10px] font-bold align-super">®</sup>
-          </Link>
-          <nav className="hidden md:flex items-center gap-1 rounded-full border border-foreground/10 bg-card/60 px-2 py-1.5">
-            {NAV.map(n => (
-              <a key={n.label} href={n.href}
-                 className="rounded-full px-4 py-1.5 text-sm font-medium text-foreground/80 hover:bg-foreground/5 transition">
-                {n.label}
-              </a>
-            ))}
-          </nav>
-          <div className="hidden md:flex items-center gap-3">
-            <Link to="/login" className="text-sm font-semibold hover:underline underline-offset-4">Sign in</Link>
-            <Link to="/register"
-                  className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90 transition">
-              Get started <ArrowUpRight className="h-4 w-4" />
-            </Link>
-          </div>
-
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger asChild>
-              <button className="md:hidden p-2 -mr-2" aria-label="Open menu">
-                <Menu className="h-6 w-6" />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="right" className="bg-background w-[88vw]">
-              <div className="flex items-center justify-between mb-10">
-                <span className="text-xl font-black">LampFarms</span>
-                <button onClick={() => setOpen(false)}><X className="h-6 w-6" /></button>
-              </div>
-              <div className="flex flex-col gap-1">
-                {NAV.map(n => (
-                  <a key={n.label} href={n.href} onClick={() => setOpen(false)}
-                     className="py-3 text-2xl font-bold tracking-tight border-b border-foreground/10">
-                    {n.label}
-                  </a>
-                ))}
-              </div>
-              <div className="mt-10 flex flex-col gap-3">
-                <Link to="/login" className="rounded-full border border-foreground/20 px-5 py-3 text-center text-sm font-semibold">Sign in</Link>
-                <Link to="/register" className="rounded-full bg-foreground px-5 py-3 text-center text-sm font-semibold text-background">Get started</Link>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </header>
+    <div>
 
       {/* HERO */}
       <section className="relative mx-auto max-w-[1400px] px-6 pb-12 pt-8 lg:px-10 lg:pb-20 lg:pt-12">
