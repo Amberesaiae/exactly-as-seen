@@ -1,546 +1,444 @@
-import { Link, Navigate } from 'react-router-dom';
-import { useAuth } from '@/contexts/AuthContext';
-import { ArrowUpRight, Menu, X, ChevronRight } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { motion, type Variants } from 'framer-motion';
+import { ArrowUpRight, Menu, X, Bird, FlaskConical, HeartPulse, LineChart } from 'lucide-react';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { AnimatedCounter } from '@/components/landing/AnimatedCounter';
-import { YellowStarBurst, LeafBranch } from '@/components/landing/LandingDecorations';
-import { useState, useRef } from 'react';
 
-/* ── Unsplash images ── */
 const IMG = {
-  heroFarmer: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=900&q=80',
-  landscape: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=900&q=80',
-  poultry: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=800&q=80',
-  community: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80',
-  portrait1: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80',
-  portrait2: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80',
-  portrait3: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=600&q=80',
-  panorama: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1400&q=80',
-  farmTech: 'https://images.unsplash.com/photo-1556740758-90de374c12ad?w=800&q=80',
+  hero: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&q=80&auto=format&fit=crop',
+  field: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80&auto=format&fit=crop',
+  poultry: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1200&q=80&auto=format&fit=crop',
+  hands: 'https://images.unsplash.com/photo-1592982537447-7440770faae9?w=1200&q=80&auto=format&fit=crop',
+  drone: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=80&auto=format&fit=crop',
+  feed: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80&auto=format&fit=crop',
+  panorama: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1800&q=80&auto=format&fit=crop',
+  farmer1: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80&auto=format&fit=crop',
+  farmer2: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80&auto=format&fit=crop',
+  blog1: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=900&q=80&auto=format&fit=crop',
+  blog2: 'https://images.unsplash.com/photo-1500076656116-558758c991c1?w=900&q=80&auto=format&fit=crop',
+  blog3: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=900&q=80&auto=format&fit=crop',
 };
 
-const sectionCards = [
-  { title: 'BATCH\nMANAGEMENT', bg: 'bg-[#22C55E]', route: '/batches' },
-  { title: 'FEED\nCALCULATOR', bg: 'bg-[#06B6D4]', route: '/feed' },
-  { title: 'HEALTH &\nVACCINATION', bg: 'bg-[#4A90D9]', route: '/health' },
-  { title: 'EGG PRODUCTION\n& TRACKING', bg: 'bg-[#F59E0B]', route: '/eggs' },
-  { title: 'FINANCE\n& STOCK', bg: 'bg-[#F97316]', route: '/finance' },
-  { title: 'OFFLINE-FIRST\nSYNC', bg: 'bg-[#22C55E]', route: '/register' },
+const NAV = [
+  { label: 'Platform', href: '#platform' },
+  { label: 'Solutions', href: '#solutions' },
+  { label: 'Impact', href: '#impact' },
+  { label: 'Resources', href: '#resources' },
 ];
 
-const menuLinks = [
-  { label: 'Dashboard', route: '/dashboard' },
-  { label: 'Batch Management', route: '/batches' },
-  { label: 'Feed Calculator', route: '/feed' },
-  { label: 'Health & Vaccination', route: '/health' },
-  { label: 'Egg Production', route: '/eggs' },
-  { label: 'Finance & Stock', route: '/finance' },
-];
-
-/* ── Animation variants ── */
-const easeOut = [0.22, 1, 0.36, 1] as const;
-
-const fadeUp = {
-  initial: { opacity: 0, y: 40 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true } as const,
-  transition: { duration: 0.7, ease: easeOut as unknown as [number, number, number, number] },
+const fadeUp: Variants = {
+  hidden: { opacity: 0, y: 24 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
 };
 
-const staggerContainer = {
-  initial: {},
-  whileInView: { transition: { staggerChildren: 0.12 } },
-  viewport: { once: true } as const,
-};
-
-const staggerChild = {
-  initial: { opacity: 0, y: 30 },
-  whileInView: { opacity: 1, y: 0 },
-  transition: { duration: 0.5, ease: easeOut as unknown as [number, number, number, number] },
-};
-
-function Breadcrumb({ left, right }: { left: string; right: string }) {
+function Eyebrow({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-[#F5F0EB] px-5 lg:px-10 py-3 border-y border-black/5">
-      <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-          {left}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-          {right}
-        </span>
-      </div>
-    </div>
+    <span className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+      <span className="h-px w-6 bg-foreground/40" />
+      {children}
+    </span>
   );
 }
 
 export default function Welcome() {
-  const { user, loading, farmReady } = useAuth();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const panoramaRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress: panoramaProgress } = useScroll({
-    target: panoramaRef,
-    offset: ['start end', 'end start'],
-  });
-  const panoramaY = useTransform(panoramaProgress, [0, 1], ['0%', '20%']);
-
-  if (!loading && user) {
-    if (farmReady === true) return <Navigate to="/dashboard" replace />;
-    if (farmReady === false) return <Navigate to="/farm-setup" replace />;
-  }
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#F5F0EB] text-foreground font-sans overflow-x-hidden">
-
-      {/* ═══ STICKY NAV ═══ */}
-      <nav className="sticky top-0 z-50 bg-[#F5F0EB]/95 backdrop-blur-sm">
-        <div className="mx-auto flex h-12 max-w-[1400px] items-center justify-between px-5 lg:px-10">
-          <Link to="/welcome" className="text-[13px] font-black tracking-tight uppercase text-foreground">
-            LampFarms
+    <div className="min-h-screen bg-background text-foreground antialiased">
+      {/* NAV */}
+      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-5 lg:px-10">
+          <Link to="/welcome" className="text-xl font-black tracking-tight">
+            LampFarms<sup className="ml-0.5 text-[10px] font-bold align-super">®</sup>
           </Link>
-          <span className="hidden md:block text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground">
-            Smart Poultry Management
-          </span>
-          <div className="flex items-center gap-4">
-            <Link to="/login" className="hidden sm:block text-[10px] font-bold uppercase tracking-[0.15em] text-foreground hover:text-primary transition-colors">
-              Sign In
+          <nav className="hidden md:flex items-center gap-1 rounded-full border border-foreground/10 bg-card/60 px-2 py-1.5">
+            {NAV.map(n => (
+              <a key={n.label} href={n.href}
+                 className="rounded-full px-4 py-1.5 text-sm font-medium text-foreground/80 hover:bg-foreground/5 transition">
+                {n.label}
+              </a>
+            ))}
+          </nav>
+          <div className="hidden md:flex items-center gap-3">
+            <Link to="/login" className="text-sm font-semibold hover:underline underline-offset-4">Sign in</Link>
+            <Link to="/register"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background hover:bg-foreground/90 transition">
+              Get started <ArrowUpRight className="h-4 w-4" />
             </Link>
-            <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] hover:text-primary transition-colors"
-            >
-              {menuOpen ? (
-                <><X className="h-3.5 w-3.5" /> Close</>
-              ) : (
-                <>Menu <span className="text-primary font-black">+</span></>
-              )}
-            </button>
           </div>
-        </div>
 
-        {/* ── Full-screen menu overlay ── */}
-        {menuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-            className="absolute top-12 left-0 right-0 bg-[#F5F0EB] border-t border-black/5 shadow-2xl z-50"
-          >
-            <div className="max-w-[1400px] mx-auto px-5 lg:px-10 py-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-12 gap-y-1">
-                {menuLinks.map((link, i) => (
-                  <motion.div
-                    key={link.route}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05, duration: 0.3 }}
-                  >
-                    <Link
-                      to={link.route}
-                      onClick={() => setMenuOpen(false)}
-                      className="group flex items-center justify-between py-3 border-b border-black/5 hover:border-primary/30 transition-colors"
-                    >
-                      <span className="text-lg font-black uppercase tracking-tight group-hover:text-primary transition-colors">
-                        {link.label}
-                      </span>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-                    </Link>
-                  </motion.div>
+          <Sheet open={open} onOpenChange={setOpen}>
+            <SheetTrigger asChild>
+              <button className="md:hidden p-2 -mr-2" aria-label="Open menu">
+                <Menu className="h-6 w-6" />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="bg-background w-[88vw]">
+              <div className="flex items-center justify-between mb-10">
+                <span className="text-xl font-black">LampFarms</span>
+                <button onClick={() => setOpen(false)}><X className="h-6 w-6" /></button>
+              </div>
+              <div className="flex flex-col gap-1">
+                {NAV.map(n => (
+                  <a key={n.label} href={n.href} onClick={() => setOpen(false)}
+                     className="py-3 text-2xl font-bold tracking-tight border-b border-foreground/10">
+                    {n.label}
+                  </a>
                 ))}
               </div>
-              <div className="mt-8 flex items-center gap-4">
-                <Link
-                  to="/register"
-                  onClick={() => setMenuOpen(false)}
-                  className="inline-flex items-center gap-2 bg-primary text-primary-foreground font-bold text-xs uppercase tracking-wider px-6 py-2.5 rounded-lg hover:opacity-90 transition-opacity"
-                >
-                  Create Account <ArrowUpRight className="h-3.5 w-3.5" />
-                </Link>
-                <Link
-                  to="/login"
-                  onClick={() => setMenuOpen(false)}
-                  className="text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-primary transition-colors"
-                >
-                  Sign In
-                </Link>
+              <div className="mt-10 flex flex-col gap-3">
+                <Link to="/login" className="rounded-full border border-foreground/20 px-5 py-3 text-center text-sm font-semibold">Sign in</Link>
+                <Link to="/register" className="rounded-full bg-foreground px-5 py-3 text-center text-sm font-semibold text-background">Get started</Link>
               </div>
-            </div>
-          </motion.div>
-        )}
-      </nav>
-
-      {/* ═══ HERO — 3-col photo collage ═══ */}
-      <section className="relative min-h-[calc(100vh-3rem)] overflow-hidden">
-        <div className="absolute inset-0 grid grid-cols-2 lg:grid-cols-[1.2fr_0.8fr_1fr]">
-          {/* Left photo */}
-          <motion.div
-            className="relative overflow-hidden"
-            initial={{ scale: 1.1 }}
-            animate={{ scale: 1 }}
-            transition={{ duration: 1.4, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-          >
-            <img src={IMG.heroFarmer} alt="West African farmer with poultry" className="absolute inset-0 w-full h-full object-cover" />
-          </motion.div>
-
-          {/* Center cream panel */}
-          <div className="relative bg-[#F5F0EB] flex items-start justify-center pt-12 lg:pt-20">
-            <motion.div
-              initial={{ scale: 0, rotate: -90, opacity: 0 }}
-              animate={{ scale: 1, rotate: 0, opacity: 0.9 }}
-              transition={{ duration: 1, delay: 0.5, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-            >
-              <YellowStarBurst className="w-40 h-40 md:w-56 md:h-56 lg:w-72 lg:h-72 text-[hsl(var(--accent-gold))]" />
-            </motion.div>
-          </div>
-
-          {/* Right photo with inset circle */}
-          <div className="hidden lg:block relative overflow-hidden">
-            <motion.img
-              src={IMG.landscape}
-              alt="West African farming landscape"
-              className="absolute inset-0 w-full h-full object-cover"
-              initial={{ scale: 1.1 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 1.4, delay: 0.2, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-            />
-            <motion.div
-              className="absolute top-8 right-8 w-44 h-44 rounded-full overflow-hidden border-4 border-[#F5F0EB] shadow-xl"
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.8, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-            >
-              <img src={IMG.poultry} alt="Poultry house" className="w-full h-full object-cover" />
-            </motion.div>
-            <motion.div
-              className="absolute bottom-0 right-0 w-24 h-32 bg-primary/80 rounded-tl-2xl"
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              transition={{ duration: 0.6, delay: 1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-            />
-          </div>
+            </SheetContent>
+          </Sheet>
         </div>
+      </header>
 
-        {/* Title overlay */}
-        <div className="relative z-10 min-h-[calc(100vh-3rem)] flex flex-col justify-end">
-          <div className="bg-gradient-to-t from-black/70 via-black/30 to-transparent px-5 lg:px-10 pb-10 md:pb-16 pt-40">
-            <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row md:items-end md:justify-between gap-6">
-              <motion.h1
-                initial={{ opacity: 0, y: 60 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-                className="text-[clamp(2.5rem,8vw,7rem)] font-black uppercase leading-[0.88] tracking-[-0.03em] text-white"
-              >
-                Grow Smarter<br />Farm Better
-              </motion.h1>
-              <motion.p
-                initial={{ opacity: 0, y: 40 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 1, delay: 0.6, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-                className="text-base md:text-lg font-black uppercase tracking-tight text-white/90 md:text-right leading-tight"
-              >
-                West Africa's<br />Poultry<br />Platform
-              </motion.p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · About" right="01 / 06" />
-
-      {/* ═══ NARRATIVE — 3-col: rotated photo | text | photo+accent ═══ */}
-      <section className="py-16 md:py-24 bg-[#F5F0EB]">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_300px] gap-8 lg:gap-14 items-start">
-            <motion.div {...fadeUp} className="relative hidden lg:block">
-              <div className="relative -rotate-3 border-[6px] border-[#4A90D9] rounded-sm overflow-hidden shadow-lg hover:rotate-0 transition-transform duration-500">
-                <img src={IMG.community} alt="Community of farmers" className="w-full aspect-[3/4] object-cover" loading="lazy" />
-              </div>
-            </motion.div>
-
-            <motion.div {...fadeUp}>
-              <h2 className="text-3xl md:text-4xl font-black tracking-tight text-foreground leading-tight mb-6">
-                Empowering Family Farms
-              </h2>
-              <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                <p>No matter where they farm, poultry producers across West Africa aspire to live in dignity from the fruits of their labor. No matter where they farm, women and men engage in this quest and find meaning in it.</p>
-                <p>LampFarms was built to present information and data from your farm operations — as well as the stories of women and men committed to family farming. In their own ways and according to their realities, these individuals are engaged because they feel they can make an impact.</p>
-                <p>When a challenge is shared by many — such as the unpredictable effects of feed price volatility or disease outbreaks — engaging to solve "our" problem can have a collective impact. Individual and collective interests align through commitment to better farming practices.</p>
-                <p>Who knows — perhaps one day, the commitment of women and men across West Africa will help family poultry farming thrive. At LampFarms, our dedication is to contribute to this goal!</p>
-              </div>
-            </motion.div>
-
-            <motion.div {...fadeUp} className="relative hidden lg:block">
-              <img src={IMG.poultry} alt="Modern poultry house" className="w-full aspect-[3/4] object-cover rounded-sm" loading="lazy" />
-              <div className="absolute -bottom-3 -right-3 w-20 h-28 bg-primary/70 -z-10 rounded-sm" />
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · Smart Tools" right="Technology / 1" />
-
-      {/* ═══ PROFILE CARD 1 — photo left, text right, yellow accent bar ═══ */}
-      <section className="py-14 bg-white">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-16 items-start">
-            <motion.div {...fadeUp} className="relative group">
-              <img src={IMG.portrait1} alt="Farm technology expert" className="w-full aspect-square object-cover rounded-sm group-hover:shadow-xl transition-shadow duration-500" loading="lazy" />
-              <motion.div
-                className="absolute -bottom-2 left-0 h-3 bg-[#F59E0B]/80"
-                initial={{ width: 0 }}
-                whileInView={{ width: '100%' }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-              />
-            </motion.div>
-            <motion.div {...fadeUp}>
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-3">Built for African Realities</p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground leading-[0.92] mb-6">
-                Smart Farm<br />Management
-              </h2>
-              <p className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider">Technology That Understands Your Farm</p>
-              <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                <p>LampFarms isn't another Silicon Valley farm-tech product adapted for emerging markets. It was conceived, designed, and tested in West African farming communities. Every workflow accounts for intermittent connectivity, local feed ingredients, regional vaccination protocols, and the specific economics of poultry production.</p>
-                <p>Our feed formulation engine uses Linear Programming optimization with a database of locally available ingredients — maize, soybean meal, fishmeal, oyster shell, wheat bran — at current market prices. The health module follows West African veterinary guidelines with proper withdrawal periods.</p>
-                <p>Whether you manage 50 birds or 50,000, LampFarms scales with your operation. Track multiple batches across houses, monitor mortality and feed conversion daily, record egg production by size category, and see your profitability in real time.</p>
-              </div>
-              <Link to="/register" className="inline-flex items-center gap-1.5 mt-6 text-sm font-bold uppercase tracking-wider text-primary hover:underline story-link">
-                Read More <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · Offline-First" right="Technology / 2" />
-
-      {/* ═══ PROFILE CARD 2 — reversed: text left, photo right ═══ */}
-      <section className="py-14 bg-[#F5F0EB]">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-10 lg:gap-16 items-start">
-            <motion.div {...fadeUp}>
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-3">Works Without Internet</p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground leading-[0.92] mb-6">
-                Offline-First<br />Architecture
-              </h2>
-              <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                <p>In rural West Africa, internet connectivity is unpredictable. LampFarms was designed from the ground up to work completely offline. Every feature — from batch tracking to feed formulation — functions without an internet connection.</p>
-                <p>When connectivity is restored, your data syncs automatically and securely to the cloud. No data is ever lost, no entry needs to be repeated. Your farm records are always accessible, whether you're in the field or at home.</p>
-                <p>Our sync engine handles conflicts intelligently, ensuring that records entered on multiple devices are merged correctly. This is enterprise-grade technology adapted for the realities of farming in areas with limited infrastructure.</p>
-              </div>
-              <div className="mt-6 flex items-center gap-2">
-                <motion.div className="h-1.5 bg-[#F59E0B]" initial={{ width: 0 }} whileInView={{ width: 48 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.2 }} />
-                <motion.div className="h-1.5 bg-primary" initial={{ width: 0 }} whileInView={{ width: 32 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.35 }} />
-                <motion.div className="h-1.5 bg-[#8B7EC8]" initial={{ width: 0 }} whileInView={{ width: 24 }} viewport={{ once: true }} transition={{ duration: 0.5, delay: 0.5 }} />
-              </div>
-              <Link to="/register" className="inline-flex items-center gap-1.5 mt-5 text-sm font-bold uppercase tracking-wider text-primary hover:underline story-link">
-                Read the Full Text <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-            <motion.div {...fadeUp} className="relative group">
-              <img src={IMG.portrait2} alt="Technology leader" className="w-full aspect-[3/4] object-cover rounded-sm group-hover:shadow-xl transition-shadow duration-500" loading="lazy" />
-              <div className="absolute -top-2 -right-2 w-full h-full border-[6px] border-[#8B7EC8]/40 -z-10 rounded-sm" />
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · Community" right="03 / 06" />
-
-      {/* ═══ PROFILE CARD 3 — photo left with purple accent, text right ═══ */}
-      <section className="py-14 bg-white">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1.5fr] gap-10 lg:gap-16 items-start">
-            <motion.div {...fadeUp} className="relative group">
-              <img src={IMG.portrait3} alt="Agricultural expert" className="w-full aspect-square object-cover rounded-sm group-hover:shadow-xl transition-shadow duration-500" loading="lazy" />
-              <div className="absolute -top-2 -left-2 w-full h-full border-[6px] border-[#8B7EC8]/50 -z-10 rounded-sm" />
-              <motion.div
-                className="absolute -bottom-2 left-0 h-3 bg-primary/80"
-                initial={{ width: 0 }}
-                whileInView={{ width: '66%' }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.8, delay: 0.3, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
-              />
-            </motion.div>
-            <motion.div {...fadeUp}>
-              <p className="text-[10px] font-bold uppercase tracking-[0.25em] text-muted-foreground mb-3">Community Driven</p>
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black uppercase tracking-tight text-foreground leading-[0.92] mb-6">
-                Growing<br />Together
-              </h2>
-              <p className="text-xs font-bold text-muted-foreground mb-4 uppercase tracking-wider">Collective Impact Through Shared Knowledge</p>
-              <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                <p>The strength of West African poultry farming lies in its community. LampFarms connects producers across regions, enabling knowledge sharing that elevates everyone. When one farmer discovers an effective feed formulation, the entire community benefits.</p>
-                <p>Our platform aggregates anonymized production data to surface regional insights — average feed conversion ratios, seasonal mortality patterns, market price trends — giving every farmer access to information that was previously available only to large commercial operations.</p>
-              </div>
-              <Link to="/register" className="inline-flex items-center gap-1.5 mt-6 text-sm font-bold uppercase tracking-wider text-primary hover:underline story-link">
-                Read the Full Text <ArrowUpRight className="h-4 w-4" />
-              </Link>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · Initiative" right="04 / 06" />
-
-      {/* ═══ FULL-WIDTH TEXT BLOCK ═══ */}
-      <section className="py-14 bg-[#F5F0EB]">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="max-w-3xl">
-            <motion.div {...fadeUp}>
-              <h2 className="text-2xl md:text-3xl font-black uppercase tracking-tight text-foreground leading-tight mb-4">
-                The Family Farm Initiative
-              </h2>
-              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-6">A Competition for Agricultural Innovation</p>
-              <div className="space-y-4 text-[15px] text-muted-foreground leading-relaxed">
-                <p>Every year, LampFarms recognizes outstanding family poultry farms that demonstrate innovation, sustainability, and community leadership. The initiative celebrates producers who use data-driven practices, implement biosecurity protocols, and mentor fellow farmers.</p>
-                <p>Winners receive platform credits, equipment upgrades, and recognition across the LampFarms network — inspiring the next generation of West African poultry farmers to embrace modern management techniques while honoring traditional farming values.</p>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ WIDE PANORAMIC PHOTO with parallax ═══ */}
-      <section ref={panoramaRef} className="relative overflow-hidden">
-        <div className="relative h-[50vh] md:h-[60vh] overflow-hidden">
-          <motion.img
-            src={IMG.panorama}
-            alt="West African agricultural landscape panorama"
-            className="absolute inset-0 w-full h-[120%] object-cover"
-            style={{ y: panoramaY }}
-            loading="lazy"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 right-0 px-5 lg:px-10 pb-6">
-            <div className="max-w-[1400px] mx-auto">
-              <motion.div {...fadeUp}>
-                <p className="text-white text-xs font-bold uppercase tracking-[0.2em]">
-                  Family poultry farming across the landscapes of West Africa
-                </p>
-                <p className="text-white/70 text-[10px] mt-1">Photo: West African agricultural communities thriving through shared knowledge</p>
-              </motion.div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB — Stats ═══ */}
-      <div className="bg-[#F5F0EB] px-5 lg:px-10 py-3 border-b border-black/5">
-        <div className="max-w-[1400px] mx-auto flex items-center justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-            LampFarms &nbsp;·&nbsp; Impact
-          </span>
-          <span className="text-[11px] font-black uppercase tracking-[0.15em] text-foreground">
-            Our Year in Numbers
-          </span>
-        </div>
-      </div>
-
-      {/* ═══ STATS — colored blocks matching UPA DI reference ═══ */}
-      <section className="py-16 md:py-24 bg-[#F5F0EB]">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <div className="grid grid-cols-2 gap-4 md:gap-5 max-w-4xl">
-            {/* Row 1 */}
-            <AnimatedCounter target={142} suffix="" label="Institutions and member organizations" blockColor="blue" />
-            <div className="mt-8 md:mt-14">
-              <AnimatedCounter target={90} suffix="" label="Volunteer agricultural experts contributing" blockColor="green" />
-            </div>
-            {/* Row 2 */}
-            <AnimatedCounter target={90} suffix="" label="International development projects" blockColor="yellow" />
-            <div className="mt-8 md:mt-14">
-              <AnimatedCounter
-                target={9919915}
-                prefix="₵"
-                suffix=""
-                label={'Annual production value\ntracked on the platform\n\nFeed costs: 56.8%\nMedication: 17.9%\nRevenue from eggs: 22.3%\nOther: 3%'}
-                blockColor="purple"
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BREADCRUMB ═══ */}
-      <Breadcrumb left="LampFarms · Platform" right="05 / 06" />
-
-      {/* ═══ SECTION CARDS — "EXPLORE THE PLATFORM" ═══ */}
-      <section className="py-16 md:py-20 bg-[#F5F0EB]">
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10">
-          <motion.h2 {...fadeUp} className="text-lg md:text-xl font-black uppercase tracking-[0.1em] text-foreground mb-10">
-            Explore the Platform
-          </motion.h2>
-          <motion.div
-            {...staggerContainer}
-            className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-5"
-          >
-            {sectionCards.map((card) => (
-              <motion.div key={card.title} variants={staggerChild}>
-                <Link
-                  to={card.route}
-                  className={`${card.bg} rounded-2xl p-6 md:p-8 aspect-[4/3] flex flex-col justify-between group hover:scale-[1.03] hover:shadow-xl transition-all duration-300`}
-                >
-                  <h3 className="text-sm md:text-base lg:text-lg font-black uppercase tracking-tight text-white leading-tight whitespace-pre-line">
-                    {card.title}
-                  </h3>
-                  <div className="self-end">
-                    <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white/40 group-hover:scale-110 transition-all duration-300">
-                      <ArrowUpRight className="h-5 w-5 text-white" />
-                    </div>
-                  </div>
-                </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* ═══ CTA ═══ */}
-      <section className="relative py-20 md:py-28 bg-foreground overflow-hidden">
-        <YellowStarBurst className="absolute -top-20 -right-20 w-64 h-64 text-[hsl(var(--accent-gold))] opacity-20" />
-        <LeafBranch className="absolute bottom-0 left-0 w-32 h-48 text-white/5 rotate-[20deg]" />
-        <div className="max-w-[1400px] mx-auto px-5 lg:px-10 relative z-10 text-center">
-          <motion.div {...fadeUp}>
-            <h2 className="text-3xl md:text-5xl font-black uppercase tracking-tight text-white leading-[0.92] mb-6">
-              Start Managing<br />Your Farm Today
-            </h2>
-            <p className="text-white/60 text-sm max-w-lg mx-auto mb-8">
-              Join hundreds of West African poultry farmers who trust LampFarms to track their operations, optimize feed costs, and grow their business — online or offline.
+      {/* HERO */}
+      <section className="relative mx-auto max-w-[1400px] px-6 pb-12 pt-8 lg:px-10 lg:pb-20 lg:pt-12">
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-10 items-end">
+          <motion.div initial="hidden" animate="show" variants={fadeUp} className="lg:col-span-7">
+            <Eyebrow>Smart poultry · Sustainable yields</Eyebrow>
+            <h1 className="mt-6 text-[44px] sm:text-6xl lg:text-[88px] font-black leading-[0.95] tracking-tight">
+              Grow smarter,<br />
+              <span className="italic font-serif font-normal text-primary">greener</span>, and more<br />
+              profitable poultry.
+            </h1>
+            <p className="mt-7 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+              LampFarms turns daily flock care into clear, data-driven decisions — from feed formulation to vaccination timing — so West African farmers raise healthier birds with less waste.
             </p>
-            <div className="flex items-center justify-center gap-4">
-              <Link
-                to="/register"
-                className="inline-flex items-center gap-2 bg-[hsl(var(--accent-gold))] text-foreground font-bold text-sm uppercase tracking-wider px-8 py-3.5 rounded-lg hover:opacity-90 hover:scale-105 transition-all duration-300"
-              >
-                Create Free Account <ArrowUpRight className="h-4 w-4" />
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <Link to="/register"
+                    className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3.5 text-sm font-semibold text-background hover:bg-foreground/90 transition">
+                Start your free farm <ArrowUpRight className="h-4 w-4" />
               </Link>
-              <Link to="/login" className="text-white/70 text-sm font-bold uppercase tracking-wider hover:text-white transition-colors">
-                Sign In
-              </Link>
+              <a href="#solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/20 px-6 py-3.5 text-sm font-semibold hover:bg-foreground/5 transition">
+                See how it works
+              </a>
+            </div>
+          </motion.div>
+
+          <motion.div initial="hidden" animate="show" variants={fadeUp}
+                      transition={{ delay: 0.15 }} className="lg:col-span-5">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[32px] bg-secondary">
+              <img src={IMG.hands} alt="Hands cradling young chicks at a poultry farm"
+                   loading="eager" className="h-full w-full object-cover" />
+              <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-background/95 backdrop-blur px-4 py-3 flex items-center justify-between shadow-[0_20px_50px_-20px_rgba(0,0,0,0.3)]">
+                <div>
+                  <div className="text-2xl font-black tracking-tight">12,400+</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Birds tracked daily</div>
+                </div>
+                <div className="h-10 w-px bg-foreground/10" />
+                <div>
+                  <div className="text-2xl font-black tracking-tight">−18%</div>
+                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Mortality rate</div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Wide hero image */}
+        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
+                    transition={{ duration: 0.9 }}
+                    className="mt-14 overflow-hidden rounded-[32px]">
+          <img src={IMG.hero} alt="Aerial view of patterned farmland at sunrise"
+               loading="lazy" className="h-[40vh] sm:h-[55vh] lg:h-[68vh] w-full object-cover" />
+        </motion.div>
+      </section>
+
+      {/* TRUST */}
+      <section className="border-y border-foreground/10 bg-secondary/40">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 py-8 flex flex-wrap items-center justify-between gap-y-6 gap-x-10">
+          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+            Trusted by farms across West Africa
+          </span>
+          <div className="flex flex-wrap items-center gap-x-10 gap-y-3 text-foreground/50">
+            {['Akoma Farms', 'Asante Poultry', 'Volta Layers', 'Kumasi Co-op', 'Aburi Hatchery', 'Northern Yields'].map(l => (
+              <span key={l} className="text-sm font-bold tracking-tight uppercase">{l}</span>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* COMMITMENT */}
+      <section id="platform" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
+        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
+          <div className="lg:col-span-4">
+            <Eyebrow>Our commitment</Eyebrow>
+            <p className="mt-6 text-sm font-bold uppercase tracking-[0.2em] text-foreground/60">
+              (01) — A platform rooted in the field
+            </p>
+          </div>
+          <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
+                      className="lg:col-span-8">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.05]">
+              We build the quiet tools that let farmers focus on what matters — the birds, the soil, and the harvest at the end of the season.
+            </h2>
+            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-y-8">
+              <Stat number="12,400+" label="Birds tracked daily" />
+              <Stat number="90" label="Active farms" />
+              <Stat number="−18%" label="Avg. mortality reduction" />
             </div>
           </motion.div>
         </div>
       </section>
 
-      {/* ═══ FOOTER ═══ */}
-      <footer className="bg-foreground border-t border-white/10 py-10 px-5 lg:px-10">
-        <div className="max-w-[1400px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div>
-            <span className="text-sm font-black uppercase tracking-tight text-white">LampFarms</span>
-            <p className="text-[10px] text-white/40 mt-1 uppercase tracking-[0.15em]">Smart Poultry Management</p>
+      {/* SOLUTIONS */}
+      <section id="solutions" className="bg-secondary/30 py-24 lg:py-32">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
+          <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
+            <div className="max-w-2xl">
+              <Eyebrow>Solutions</Eyebrow>
+              <h2 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
+                Four modules.<br />One quiet rhythm.
+              </h2>
+            </div>
+            <p className="text-muted-foreground max-w-sm">
+              Each module is built to be used standalone or as part of a fully integrated daily routine.
+            </p>
           </div>
-          <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-            <Link to="/login" className="hover:text-white transition-colors">Sign In</Link>
-            <Link to="/register" className="hover:text-white transition-colors">Register</Link>
-            <span>© {new Date().getFullYear()}</span>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            <SolutionCard image={IMG.poultry} icon={<Bird className="h-5 w-5" />}
+                          eyebrow="Flock Intelligence"
+                          title="Track every batch from chick to cull."
+                          body="Daily counts, weights, mortality, and feed conversion — surfaced as one clear performance number."
+                          to="/batches" />
+            <SolutionCard image={IMG.feed} icon={<FlaskConical className="h-5 w-5" />}
+                          eyebrow="Feed Lab"
+                          title="Three formulation methods, one optimiser."
+                          body="Ready-made, concentrate-mix, or full custom — backed by Pyomo LP and West African safety rules."
+                          to="/feed" />
+            <SolutionCard image={IMG.drone} icon={<HeartPulse className="h-5 w-5" />}
+                          eyebrow="Care &amp; Water"
+                          title="Vaccinations and withdrawals, never late."
+                          body="Protocol schedules, water-log reminders, and withdrawal warnings tuned to your species and age."
+                          to="/health" />
+            <SolutionCard image={IMG.field} icon={<LineChart className="h-5 w-5" />}
+                          eyebrow="Yield &amp; Ledger"
+                          title="Know your true cost per bird, per egg, per crate."
+                          body="Expenses, revenue, and harvest output reconcile into honest margin — with privacy when you need it."
+                          to="/finance" />
+          </div>
+        </div>
+      </section>
+
+      {/* HOW IT WORKS */}
+      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
+        <Eyebrow>How it works</Eyebrow>
+        <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
+          Three steps to a quieter, more profitable farm.
+        </h2>
+        <div className="mt-16 grid gap-10 md:grid-cols-3">
+          {[
+            ['01', 'Set up your farm', 'Add your houses, species, and starting flock. Takes under three minutes.'],
+            ['02', 'Track daily operations', 'Log feed, water, mortality and eggs from any device — even offline.'],
+            ['03', 'Get smarter every week', 'Performance, cost, and health trends summarised so you act before issues compound.'],
+          ].map(([n, t, b]) => (
+            <motion.div key={n} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
+                        className="border-t border-foreground/15 pt-6">
+              <div className="text-sm font-bold tracking-[0.2em] text-primary">{n}</div>
+              <h3 className="mt-4 text-2xl font-black tracking-tight">{t}</h3>
+              <p className="mt-3 text-muted-foreground leading-relaxed">{b}</p>
+            </motion.div>
+          ))}
+        </div>
+      </section>
+
+      {/* PANORAMA */}
+      <section className="relative">
+        <div className="relative h-[60vh] overflow-hidden">
+          <img src={IMG.panorama} alt="Farmland panorama at golden hour"
+               loading="lazy" className="h-full w-full object-cover" />
+          <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent" />
+          <div className="absolute bottom-10 left-0 right-0 mx-auto max-w-[1400px] px-6 lg:px-10">
+            <p className="text-background text-sm font-semibold tracking-[0.18em] uppercase">
+              Wendlagounda Bernadette Kassongo — Volta Region, Ghana
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* IMPACT NUMBERS */}
+      <section id="impact" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
+        <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
+          <Eyebrow>Our year in numbers</Eyebrow>
+          <p className="text-sm text-muted-foreground">2024–2025 platform metrics</p>
+        </div>
+        <div className="grid gap-12 grid-cols-2 lg:grid-cols-4">
+          <AnimatedCounter target={500} suffix="+" label={'Active\nfarms'} barColor="primary" />
+          <AnimatedCounter target={90} suffix="%" label={'Vaccination\ncompliance'} barColor="accent-cyan" />
+          <AnimatedCounter target={12400} label={'Birds tracked\ndaily'} barColor="accent-gold" />
+          <AnimatedCounter target={18} suffix="%" prefix="−" label={'Mortality\nreduction'} barColor="accent-purple" />
+        </div>
+      </section>
+
+      {/* VOICES */}
+      <section className="bg-secondary/30 py-24 lg:py-32">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
+          <Eyebrow>Voices from the field</Eyebrow>
+          <div className="mt-12 grid gap-10 lg:grid-cols-2">
+            <Testimonial image={IMG.farmer1}
+                         name="Martin Caron"
+                         role="Layer farmer · Kumasi"
+                         quote="Before LampFarms I was guessing at feed mixes. Now I plug in what's at the market and the optimiser shows me the cheapest safe ration in seconds." />
+            <Testimonial image={IMG.farmer2}
+                         name="Hugo Beauregard-Lapointe"
+                         role="Broiler co-op · Tamale"
+                         quote="The offline mode is what made it real for us. We log mortality from the house, and it just syncs when the network comes back." />
+          </div>
+        </div>
+      </section>
+
+      {/* RESOURCES */}
+      <section id="resources" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
+        <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
+          <div>
+            <Eyebrow>Resources</Eyebrow>
+            <h2 className="mt-5 text-4xl sm:text-5xl font-black tracking-tight leading-[1.02]">From the field journal.</h2>
+          </div>
+          <a href="#" className="text-sm font-semibold underline underline-offset-4">View all articles</a>
+        </div>
+        <div className="grid gap-8 md:grid-cols-3">
+          <BlogCard image={IMG.blog1} tag="IoT farming" title="Sensor-driven poultry housing for tropical climates." date="Mar 2025" />
+          <BlogCard image={IMG.blog2} tag="Nutrition" title="Organic feed mixes that don't blow up your unit cost." date="Feb 2025" />
+          <BlogCard image={IMG.blog3} tag="Health" title="A vaccination playbook for first-time layer farmers." date="Jan 2025" />
+        </div>
+      </section>
+
+      {/* CTA */}
+      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-16">
+        <div className="relative overflow-hidden rounded-[36px] bg-foreground text-background px-8 py-20 lg:px-20 lg:py-28">
+          <div className="absolute -top-10 -right-10 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
+          <Eyebrow>
+            <span className="text-background/70">Get started today</span>
+          </Eyebrow>
+          <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-7xl font-black leading-[1] tracking-tight">
+            Plant the seed of <span className="italic font-serif font-normal">smarter</span> farming.
+          </h2>
+          <p className="mt-6 max-w-xl text-background/70 text-lg">
+            Free for your first flock. No credit card. Works offline.
+          </p>
+          <div className="mt-10 flex flex-wrap gap-3">
+            <Link to="/register"
+                  className="inline-flex items-center gap-2 rounded-full bg-background px-7 py-4 text-sm font-semibold text-foreground hover:bg-secondary transition">
+              Create your free farm <ArrowUpRight className="h-4 w-4" />
+            </Link>
+            <Link to="/login"
+                  className="inline-flex items-center gap-2 rounded-full border border-background/30 px-7 py-4 text-sm font-semibold text-background hover:bg-background/10 transition">
+              I already have an account
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* FOOTER */}
+      <footer className="border-t border-foreground/10">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 py-16">
+          <div className="grid gap-10 md:grid-cols-5">
+            <div className="md:col-span-2">
+              <div className="text-2xl font-black tracking-tight">LampFarms<sup className="ml-0.5 text-xs">®</sup></div>
+              <p className="mt-4 max-w-sm text-sm text-muted-foreground leading-relaxed">
+                Smart poultry management for the next generation of West African farmers.
+              </p>
+            </div>
+            <FooterCol title="Platform" links={['Overview', 'Flocks', 'Feed Lab', 'Care & Water', 'Ledger']} />
+            <FooterCol title="Company" links={['About', 'Contact', 'Careers', 'Press']} />
+            <FooterCol title="Legal" links={['Privacy', 'Terms', 'Cookies', 'Security']} />
+          </div>
+          <div className="mt-14 flex flex-wrap items-center justify-between gap-4 border-t border-foreground/10 pt-6 text-xs text-muted-foreground">
+            <span>© {new Date().getFullYear()} LampFarms. All rights reserved.</span>
+            <span>EN · FR · TWI</span>
           </div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function Stat({ number, label }: { number: string; label: string }) {
+  return (
+    <div className="border-l border-foreground/15 pl-5">
+      <div className="text-3xl sm:text-4xl font-black tracking-tight">{number}</div>
+      <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+    </div>
+  );
+}
+
+function SolutionCard({
+  image, icon, eyebrow, title, body, to,
+}: { image: string; icon: React.ReactNode; eyebrow: string; title: string; body: string; to: string }) {
+  return (
+    <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}>
+      <Link to={to} className="group block rounded-[28px] bg-background overflow-hidden hover:shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] transition">
+        <div className="aspect-[16/10] overflow-hidden">
+          <img src={image} alt={eyebrow} loading="lazy"
+               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+        </div>
+        <div className="p-7">
+          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
+            {icon}<span dangerouslySetInnerHTML={{ __html: eyebrow }} />
+          </div>
+          <h3 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight leading-tight">{title}</h3>
+          <p className="mt-3 text-muted-foreground">{body}</p>
+          <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold">
+            Explore <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </div>
+        </div>
+      </Link>
+    </motion.div>
+  );
+}
+
+function Testimonial({ image, name, role, quote }: { image: string; name: string; role: string; quote: string }) {
+  return (
+    <motion.figure initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
+                   className="rounded-[28px] bg-background p-8 lg:p-10">
+      <div className="flex items-center gap-4">
+        <img src={image} alt={name} loading="lazy"
+             className="h-14 w-14 rounded-full object-cover" />
+        <div>
+          <div className="font-bold tracking-tight">{name}</div>
+          <div className="text-xs text-muted-foreground uppercase tracking-[0.18em]">{role}</div>
+        </div>
+      </div>
+      <blockquote className="mt-6 text-xl sm:text-2xl font-medium leading-snug tracking-tight">
+        "{quote}"
+      </blockquote>
+    </motion.figure>
+  );
+}
+
+function BlogCard({ image, tag, title, date }: { image: string; tag: string; title: string; date: string }) {
+  return (
+    <motion.article initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
+                    className="group cursor-pointer">
+      <div className="aspect-[5/4] overflow-hidden rounded-[24px]">
+        <img src={image} alt={title} loading="lazy"
+             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
+      </div>
+      <div className="mt-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
+        <span className="text-primary">{tag}</span>
+        <span className="h-px w-4 bg-foreground/20" />
+        <span>{date}</span>
+      </div>
+      <h3 className="mt-3 text-xl font-black tracking-tight leading-snug">{title}</h3>
+    </motion.article>
+  );
+}
+
+function FooterCol({ title, links }: { title: string; links: string[] }) {
+  return (
+    <div>
+      <div className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">{title}</div>
+      <ul className="mt-4 space-y-2">
+        {links.map(l => (
+          <li key={l}><a href="#" className="text-sm hover:underline underline-offset-4">{l}</a></li>
+        ))}
+      </ul>
     </div>
   );
 }

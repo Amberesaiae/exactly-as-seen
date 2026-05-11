@@ -126,7 +126,7 @@ export default function Feed() {
   return (
     <div className="p-4 md:p-6 space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Feed</h1>
+        <h1 className="text-2xl font-bold text-foreground">Feed Lab</h1>
         <Button className="gap-1.5 rounded-full" asChild>
           <Link to="/feed/formulate"><Calculator className="h-4 w-4" /> Formulate</Link>
         </Button>

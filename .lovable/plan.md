@@ -1,147 +1,88 @@
 
+# LampFarms — "Grawing" Design DNA Rollout
 
-# Pixel-Perfect Clone of UPA DI Landing Page for LampFarms
+Pivot the landing page and the in-app shell to the editorial agriculture aesthetic from the Dribbble reference, then rename and re-group the navigation around farmer mental models.
 
-## What's Wrong Now
+## Design DNA (locked from reference)
 
-1. **Broken images** — 6 local `.jpg` files are empty binary blobs that don't render
-2. **Brand icon still present** — Nav and footer show a green square "LF" icon; AppSidebar uses Sprout icon. Brand must be text-only everywhere
-3. **Layout doesn't match reference** — Current page uses generic SaaS patterns. The reference has very specific editorial patterns that are not replicated
-4. **Stats are inside colored blocks** — Reference shows numbers as plain black text with colored bars underneath, not inside colored rectangles
-5. **Missing content density** — Reference has much more narrative text, profile cards, pull quotes, and a full-width photo section
+- Palette (HSL tokens in `index.css`):
+  - `--background` cream `#F9FAEA`
+  - `--foreground` near-black `#101804`
+  - `--primary` deep olive `#555C26`
+  - `--secondary` sage `#CAD6AE`
+  - `--muted-foreground` warm gray `#8F988E`
+  - `--accent` olive-tan `#8F8D53`
+- Type: Manrope already loaded. Display headline uses a tighter, large-scale tracking-tight weight 800; body Manrope 400/500. Add an oversized editorial display class.
+- Layout language: generous whitespace, two-column editorial grids, oversized hero image, small uppercase eyebrow labels, thin hairline dividers, rounded-[28px] image masks, soft `shadow-[0_30px_60px_-30px]` shadows, no harsh borders.
+- Imagery: real farm photography via Unsplash (rice fields, drone shots, hands-in-soil, greenhouse, irrigation, poultry close-ups). No AI art.
+- Motion: subtle `framer-motion` fades + slow image scale-on-scroll. No bouncy effects.
 
-## Exact Reference Patterns to Clone
+## Landing Page (`src/pages/Welcome.tsx` — full rewrite)
 
-From the screenshot analysis:
+Sections in order:
 
-```text
-┌─────────────────────────────────────────┐
-│ NAV: logo-text | center-label | MENU +  │  ← sticky, white/cream, no border
-├─────────┬───────────┬───────────────────┤
-│ PHOTO   │ CREAM+    │ PHOTO (top-right  │  ← hero: 3-col photo collage
-│ (left)  │ YELLOW    │ has small circle) │
-│         │ STAR      │                   │
-│         │           │ green block       │
-├─────────┴───────────┴───────────────────┤
-│ "ANNUAL REPORT"     "LANDS OF          │  ← massive condensed type over
-│ "2023-2024"          ENGAGEMENT"       │     dark gradient, bottom-aligned
-├─────────────────────────────────────────┤
-│ breadcrumb row                         │
-├──────┬──────────────────┬───────────────┤
-│ PHOTO│ "Lands of        │ PHOTO         │  ← narrative: 3-col, rotated
-│ blue │  Engagement"     │ green accent  │     photo with colored border
-│border│  body text...    │               │
-├──────┴──────────────────┴───────────────┤
-│ breadcrumb row                         │
-├──────────────┬──────────────────────────┤
-│ PHOTO        │ MARTIN CARON             │  ← profile card 1: photo left
-│ yellow bar   │ subtitle                 │     with yellow accent bar
-│              │ body text               │
-│              │ READ THE FULL TEXT +     │
-├──────────────┴──────────────────────────┤
-│ breadcrumb row                         │
-├──────────────────────────┬──────────────┤
-│ MARTIN CARON             │ PHOTO        │  ← profile card 2: reversed
-│ subtitle                 │ green/yellow │     text left, photo right
-│ body text               │ accent       │
-│ colored bars            │              │
-├──────────────────────────┴──────────────┤
-│ HUGO BEAUREGARD-LA...                  │  ← profile card 3 (like card 1)
-│ photo + text + "READ FULL TEXT +"      │
-├─────────────────────────────────────────┤
-│ breadcrumb row                         │
-├─────────────────────────────────────────┤
-│ THE FAMILLE AGRICOLE...                │  ← full-width text block
-│ COMPETITION INITIATIVE                 │
-│ body text...                           │
-├─────────────────────────────────────────┤
-│ WIDE PHOTO with caption overlay        │  ← panoramic photo
-│ "Wendlagounda Bernadette Kassongo"     │
-├─────────────────────────────────────────┤
-│ breadcrumb   OUR YEAR IN NUMBERS       │
-├──────────────┬──────────────────────────┤
-│ 142          │         90              │  ← PLAIN BLACK numbers, NOT
-│ ▬▬▬ (green)  │         ▬▬▬ (blue)      │     inside colored blocks
-│ label        │         label           │     Thick colored bar below
-├──────────────┼──────────────────────────┤
-│ 90           │                         │  ← staggered: 2nd row offset
-│ ▬▬▬ (yellow) │    $9,919,915           │
-│ label        │    ▬▬▬ (purple)         │
-│              │    label (multi-line)   │
-├──────────────┴──────────────────────────┤
-│ VIEW THE SECTIONS OF THE REPORT        │
-├────────┬─────────┬──────────────────────┤
-│ GREEN  │ CYAN    │ BLUE                │  ← 3x2 solid-color cards
-│ card   │ card    │ card                │     rounded corners, white text
-├────────┼─────────┼──────────────────────┤
-│ YELLOW │ ORANGE  │ GREEN               │
-│ card   │ card    │ card                │
-└────────┴─────────┴──────────────────────┘
-```
+1. **Sticky nav** — cream bg, no border. Left: text "LampFarms®". Center pill links: Platform · Solutions · Resources · Pricing. Right: "Sign in" link + dark pill CTA "Get started".
+2. **Hero** — Eyebrow "Smart poultry, sustainable yields". Oversized display headline ("Grow smarter, greener, and more profitable poultry."). Two-line lede. Two CTAs: dark pill "Start free" + ghost "Watch demo". Below: full-width rounded farm aerial image with floating stat chip ("12k+ birds tracked daily").
+3. **Trust strip** — "Trusted by farms across West Africa" + 6 muted text logos.
+4. **Commitment block** — Left column small label "Our commitment". Right column big editorial paragraph + 3 inline stats with hairline dividers (Birds tracked, Active farms, Avg. mortality reduction).
+5. **Solutions grid** — 2x2 large cards w/ image left, text right alternating: Flock Intelligence, Feed Formulator, Health & Biosecurity, Yield & Finance. Each card has eyebrow, headline, 2-line body, "Explore →" link.
+6. **How it works** — 3-step horizontal row with numbered circles (01/02/03): Set up your farm · Track daily ops · Get smart insights.
+7. **Impact numbers** — 4 stats, plain black numerals, thin olive bar underneath (matches existing AnimatedCounter bar mode).
+8. **Voices from the field** — 2-up testimonial cards with portrait, name, farm, quote.
+9. **Blog/Resources teaser** — 3-card row: IoT poultry housing, Organic feed mixes, Vaccination playbook.
+10. **Closing CTA banner** — dark olive bg, cream text, single pill CTA "Create your free farm".
+11. **Footer** — 4 columns (Product, Company, Resources, Legal), text-only wordmark, copyright, language toggle.
 
-## Implementation Plan
+Each section uses framer-motion fade-up on scroll. Images lazy-load. Mobile: collapses to single column, nav becomes hamburger sheet, hero stat chip stays.
 
-### 1. Delete broken image files
-Remove all 6 `src/assets/landing/*.jpg` files (binary garbage).
+## Renamed Pages & Navigation Concept
 
-### 2. `src/pages/Welcome.tsx` — Complete Rewrite
+Current → New (route stays same to avoid breakage; only labels/icons/groupings change):
 
-Use **Unsplash URLs** for real images (no local files):
-- Hero farmer: `https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800&q=80` (farming/agriculture)
-- Landscape: `https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=800&q=80`
-- Community: `https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=800&q=80`
-- Poultry: `https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=800&q=80`
-- Person portrait 1: `https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80`
-- Person portrait 2: `https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80`
-- Wide farm panorama: `https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1200&q=80`
+| Old label | New label | Route | Group |
+|-----------|-----------|-------|-------|
+| Dashboard | Overview | `/dashboard` | Today |
+| Batches | Flocks | `/batches` | Operations |
+| Feed | Feed Lab | `/feed` | Operations |
+| Health | Care & Water | `/health` | Operations |
+| Eggs | Harvest | `/eggs` | Operations |
+| Stock | Inventory | `/stock` | Operations |
+| Finance | Ledger | `/finance` | Insights |
+| Records | Performance | `/records` | Insights |
+| Settings | Farm Settings | `/settings` | Account |
 
-**Sections (matching reference exactly):**
+Sidebar gets section labels ("TODAY", "OPERATIONS", "INSIGHTS", "ACCOUNT") matching the editorial small-caps style. Mobile bottom nav primary tabs: Overview · Flocks · Feed Lab · Care · More.
 
-- **Nav**: Sticky, cream bg, no border. Text-only "LampFarms" bold uppercase left (NO green square, NO icon). Center: "Smart Poultry Management" in 10px uppercase. Right: "Sign In" link + "MENU +" button.
-- **Hero**: 3-column photo collage. Left = large photo. Center = cream panel with `YellowStarBurst`. Right = photo with small circular inset + green block. Bottom: massive condensed title over dark gradient overlay, left-aligned. Subtitle right-aligned.
-- **Narrative**: Breadcrumb row. 3-column: rotated photo with blue border | heading + body text | photo with green accent block.
-- **Profile Card 1**: Breadcrumb. 2-col: photo left with yellow accent bar underneath | name in huge condensed bold + subtitle + body text + "READ THE FULL TEXT +" link.
-- **Profile Card 2**: Reversed: text left (huge name, body) | photo right with colored border accent. Colored bars decoration.
-- **Profile Card 3**: Same as card 1 but different person/content, about offline-first technology.
-- **Full-width Text Block**: Heading + body text, no photo.
-- **Wide Photo**: Full-width panoramic with dark gradient overlay and caption text at bottom.
-- **Stats**: "OUR YEAR IN NUMBERS" heading. **Plain black numbers** (text-7xl+) with **thick colored bars underneath** (not inside colored blocks). Staggered 2-column layout. Numbers: 500+, 90, 12, ₵9,919,915. Bar colors: green, blue, yellow, purple.
-- **Section Cards**: "EXPLORE THE PLATFORM" heading. 3x2 grid of solid-colored rounded cards with white bold uppercase text.
-- **CTA**: Dark bg, gold button, star decoration.
-- **Footer**: Text-only "LampFarms" (no icon, no square), links, copyright.
+## In-app shell alignment
 
-### 3. `src/components/landing/AnimatedCounter.tsx` — Fix Stats Style
+- `src/components/AppLayout.tsx` — remove the green square + Sprout icon in mobile header; use text-only wordmark.
+- `src/components/AppSidebar.tsx` — switch to cream background, olive active states, grouped sections, text-only brand.
+- `src/components/MobileNav.tsx` — update labels to new names, keep icons but swap to Lucide equivalents (`Bird` for Flocks, `FlaskConical` for Feed Lab, `HeartPulse` for Care).
+- `src/index.css` — replace primary/background/secondary HSL tokens with the new palette; keep existing accent tokens as semantic aliases so cards on Finance/Eggs etc. still work.
+- `tailwind.config.ts` — no structural changes; tokens flow through.
 
-Remove the `inBlock` mode entirely. Stats should render as:
-- **Plain black numbers** at text-7xl/8xl (not white, not inside colored blocks)
-- **Thick colored bar** underneath (h-2, w-20) using `barColor` prop
-- Small uppercase label below
-- This matches the reference exactly
-
-### 4. `src/components/landing/LandingDecorations.tsx` — Keep + Fix AuthPanel
-
-- Keep `YellowStarBurst`, `LeafBranch`, `WaveDivider` as-is
-- Fix `AuthPanel`: ensure no icon in the brand name
-
-### 5. `src/components/AppSidebar.tsx` — Text-Only Brand
-
-Replace the green square with Sprout icon:
-- When expanded: bold uppercase "LampFarms" text only
-- When collapsed: "LF" as plain text (no colored square, no icon)
-- Remove `Sprout` import
-
-### 6. Auth Pages — Already Fixed
-
-Login, Register, ForgotPassword, ResetPassword already use text-only "LampFarms". No changes needed.
-
-## Files Modified
+## Files Touched
 
 | File | Change |
 |------|--------|
-| `src/pages/Welcome.tsx` | Full rewrite — pixel-perfect reference clone with Unsplash images |
-| `src/components/landing/AnimatedCounter.tsx` | Remove `inBlock`, use plain black numbers with colored bars |
-| `src/components/AppSidebar.tsx` | Remove Sprout icon, text-only brand |
-| Delete `src/assets/landing/*.jpg` | Remove 6 broken binary files |
+| `src/index.css` | Replace core color tokens with Grawing palette (HSL) |
+| `src/pages/Welcome.tsx` | Full rewrite (sections above) |
+| `src/components/landing/LandingDecorations.tsx` | Trim to editorial helpers (eyebrow, hairline, stat chip) |
+| `src/components/landing/AnimatedCounter.tsx` | Keep bar mode; restyle bar to olive primary |
+| `src/components/AppSidebar.tsx` | Grouped sections, new labels, cream theme |
+| `src/components/AppLayout.tsx` | Remove Sprout, text-only brand |
+| `src/components/MobileNav.tsx` | New labels + icons |
+| Page titles (`Dashboard.tsx`, `Batches.tsx`, `Feed.tsx`, `Health.tsx`, `Eggs.tsx`, `Finance.tsx`, `Stock.tsx`, `Records.tsx`, `SettingsPage.tsx`) | Update page H1 + breadcrumbs to new names only — no business logic changes |
 
-No database changes. All auth logic preserved.
+## Out of scope
 
+- No route path changes (keeps deep links working, all existing data flows untouched).
+- No DB schema changes.
+- No feature additions to batches/feed/health/etc. — purely visual + naming.
+
+## Acceptance
+
+- Landing page reads as an editorial agriculture site at 320px, 768px, 1280px, 1920px.
+- Every nav label uses the new naming consistently across sidebar, mobile nav, page H1, and breadcrumbs.
+- No icon appears next to "LampFarms" anywhere.
+- Lighthouse-friendly: alt text on every image, single H1 per page, meta title/description on landing.

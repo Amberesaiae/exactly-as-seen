@@ -339,7 +339,7 @@ export default function Health() {
   return (
     <div className="p-4 md:p-6 space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Water & Health</h1>
+        <h1 className="text-2xl font-bold text-foreground">Care &amp; Water</h1>
         <Button className="gap-1.5 rounded-full" onClick={() => setShowMedModal(true)} disabled={!selectedBatch}>
           <Plus className="h-4 w-4" /> Medication
         </Button>

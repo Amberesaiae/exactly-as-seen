@@ -273,7 +273,7 @@ export default function Finance() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold text-foreground">Finance</h1>
+          <h1 className="text-2xl font-bold text-foreground">Ledger</h1>
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleCostPrivacy}>
             {costPrivacyEnabled ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
           </Button>

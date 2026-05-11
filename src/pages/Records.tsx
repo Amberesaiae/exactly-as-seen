@@ -131,7 +131,7 @@ export default function Records() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Records</h1>
+        <h1 className="text-2xl font-bold text-foreground">Performance</h1>
         <Button variant="outline" className="gap-1.5 rounded-full" onClick={exportCSV}>
           <Download className="h-4 w-4" /> Export CSV
         </Button>

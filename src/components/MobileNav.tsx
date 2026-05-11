@@ -1,21 +1,21 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Layers, Calculator, Droplets, MoreHorizontal, Egg, Wallet, Package, FileText, Settings } from 'lucide-react';
+import { LayoutDashboard, Bird, FlaskConical, HeartPulse, MoreHorizontal, Egg, Wallet, Package, LineChart, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 
 const primaryItems = [
-  { title: 'Home', url: '/dashboard', icon: LayoutDashboard },
-  { title: 'Batches', url: '/batches', icon: Layers },
-  { title: 'Feed', url: '/feed', icon: Calculator },
-  { title: 'Health', url: '/health', icon: Droplets },
+  { title: 'Overview', url: '/dashboard', icon: LayoutDashboard },
+  { title: 'Flocks', url: '/batches', icon: Bird },
+  { title: 'Feed Lab', url: '/feed', icon: FlaskConical },
+  { title: 'Care', url: '/health', icon: HeartPulse },
 ];
 
 const moreItems = [
-  { title: 'Eggs', url: '/eggs', icon: Egg },
-  { title: 'Finance', url: '/finance', icon: Wallet },
-  { title: 'Stock', url: '/stock', icon: Package },
-  { title: 'Records', url: '/records', icon: FileText },
+  { title: 'Harvest', url: '/eggs', icon: Egg },
+  { title: 'Ledger', url: '/finance', icon: Wallet },
+  { title: 'Inventory', url: '/stock', icon: Package },
+  { title: 'Performance', url: '/records', icon: LineChart },
   { title: 'Settings', url: '/settings', icon: Settings },
 ];
 
@@ -35,7 +35,7 @@ export function MobileNav() {
               key={item.title}
               to={item.url}
               className={cn(
-                'flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium transition-colors',
+                'flex flex-col items-center gap-0.5 px-2 py-1 text-[11px] font-semibold transition-colors',
                 isActive(item.url) ? 'text-primary' : 'text-muted-foreground'
               )}
             >
@@ -46,7 +46,7 @@ export function MobileNav() {
           <button
             onClick={() => setShowMore(true)}
             className={cn(
-              'flex flex-col items-center gap-0.5 px-2 py-1 text-xs font-medium transition-colors',
+              'flex flex-col items-center gap-0.5 px-2 py-1 text-[11px] font-semibold transition-colors',
               moreActive ? 'text-primary' : 'text-muted-foreground'
             )}
           >
