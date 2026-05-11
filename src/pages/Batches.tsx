@@ -92,7 +92,7 @@ export default function Batches() {
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Batches</h1>
+        <h1 className="text-2xl font-bold text-foreground">Flocks</h1>
         <Button className="gap-1.5 rounded-full" asChild>
           <Link to="/batches/new"><Plus className="h-4 w-4" /> New Batch</Link>
         </Button>

@@ -282,7 +282,7 @@ export default function Eggs() {
     <div className="p-4 md:p-6 space-y-4 pb-24">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-foreground">Egg Production</h1>
+        <h1 className="text-2xl font-bold text-foreground">Harvest</h1>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-1.5 rounded-full" onClick={() => setShowSale(true)} disabled={!farmId}>
             <ShoppingCart className="h-4 w-4" /> Sale
