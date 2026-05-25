@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,17 +22,32 @@ interface ReadyMadeFeedProps {
   week: number;
   farmId: string;
   onDone: () => void;
+  targetKg?: number;
 }
 
-export function ReadyMadeFeed({ batch, phase, week, farmId, onDone }: ReadyMadeFeedProps) {
+export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: ReadyMadeFeedProps) {
   const { currency } = useAuth();
   const { costPrivacyEnabled } = useAppStore();
   const [feedType, setFeedType] = useState('');
   const [brand, setBrand] = useState('');
-  const [bags, setBags] = useState('1');
   const [bagSizeKg, setBagSizeKg] = useState('50');
+  const [bags, setBags] = useState(() => {
+    if (targetKg) {
+      return Math.ceil(targetKg / 50).toString();
+    }
+    return '1';
+  });
   const [pricePerBag, setPricePerBag] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Sync bags if targetKg or bagSizeKg changes
+  useEffect(() => {
+    if (targetKg) {
+      const size = parseInt(bagSizeKg) || 50;
+      setBags(Math.ceil(targetKg / size).toString());
+    }
+  }, [targetKg, bagSizeKg]);
+
 
   const feedTypes = COMMERCIAL_FEED_TYPES.filter(f => f.species.includes(batch.species));
   const totalKg = (parseInt(bags) || 0) * (parseInt(bagSizeKg) || 0);
@@ -40,6 +55,9 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone }: ReadyMadeF
   const costPerKg = totalKg > 0 ? totalCost / totalKg : 0;
   const dailyKg = phase ? (phase.feedPerBirdG * batch.current_population) / 1000 : 0;
   const coversDays = dailyKg > 0 ? Math.floor(totalKg / dailyKg) : 0;
+  const plannedDays = targetKg && phase
+    ? Math.round((targetKg * 1000) / (phase.feedPerBirdG * batch.current_population))
+    : 0;
 
   const mask = (v: string) => costPrivacyEnabled ? '••••' : v;
 
@@ -67,15 +85,18 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone }: ReadyMadeF
 
     // Auto-create expense
     if (totalCost > 0) {
-      await supabase.from('expenses').insert({
+      const totalPesewas = Math.round(totalCost * 100);
+      await supabase.from('expenses').upsert({
         farm_id: farmId,
         batch_id: batch.id,
         category: 'feed',
         description: `Ready-made feed: ${feedType || 'Commercial'} ${brand ? `(${brand})` : ''} — ${totalKg}kg`,
         amount: totalCost,
-        source: 'feed_formulation',
+        amount_pesewas: totalPesewas,
+        date: new Date().toISOString().split('T')[0],
+        source: 'auto:feed',
         source_ref: formulation.id,
-      });
+      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
     }
 
     await supabase.from('activity_log').insert({
@@ -127,6 +148,13 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone }: ReadyMadeF
               <Label>Price per Bag (GH₵)</Label>
               <Input type="number" min="0" step="0.5" value={pricePerBag} onChange={e => setPricePerBag(e.target.value)} placeholder="185.00" />
             </div>
+            {targetKg && phase && (
+              <div className="col-span-3 mt-1">
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Pre-filled from your plan ({plannedDays} days &times; {batch.current_population} birds &times; {phase.feedPerBirdG}g/bird)
+                </p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

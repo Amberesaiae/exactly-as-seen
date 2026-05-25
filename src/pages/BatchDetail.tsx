@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { getBatchAge, mortalityRate, recordMortality, cleanupBatchCompletion } from '@/lib/batch-utils';
+import { getBatchAge, mortalityRate, cleanupBatchCompletion } from '@/lib/batch-utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -13,11 +13,16 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Users, Calendar, Skull, FileText, Calculator, Droplets, CheckCircle2, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { MortalityDialog } from '@/components/MortalityDialog';
+import { ArrowLeft, Users, Calendar, Skull, FileText, Calculator, Droplets, CheckCircle2, Loader2, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import type { Database } from '@/integrations/supabase/types';
+
+const COLORS = ['hsl(var(--destructive))', '#fbbf24', '#818cf8', '#34d399', '#8b5cf6'];
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type MortalityRecord = Database['public']['Tables']['mortality_records']['Row'];
@@ -29,12 +34,14 @@ export default function BatchDetail() {
   const [loading, setLoading] = useState(true);
   const [mortalities, setMortalities] = useState<MortalityRecord[]>([]);
 
-  const [mCount, setMCount] = useState('1');
-  const [mCause, setMCause] = useState('');
-  const [mNotes, setMNotes] = useState('');
-  const [mSubmitting, setMSubmitting] = useState(false);
+  const [isMortalityDialogOpen, setIsMortalityDialogOpen] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [completing, setCompleting] = useState(false);
+
+  // Culling / Termination state variables
+  const [terminationMode, setTerminationMode] = useState<'normal' | 'emergency'>('normal');
+  const [saleRevenue, setSaleRevenue] = useState('0.00');
+  const [isTerminateOpen, setIsTerminateOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -52,34 +59,11 @@ export default function BatchDetail() {
     load();
   }, [id]);
 
-  const handleRecordMortality = async () => {
-    if (!batch) return;
-    setMSubmitting(true);
-    const count = parseInt(mCount) || 0;
-    if (count <= 0) { toast.error('Count must be positive'); setMSubmitting(false); return; }
-    if (count > batch.current_population) { toast.error('Count exceeds current population'); setMSubmitting(false); return; }
-
-    const newPop = await recordMortality({
-      batchId: batch.id,
-      farmId: batch.farm_id,
-      batchName: batch.name,
-      currentPopulation: batch.current_population,
-      count,
-      cause: mCause || undefined,
-      notes: mNotes || undefined,
-    });
-
-    if (newPop === null) { toast.error('Failed to record mortality'); setMSubmitting(false); return; }
-
+  const handleMortalitySuccess = async (batchId: string, newPop: number) => {
     // Re-fetch mortality records
-    const { data: newMortalities } = await supabase.from('mortality_records').select('*').eq('batch_id', batch.id).order('recorded_at', { ascending: false });
+    const { data: newMortalities } = await supabase.from('mortality_records').select('*').eq('batch_id', batchId).order('recorded_at', { ascending: false });
     setMortalities(newMortalities ?? []);
-    setBatch({ ...batch, current_population: newPop });
-    setMCount('1');
-    setMCause('');
-    setMNotes('');
-    setMSubmitting(false);
-    toast.success(`Recorded ${count} mortality`);
+    if (batch) setBatch({ ...batch, current_population: newPop });
   };
 
   const saveNote = async () => {
@@ -95,11 +79,53 @@ export default function BatchDetail() {
     toast.success('Note saved');
   };
 
-  const completeBatch = async () => {
+  const terminateBatch = async () => {
     if (!batch) return;
+    
+    // Guard: Normal culls blocked if active withdrawal is true
+    if (terminationMode === 'normal' && batch.has_active_withdrawal) {
+      toast.error('Cannot terminate batch during active withdrawal period.', {
+        description: 'Emergency terminate is still available.'
+      });
+      return;
+    }
+
     setCompleting(true);
-    const { error } = await supabase.from('batches').update({ status: 'completed' }).eq('id', batch.id);
-    if (error) { toast.error(error.message); setCompleting(false); return; }
+    
+    // Update batch status/phase
+    const { error } = await supabase.from('batches').update({ 
+      status: 'completed', 
+      phase: 'terminated',
+      termination_reason: terminationMode
+    }).eq('id', batch.id);
+
+    if (error) { 
+      toast.error(error.message); 
+      setCompleting(false); 
+      return; 
+    }
+
+    // Set house occupied_by_batch_id to null
+    if (batch.house_id) {
+      await supabase.from('houses').update({ occupied_by_batch_id: null }).eq('id', batch.house_id);
+    }
+
+    // Insert automatic birds sale revenue
+    const revenuePesewas = Math.round(parseFloat(saleRevenue) * 100);
+    if (revenuePesewas > 0) {
+      const revenueCategory = batch.species === 'broiler' ? 'meat_sales' : 'bird_sales';
+      await supabase.from('revenue').upsert({
+        farm_id: batch.farm_id,
+        batch_id: batch.id,
+        category: revenueCategory,
+        description: `Auto-revenue: Sold birds from terminated batch "${batch.name}" (${terminationMode} culling)`,
+        amount: revenuePesewas / 100,
+        amount_pesewas: revenuePesewas,
+        date: new Date().toISOString().split('T')[0],
+        source: 'auto:batch',
+        source_ref: batch.id + ':terminate',
+      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+    }
 
     // Cleanup related records
     await cleanupBatchCompletion(batch.id);
@@ -108,11 +134,18 @@ export default function BatchDetail() {
       farm_id: batch.farm_id,
       batch_id: batch.id,
       event_type: 'batch_completed',
-      description: `Batch "${batch.name}" marked as completed`,
+      description: `Flock "${batch.name}" terminated (${terminationMode} mode)${revenuePesewas > 0 ? ` for GHS ${(revenuePesewas/100).toFixed(2)}` : ''}`,
     });
-    setBatch({ ...batch, status: 'completed' });
+
+    setBatch({ 
+      ...batch, 
+      status: 'completed', 
+      phase: 'terminated',
+      termination_reason: terminationMode 
+    });
     setCompleting(false);
-    toast.success('Batch marked as completed');
+    setIsTerminateOpen(false);
+    toast.success(`Batch successfully terminated in ${terminationMode} mode!`);
   };
 
   if (loading) {
@@ -140,6 +173,17 @@ export default function BatchDetail() {
     return acc;
   }, []);
 
+  const causeBreakdownData = useMemo(() => {
+    const causes: Record<string, number> = {};
+    mortalities.forEach(m => {
+      let rawCause = m.cause || 'Unknown';
+      // Capitalize first letter of each word
+      const causeKey = rawCause.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      causes[causeKey] = (causes[causeKey] || 0) + m.count;
+    });
+    return Object.entries(causes).map(([name, value]) => ({ name, value }));
+  }, [mortalities]);
+
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div className="flex items-center justify-between">
@@ -154,27 +198,64 @@ export default function BatchDetail() {
           </div>
         </div>
         {batch.status === 'active' && (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 rounded-full">
-                <CheckCircle2 className="h-4 w-4" /> Complete
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Complete this batch?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will mark "{batch.name}" as completed. All pending feed schedules, vaccinations, and health tasks will be closed. The batch will move to your records.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={completeBatch} disabled={completing}>
-                  {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Yes, Complete Batch'}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          <Dialog open={isTerminateOpen} onOpenChange={setIsTerminateOpen}>
+            <Button onClick={() => setIsTerminateOpen(true)} variant="outline" size="sm" className="gap-1.5 rounded-full border-red-200 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-950 dark:text-red-400">
+              <CheckCircle2 className="h-4 w-4" /> Terminate Flock
+            </Button>
+            <DialogContent className="sm:max-w-md animate-fade-in">
+              <DialogHeader>
+                <DialogTitle>Terminate Flock: {batch.name}</DialogTitle>
+                <DialogDescription>
+                  Close the flock cycle, free the house occupation, and record any final birds sale revenue.
+                </DialogDescription>
+              </DialogHeader>
+              
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label>Termination Mode</Label>
+                  <Select value={terminationMode} onValueChange={(val: any) => setTerminationMode(val)}>
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="normal">Normal Culling (Harvest & Sale)</SelectItem>
+                      <SelectItem value="emergency">Emergency Termination (Depopulation/Disease)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {terminationMode === 'normal' && batch.has_active_withdrawal && (
+                    <p className="text-xs text-red-600 font-medium bg-red-50 dark:bg-red-950/20 p-2.5 rounded-xl border border-red-100 dark:border-red-900/30">
+                      ⚠️ Cannot terminate batch normally during active withdrawal period. Emergency terminate is still available.
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Total Bird Sales Revenue (GHS/NGN)</Label>
+                  <Input 
+                    type="number" 
+                    min="0" 
+                    step="0.01" 
+                    value={saleRevenue} 
+                    onChange={e => setSaleRevenue(e.target.value)} 
+                    disabled={terminationMode === 'emergency'}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Auto-logs bird sales revenue under your farm financial ledger.
+                  </p>
+                </div>
+              </div>
+
+              <DialogFooter className="sm:justify-between gap-2">
+                <Button variant="outline" onClick={() => setIsTerminateOpen(false)} className="rounded-full">Cancel</Button>
+                <Button 
+                  onClick={terminateBatch} 
+                  disabled={completing || (terminationMode === 'normal' && batch.has_active_withdrawal)} 
+                  className="rounded-full gap-1.5"
+                  variant={terminationMode === 'emergency' ? 'destructive' : 'default'}
+                >
+                  {completing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Termination'}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         )}
       </div>
 
@@ -259,45 +340,57 @@ export default function BatchDetail() {
 
         <TabsContent value="mortality" className="space-y-4">
           {batch.status === 'active' && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Record Mortality</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex gap-2">
-                  <div className="w-20 space-y-1">
-                    <Label>Count</Label>
-                    <Input type="number" min="1" max={batch.current_population} value={mCount} onChange={e => setMCount(e.target.value)} />
-                  </div>
-                  <div className="flex-1 space-y-1">
-                    <Label>Cause</Label>
-                    <Input value={mCause} onChange={e => setMCause(e.target.value)} placeholder="e.g., Disease" />
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label>Notes</Label>
-                  <Textarea value={mNotes} onChange={e => setMNotes(e.target.value)} placeholder="Details..." rows={2} />
-                </div>
-                <Button onClick={handleRecordMortality} disabled={mSubmitting} size="sm" className="rounded-full">
-                  {mSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Record'}
-                </Button>
-              </CardContent>
-            </Card>
+            <div className="flex justify-end">
+              <Button onClick={() => setIsMortalityDialogOpen(true)} className="gap-1.5 rounded-full">
+                <Plus className="h-4 w-4" /> Record Mortality
+              </Button>
+            </div>
           )}
 
           {mortalityChartData.length > 0 && (
-            <Card>
-              <CardHeader><CardTitle className="text-base">Cumulative Mortality ({totalMortality} total)</CardTitle></CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <LineChart data={mortalityChartData}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis dataKey="date" className="text-xs fill-muted-foreground" />
-                    <YAxis className="text-xs fill-muted-foreground" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="cumulative" stroke="hsl(var(--destructive))" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Cumulative Mortality ({totalMortality} total)</CardTitle></CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={200}>
+                    <LineChart data={mortalityChartData}>
+                      <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                      <XAxis dataKey="date" className="text-xs fill-muted-foreground" />
+                      <YAxis className="text-xs fill-muted-foreground" />
+                      <Tooltip />
+                      <Line type="monotone" dataKey="cumulative" stroke="hsl(var(--destructive))" strokeWidth={2} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {causeBreakdownData.length > 0 && (
+                <Card>
+                  <CardHeader><CardTitle className="text-base">Mortality Causes Distribution</CardTitle></CardHeader>
+                  <CardContent>
+                    <ResponsiveContainer width="100%" height={200}>
+                      <PieChart>
+                        <Pie
+                          data={causeBreakdownData}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={50}
+                          outerRadius={70}
+                          paddingAngle={4}
+                          dataKey="value"
+                        >
+                          {causeBreakdownData.map((_, index) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip formatter={(v: number) => `${v} birds`} />
+                        <Legend iconType="circle" wrapperStyle={{ fontSize: 10 }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
           )}
 
           <Card>
@@ -352,6 +445,13 @@ export default function BatchDetail() {
           )}
         </TabsContent>
       </Tabs>
+
+      <MortalityDialog
+        batch={isMortalityDialogOpen ? batch : null}
+        farmId={batch.farm_id}
+        onClose={() => setIsMortalityDialogOpen(false)}
+        onSuccess={handleMortalitySuccess}
+      />
     </div>
   );
 }

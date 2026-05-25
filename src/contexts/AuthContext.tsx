@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
 import type { User, Session } from '@supabase/supabase-js';
@@ -28,18 +28,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [farmName, setFarmName] = useState('My Farm');
   const [currency, setCurrency] = useState('GHS');
 
+  const lastCheckedUser = useRef<string | null>(null);
+
   const checkFarmSetup = async (userId: string) => {
+    if (lastCheckedUser.current === userId) return;
+    lastCheckedUser.current = userId;
+
     const { data } = await supabase
       .from('farms')
-      .select('id, name, setup_complete')
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (data) {
-      setFarmId(data.id);
-      setFarmName(data.name);
-      setFarmReady(data.setup_complete);
+      .select('id, name, setup_complete, updated_at')
+      .eq('user_id', userId);
+    if (data && data.length > 0) {
+      const sorted = [...data].sort((a, b) => {
+        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
+        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+      });
+      const selectedFarm = sorted[0];
+      setFarmId(selectedFarm.id);
+      setFarmName(selectedFarm.name);
+      setFarmReady(selectedFarm.setup_complete);
     } else {
       setFarmReady(false);
+      setFarmId(null);
     }
 
     // Load preferences
@@ -49,19 +59,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId)
       .maybeSingle();
     if (prefs) {
-      setCurrency(prefs.currency);
+      const VALID_CURRENCIES = ['GHS', 'NGN'];
+      let finalCurrency = prefs.currency;
+
+      if (!VALID_CURRENCIES.includes(finalCurrency)) {
+        finalCurrency = 'GHS';
+        // Best-effort non-blocking update to normalize stored value
+        supabase.from('user_preferences')
+          .update({ currency: 'GHS' })
+          .eq('user_id', userId)
+          .then(({ error }) => {
+            if (error) console.error('Failed to normalize currency in DB:', error);
+          });
+      }
+
+      setCurrency(finalCurrency);
       useAppStore.getState().setCostPrivacy(prefs.cost_privacy_enabled);
     }
   };
 
   const ensureFarmAndPrefs = async (userId: string, fullName?: string, farmNameArg?: string) => {
-    const { data: existingFarm } = await supabase
+    const { data } = await supabase
       .from('farms')
-      .select('id, name, setup_complete')
-      .eq('user_id', userId)
-      .maybeSingle();
+      .select('id, name, setup_complete, updated_at')
+      .eq('user_id', userId);
 
-    if (existingFarm) {
+    if (data && data.length > 0) {
+      const sorted = [...data].sort((a, b) => {
+        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
+        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+      });
+      const existingFarm = sorted[0];
       setFarmId(existingFarm.id);
       setFarmName(existingFarm.name);
       setFarmReady(existingFarm.setup_complete);
@@ -145,6 +173,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    lastCheckedUser.current = null;
     setFarmReady(null);
     setFarmId(null);
     setFarmName('My Farm');
@@ -152,7 +181,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const recheckFarm = async () => {
-    if (user) await checkFarmSetup(user.id);
+    if (user) {
+      lastCheckedUser.current = null;
+      await checkFarmSetup(user.id);
+    }
   };
 
   return (

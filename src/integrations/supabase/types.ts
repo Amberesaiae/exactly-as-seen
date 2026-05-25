@@ -7,10 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "14.5"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -119,7 +139,10 @@ export type Database = {
           current_day: number
           current_population: number
           current_week: number
+          cycle_length_weeks: number
+          duck_type: string | null
           farm_id: string
+          has_active_withdrawal: boolean
           house_id: string | null
           id: string
           initial_quantity: number
@@ -130,6 +153,7 @@ export type Database = {
           species: string
           start_date: string
           status: string
+          termination_reason: string | null
           updated_at: string
         }
         Insert: {
@@ -137,7 +161,10 @@ export type Database = {
           current_day?: number
           current_population?: number
           current_week?: number
+          cycle_length_weeks?: number
+          duck_type?: string | null
           farm_id: string
+          has_active_withdrawal?: boolean
           house_id?: string | null
           id?: string
           initial_quantity?: number
@@ -148,6 +175,7 @@ export type Database = {
           species?: string
           start_date?: string
           status?: string
+          termination_reason?: string | null
           updated_at?: string
         }
         Update: {
@@ -155,7 +183,10 @@ export type Database = {
           current_day?: number
           current_population?: number
           current_week?: number
+          cycle_length_weeks?: number
+          duck_type?: string | null
           farm_id?: string
+          has_active_withdrawal?: boolean
           house_id?: string | null
           id?: string
           initial_quantity?: number
@@ -166,6 +197,7 @@ export type Database = {
           species?: string
           start_date?: string
           status?: string
+          termination_reason?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -185,7 +217,60 @@ export type Database = {
           },
         ]
       }
-      egg_records: {
+      config_overrides: {
+        Row: {
+          created_at: string
+          farm_id: string
+          id: string
+          key: string
+          value: string
+        }
+        Insert: {
+          created_at?: string
+          farm_id: string
+          id?: string
+          key: string
+          value: string
+        }
+        Update: {
+          created_at?: string
+          farm_id?: string
+          id?: string
+          key?: string
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "config_overrides_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      container_types: {
+        Row: {
+          id: string
+          name: string
+          volume_gal: number
+          volume_l: number
+        }
+        Insert: {
+          id: string
+          name: string
+          volume_gal: number
+          volume_l: number
+        }
+        Update: {
+          id?: string
+          name?: string
+          volume_gal?: number
+          volume_l?: number
+        }
+        Relationships: []
+      }
+      egg_collections: {
         Row: {
           batch_id: string
           broken: number
@@ -244,42 +329,73 @@ export type Database = {
       }
       egg_sales: {
         Row: {
+          batch_id: string | null
           buyer: string | null
+          crates_sold: number
           created_at: string
           date: string
           farm_id: string
           id: string
+          ledger_entry_id: string | null
+          looses_sold: number
           notes: string | null
+          payment_method: string
+          price_per_crate_pesewas: number
+          price_per_loose_pesewas: number
           quantity: number
           size_category: string
           total_amount: number
+          total_revenue_pesewas: number
           unit_price: number
         }
         Insert: {
+          batch_id?: string | null
           buyer?: string | null
+          crates_sold?: number
           created_at?: string
           date?: string
           farm_id: string
           id?: string
+          ledger_entry_id?: string | null
+          looses_sold?: number
           notes?: string | null
+          payment_method?: string
+          price_per_crate_pesewas?: number
+          price_per_loose_pesewas?: number
           quantity?: number
           size_category?: string
           total_amount?: number
+          total_revenue_pesewas?: number
           unit_price?: number
         }
         Update: {
+          batch_id?: string | null
           buyer?: string | null
+          crates_sold?: number
           created_at?: string
           date?: string
           farm_id?: string
           id?: string
+          ledger_entry_id?: string | null
+          looses_sold?: number
           notes?: string | null
+          payment_method?: string
+          price_per_crate_pesewas?: number
+          price_per_loose_pesewas?: number
           quantity?: number
           size_category?: string
           total_amount?: number
+          total_revenue_pesewas?: number
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "egg_sales_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "egg_sales_farm_id_fkey"
             columns: ["farm_id"]
@@ -292,6 +408,7 @@ export type Database = {
       expenses: {
         Row: {
           amount: number
+          amount_pesewas: number | null
           batch_id: string | null
           category: string
           created_at: string
@@ -304,6 +421,7 @@ export type Database = {
         }
         Insert: {
           amount?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -316,6 +434,7 @@ export type Database = {
         }
         Update: {
           amount?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -346,36 +465,48 @@ export type Database = {
       farms: {
         Row: {
           created_at: string
+          currency: string
+          egg_low_inventory_crates: number
           farm_type: string
           id: string
           location_district: string | null
           location_region: string | null
           name: string
           setup_complete: boolean
+          timezone: string
           updated_at: string
           user_id: string
+          water_source_chlorinated: boolean
         }
         Insert: {
           created_at?: string
+          currency?: string
+          egg_low_inventory_crates?: number
           farm_type?: string
           id?: string
           location_district?: string | null
           location_region?: string | null
           name: string
           setup_complete?: boolean
+          timezone?: string
           updated_at?: string
           user_id: string
+          water_source_chlorinated?: boolean
         }
         Update: {
           created_at?: string
+          currency?: string
+          egg_low_inventory_crates?: number
           farm_type?: string
           id?: string
           location_district?: string | null
           location_region?: string | null
           name?: string
           setup_complete?: boolean
+          timezone?: string
           updated_at?: string
           user_id?: string
+          water_source_chlorinated?: boolean
         }
         Relationships: []
       }
@@ -444,7 +575,9 @@ export type Database = {
           name: string
           quantity_kg: number
           total_cost: number
+          total_cost_pesewas: number | null
           unit_price: number
+          unit_price_pesewas: number | null
         }
         Insert: {
           category?: string
@@ -453,7 +586,9 @@ export type Database = {
           name: string
           quantity_kg?: number
           total_cost?: number
+          total_cost_pesewas?: number | null
           unit_price?: number
+          unit_price_pesewas?: number | null
         }
         Update: {
           category?: string
@@ -462,7 +597,9 @@ export type Database = {
           name?: string
           quantity_kg?: number
           total_cost?: number
+          total_cost_pesewas?: number | null
           unit_price?: number
+          unit_price_pesewas?: number | null
         }
         Relationships: [
           {
@@ -531,54 +668,90 @@ export type Database = {
       health_tasks: {
         Row: {
           batch_id: string
+          bird_count: number | null
+          blocked_reason: string | null
           completed: boolean
           completed_at: string | null
+          computed_dose_amount: number | null
+          computed_dose_unit: string | null
+          container_count: number | null
+          container_type_id: string | null
+          cost_pesewas: number | null
           created_at: string
+          delivery_method: string | null
           dose_per_gallon: number | null
           duration_days: number
           farm_id: string
           id: string
+          medication_id: string | null
           notes: string | null
           product_name: string
           scheduled_date: string
           task_type: string
           updated_at: string
+          water_volume_l: number | null
           withdrawal_egg_days: number
+          withdrawal_eggs_until: string | null
           withdrawal_meat_days: number
+          withdrawal_meat_until: string | null
         }
         Insert: {
           batch_id: string
+          bird_count?: number | null
+          blocked_reason?: string | null
           completed?: boolean
           completed_at?: string | null
+          computed_dose_amount?: number | null
+          computed_dose_unit?: string | null
+          container_count?: number | null
+          container_type_id?: string | null
+          cost_pesewas?: number | null
           created_at?: string
+          delivery_method?: string | null
           dose_per_gallon?: number | null
           duration_days?: number
           farm_id: string
           id?: string
+          medication_id?: string | null
           notes?: string | null
           product_name: string
           scheduled_date?: string
           task_type?: string
           updated_at?: string
+          water_volume_l?: number | null
           withdrawal_egg_days?: number
+          withdrawal_eggs_until?: string | null
           withdrawal_meat_days?: number
+          withdrawal_meat_until?: string | null
         }
         Update: {
           batch_id?: string
+          bird_count?: number | null
+          blocked_reason?: string | null
           completed?: boolean
           completed_at?: string | null
+          computed_dose_amount?: number | null
+          computed_dose_unit?: string | null
+          container_count?: number | null
+          container_type_id?: string | null
+          cost_pesewas?: number | null
           created_at?: string
+          delivery_method?: string | null
           dose_per_gallon?: number | null
           duration_days?: number
           farm_id?: string
           id?: string
+          medication_id?: string | null
           notes?: string | null
           product_name?: string
           scheduled_date?: string
           task_type?: string
           updated_at?: string
+          water_volume_l?: number | null
           withdrawal_egg_days?: number
+          withdrawal_eggs_until?: string | null
           withdrawal_meat_days?: number
+          withdrawal_meat_until?: string | null
         }
         Relationships: [
           {
@@ -604,6 +777,7 @@ export type Database = {
           farm_id: string
           id: string
           name: string
+          occupied_by_batch_id: string | null
           updated_at: string
         }
         Insert: {
@@ -612,6 +786,7 @@ export type Database = {
           farm_id: string
           id?: string
           name: string
+          occupied_by_batch_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -620,6 +795,7 @@ export type Database = {
           farm_id?: string
           id?: string
           name?: string
+          occupied_by_batch_id?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -630,7 +806,133 @@ export type Database = {
             referencedRelation: "farms"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "houses_occupied_by_batch_id_fkey"
+            columns: ["occupied_by_batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
         ]
+      }
+      idempotency_keys: {
+        Row: {
+          expires_at: string
+          farm_id: string
+          id: string
+          key: string
+        }
+        Insert: {
+          expires_at: string
+          farm_id: string
+          id?: string
+          key: string
+        }
+        Update: {
+          expires_at?: string
+          farm_id?: string
+          id?: string
+          key?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idempotency_keys_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ingredients: {
+        Row: {
+          calcium_pct: number
+          category: string
+          contains_aflatoxin_risk: boolean
+          contains_gossypol: boolean
+          energy_kcal_per_kg: number
+          id: string
+          lysine_pct: number
+          max_share_pct: number
+          methionine_pct: number
+          name: string
+          phosphorus_pct: number
+          protein_pct: number
+        }
+        Insert: {
+          calcium_pct?: number
+          category: string
+          contains_aflatoxin_risk?: boolean
+          contains_gossypol?: boolean
+          energy_kcal_per_kg?: number
+          id: string
+          lysine_pct?: number
+          max_share_pct?: number
+          methionine_pct?: number
+          name: string
+          phosphorus_pct?: number
+          protein_pct?: number
+        }
+        Update: {
+          calcium_pct?: number
+          category?: string
+          contains_aflatoxin_risk?: boolean
+          contains_gossypol?: boolean
+          energy_kcal_per_kg?: number
+          id?: string
+          lysine_pct?: number
+          max_share_pct?: number
+          methionine_pct?: number
+          name?: string
+          phosphorus_pct?: number
+          protein_pct?: number
+        }
+        Relationships: []
+      }
+      medications: {
+        Row: {
+          category: string
+          contains_calcium: boolean
+          delivery_method: string
+          dose_per_gallon: number | null
+          id: string
+          is_activated_charcoal: boolean
+          is_live_vaccine: boolean
+          is_sulfa: boolean
+          is_tetracycline: boolean
+          name: string
+          withdrawal_egg_days: number
+          withdrawal_meat_days: number
+        }
+        Insert: {
+          category: string
+          contains_calcium?: boolean
+          delivery_method: string
+          dose_per_gallon?: number | null
+          id: string
+          is_activated_charcoal?: boolean
+          is_live_vaccine?: boolean
+          is_sulfa?: boolean
+          is_tetracycline?: boolean
+          name: string
+          withdrawal_egg_days?: number
+          withdrawal_meat_days?: number
+        }
+        Update: {
+          category?: string
+          contains_calcium?: boolean
+          delivery_method?: string
+          dose_per_gallon?: number | null
+          id?: string
+          is_activated_charcoal?: boolean
+          is_live_vaccine?: boolean
+          is_sulfa?: boolean
+          is_tetracycline?: boolean
+          name?: string
+          withdrawal_egg_days?: number
+          withdrawal_meat_days?: number
+        }
+        Relationships: []
       }
       mortality_records: {
         Row: {
@@ -677,6 +979,51 @@ export type Database = {
           },
         ]
       }
+      nutritional_requirements: {
+        Row: {
+          calcium_max: number
+          calcium_min: number
+          duck_type: string | null
+          energy_max: number
+          energy_min: number
+          id: string
+          lysine_min: number
+          methionine_min: number
+          phase: string
+          phosphorus_min: number
+          protein_min: number
+          species: string
+        }
+        Insert: {
+          calcium_max?: number
+          calcium_min?: number
+          duck_type?: string | null
+          energy_max?: number
+          energy_min?: number
+          id?: string
+          lysine_min?: number
+          methionine_min?: number
+          phase: string
+          phosphorus_min?: number
+          protein_min?: number
+          species: string
+        }
+        Update: {
+          calcium_max?: number
+          calcium_min?: number
+          duck_type?: string | null
+          energy_max?: number
+          energy_min?: number
+          id?: string
+          lysine_min?: number
+          methionine_min?: number
+          phase?: string
+          phosphorus_min?: number
+          protein_min?: number
+          species?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -707,6 +1054,7 @@ export type Database = {
       revenue: {
         Row: {
           amount: number
+          amount_pesewas: number | null
           batch_id: string | null
           buyer: string | null
           category: string
@@ -715,9 +1063,12 @@ export type Database = {
           description: string
           farm_id: string
           id: string
+          source: string
+          source_ref: string | null
         }
         Insert: {
           amount?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -726,9 +1077,12 @@ export type Database = {
           description: string
           farm_id: string
           id?: string
+          source?: string
+          source_ref?: string | null
         }
         Update: {
           amount?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -737,6 +1091,8 @@ export type Database = {
           description?: string
           farm_id?: string
           id?: string
+          source?: string
+          source_ref?: string | null
         }
         Relationships: [
           {
@@ -755,6 +1111,61 @@ export type Database = {
           },
         ]
       }
+      stock_allocations: {
+        Row: {
+          allocated_at: string
+          batch_id: string | null
+          farm_id: string
+          id: string
+          lot_id: string
+          qty_allocated: number
+          reason: string
+          source_ref: string | null
+        }
+        Insert: {
+          allocated_at?: string
+          batch_id?: string | null
+          farm_id: string
+          id?: string
+          lot_id: string
+          qty_allocated?: number
+          reason: string
+          source_ref?: string | null
+        }
+        Update: {
+          allocated_at?: string
+          batch_id?: string | null
+          farm_id?: string
+          id?: string
+          lot_id?: string
+          qty_allocated?: number
+          reason?: string
+          source_ref?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_allocations_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_allocations_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_allocations_lot_id_fkey"
+            columns: ["lot_id"]
+            isOneToOne: false
+            referencedRelation: "stock_lots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       stock_items: {
         Row: {
           category: string
@@ -766,6 +1177,7 @@ export type Database = {
           reorder_threshold: number
           unit: string
           unit_price: number
+          unit_price_pesewas: number | null
           updated_at: string
         }
         Insert: {
@@ -778,6 +1190,7 @@ export type Database = {
           reorder_threshold?: number
           unit?: string
           unit_price?: number
+          unit_price_pesewas?: number | null
           updated_at?: string
         }
         Update: {
@@ -790,6 +1203,7 @@ export type Database = {
           reorder_threshold?: number
           unit?: string
           unit_price?: number
+          unit_price_pesewas?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -798,6 +1212,54 @@ export type Database = {
             columns: ["farm_id"]
             isOneToOne: false
             referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_lots: {
+        Row: {
+          expiry_date: string | null
+          farm_id: string
+          id: string
+          qty_on_hand: number
+          quality_grade: string
+          received_at: string
+          stock_item_id: string
+          unit_price_pesewas: number
+        }
+        Insert: {
+          expiry_date?: string | null
+          farm_id: string
+          id?: string
+          qty_on_hand?: number
+          quality_grade?: string
+          received_at?: string
+          stock_item_id: string
+          unit_price_pesewas?: number
+        }
+        Update: {
+          expiry_date?: string | null
+          farm_id?: string
+          id?: string
+          qty_on_hand?: number
+          quality_grade?: string
+          received_at?: string
+          stock_item_id?: string
+          unit_price_pesewas?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_lots_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_lots_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "stock_items"
             referencedColumns: ["id"]
           },
         ]
@@ -813,8 +1275,10 @@ export type Database = {
           source_ref: string | null
           stock_item_id: string
           total_cost: number
+          total_cost_pesewas: number | null
           transaction_type: string
           unit_price: number
+          unit_price_pesewas: number | null
         }
         Insert: {
           created_at?: string
@@ -826,8 +1290,10 @@ export type Database = {
           source_ref?: string | null
           stock_item_id: string
           total_cost?: number
+          total_cost_pesewas?: number | null
           transaction_type?: string
           unit_price?: number
+          unit_price_pesewas?: number | null
         }
         Update: {
           created_at?: string
@@ -839,8 +1305,10 @@ export type Database = {
           source_ref?: string | null
           stock_item_id?: string
           total_cost?: number
+          total_cost_pesewas?: number | null
           transaction_type?: string
           unit_price?: number
+          unit_price_pesewas?: number | null
         }
         Relationships: [
           {
@@ -862,28 +1330,34 @@ export type Database = {
       user_preferences: {
         Row: {
           cost_privacy_enabled: boolean
+          cost_privacy_pin: string | null
           created_at: string
           currency: string
           id: string
           theme: string
+          timezone: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
           cost_privacy_enabled?: boolean
+          cost_privacy_pin?: string | null
           created_at?: string
           currency?: string
           id?: string
           theme?: string
+          timezone?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
           cost_privacy_enabled?: boolean
+          cost_privacy_pin?: string | null
           created_at?: string
           currency?: string
           id?: string
           theme?: string
+          timezone?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -1122,7 +1596,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

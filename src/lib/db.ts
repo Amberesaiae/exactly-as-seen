@@ -58,12 +58,36 @@ export interface SyncOutbox {
   created_at: string;
 }
 
+export interface SyncMeta {
+  entity: string;
+  last_synced_at: string;
+  server_version: string | null;
+}
+
+export interface ConflictRecord {
+  id?: number;
+  entity: string;
+  record_id: string;
+  local_data: unknown;
+  server_data: unknown;
+  created_at: string;
+}
+
+export interface DashboardCache {
+  farm_id: string;
+  payload: unknown;
+  fetched_at: string;
+}
+
 class LampFarmsDB extends Dexie {
   farms!: Table<LocalFarm, string>;
   houses!: Table<LocalHouse, string>;
   batches!: Table<LocalBatch, string>;
   activity_log!: Table<LocalActivity, string>;
   sync_outbox!: Table<SyncOutbox, number>;
+  sync_meta!: Table<SyncMeta, string>;
+  conflicts!: Table<ConflictRecord, number>;
+  dashboard_cache!: Table<DashboardCache, string>;
 
   constructor() {
     super('lampfarms');
@@ -73,6 +97,12 @@ class LampFarmsDB extends Dexie {
       batches: 'id, farm_id, house_id, status',
       activity_log: 'id, farm_id, batch_id',
       sync_outbox: '++id, table, record_id',
+    });
+
+    this.version(2).stores({
+      sync_meta: 'entity',
+      conflicts: '++id, entity, record_id',
+      dashboard_cache: 'farm_id',
     });
   }
 }

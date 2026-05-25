@@ -1,6 +1,8 @@
 import { supabase } from '@/integrations/supabase/client';
 import { db, type SyncOutbox } from '@/lib/db';
 
+let flushing = false;
+
 // Cache Supabase data into Dexie after fetch
 export async function cacheFarms(userId: string) {
   const { data } = await supabase.from('farms').select('*').eq('user_id', userId);
@@ -71,27 +73,34 @@ export async function queueWrite(
 
 // Flush all queued writes to Supabase
 export async function flushOutbox() {
-  const pending = await db.sync_outbox.toArray();
-  if (pending.length === 0) return;
+  if (flushing) return;
+  flushing = true;
+  
+  try {
+    const pending = await db.sync_outbox.toArray();
+    if (pending.length === 0) return;
 
-  for (const item of pending) {
-    try {
-      if (item.operation === 'insert') {
-        const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
-        if (error) throw error;
-      } else if (item.operation === 'update') {
-        const { error } = await supabase.from(item.table as 'farms').update(item.data as never).eq('id', item.record_id);
-        if (error) throw error;
-      } else if (item.operation === 'delete') {
-        const { error } = await supabase.from(item.table as 'farms').delete().eq('id', item.record_id);
-        if (error) throw error;
+    for (const item of pending) {
+      try {
+        if (item.operation === 'insert') {
+          const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
+          if (error) throw error;
+        } else if (item.operation === 'update') {
+          const { error } = await supabase.from(item.table as 'farms').update(item.data as never).eq('id', item.record_id);
+          if (error) throw error;
+        } else if (item.operation === 'delete') {
+          const { error } = await supabase.from(item.table as 'farms').delete().eq('id', item.record_id);
+          if (error) throw error;
+        }
+        // Remove from outbox on success
+        if (item.id) await db.sync_outbox.delete(item.id);
+      } catch (err) {
+        console.error(`Sync failed for ${item.table}/${item.record_id}:`, err);
+        break; // Stop on first failure to maintain order
       }
-      // Remove from outbox on success
-      if (item.id) await db.sync_outbox.delete(item.id);
-    } catch (err) {
-      console.error(`Sync failed for ${item.table}/${item.record_id}:`, err);
-      break; // Stop on first failure to maintain order
     }
+  } finally {
+    flushing = false;
   }
 }
 

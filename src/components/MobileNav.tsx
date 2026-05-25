@@ -1,17 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Bird, FlaskConical, HeartPulse, MoreHorizontal, Egg, Wallet, Package, LineChart, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
+import { db } from '@/lib/db';
 
 const primaryItems = [
   { title: 'Overview', url: '/dashboard', icon: LayoutDashboard },
   { title: 'Flocks', url: '/batches', icon: Bird },
   { title: 'Feed Lab', url: '/feed', icon: FlaskConical },
-  { title: 'Care', url: '/health', icon: HeartPulse },
+  { title: 'Care & Water', url: '/health', icon: HeartPulse },
 ];
 
-const moreItems = [
+const baseMoreItems = [
   { title: 'Harvest', url: '/eggs', icon: Egg },
   { title: 'Ledger', url: '/finance', icon: Wallet },
   { title: 'Inventory', url: '/stock', icon: Package },
@@ -22,6 +23,36 @@ const moreItems = [
 export function MobileNav() {
   const location = useLocation();
   const [showMore, setShowMore] = useState(false);
+  const [hasEggLayers, setHasEggLayers] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkBatches = async () => {
+      try {
+        const activeBatches = await db.batches.where('status').equals('active').toArray();
+        if (activeBatches.length > 0) {
+          const hasLayers = activeBatches.some(b => b.species === 'layer' || b.species === 'duck');
+          setHasEggLayers(hasLayers);
+        } else {
+          setHasEggLayers(true);
+        }
+      } catch (err) {
+        console.error('Error checking egg layers in mobile nav:', err);
+      }
+    };
+    checkBatches();
+    
+    const interval = setInterval(checkBatches, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const moreItems = useMemo(() => {
+    return baseMoreItems.filter(item => {
+      if (item.title === 'Harvest') {
+        return hasEggLayers;
+      }
+      return true;
+    });
+  }, [hasEggLayers]);
 
   const isActive = (url: string) => location.pathname === url || location.pathname.startsWith(url + '/');
   const moreActive = moreItems.some(item => isActive(item.url));

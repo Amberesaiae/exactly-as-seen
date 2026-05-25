@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,19 +22,33 @@ interface ConcentrateMixProps {
   week: number;
   farmId: string;
   onDone: () => void;
+  targetKg?: number;
 }
 
-export function ConcentrateMix({ batch, phase, week, farmId, onDone }: ConcentrateMixProps) {
+export function ConcentrateMix({ batch, phase, week, farmId, onDone, targetKg }: ConcentrateMixProps) {
   const { currency } = useAuth();
   const { costPrivacyEnabled } = useAppStore();
   const [productId, setProductId] = useState('');
   const [ratio, setRatio] = useState(40); // concentrate %
-  const [bagsCount, setBagsCount] = useState('1');
   const [bagSize, setBagSize] = useState('50');
+  const [bagsCount, setBagsCount] = useState(() => {
+    if (targetKg) {
+      return Math.ceil(targetKg / 50).toString();
+    }
+    return '1';
+  });
   const [concentratePrice, setConcentratePrice] = useState('');
   const [grainPrice, setGrainPrice] = useState('3.5');
   const [grainName, setGrainName] = useState('Maize (Yellow Corn)');
   const [saving, setSaving] = useState(false);
+
+  // Sync bagsCount if targetKg or bagSize changes
+  useEffect(() => {
+    if (targetKg) {
+      const size = parseInt(bagSize) || 50;
+      setBagsCount(Math.ceil(targetKg / size).toString());
+    }
+  }, [targetKg, bagSize]);
 
   const products = CONCENTRATE_PRODUCTS.filter(p => p.species.includes(batch.species));
   const selectedProduct = products.find(p => p.name === productId);
@@ -48,6 +62,9 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone }: Concentra
   const costPerKg = totalKg > 0 ? totalCost / totalKg : 0;
   const dailyKg = phase ? (phase.feedPerBirdG * batch.current_population) / 1000 : 0;
   const coversDays = dailyKg > 0 ? Math.floor(totalKg / dailyKg) : 0;
+  const plannedDays = targetKg && phase
+    ? Math.round((targetKg * 1000) / (phase.feedPerBirdG * batch.current_population))
+    : 0;
 
   const mask = (v: string) => costPrivacyEnabled ? '••••' : v;
 
@@ -90,18 +107,61 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone }: Concentra
       },
     ]);
 
-    // Auto expense for intensive
     const isIntensive = batch.production_system === 'intensive';
+    if (isIntensive) {
+      const mixIngredients = [
+        { name: selectedProduct.name, qty: concentrateKg },
+        { name: grainName, qty: grainKg }
+      ];
+
+      for (const ing of mixIngredients) {
+        if (ing.qty > 0) {
+          const { data: matchedStock } = await supabase
+            .from('stock_items')
+            .select('*')
+            .eq('farm_id', farmId)
+            .ilike('name', ing.name)
+            .maybeSingle();
+
+          if (matchedStock) {
+            const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
+              p_farm_id: farmId,
+              p_stock_item_id: matchedStock.id,
+              p_qty_needed: ing.qty,
+              p_batch_id: batch.id,
+              p_reason: `Concentrate mix auto-deduction: ${ing.name}`,
+              p_source_ref: formulation.id
+            });
+
+            if (allocError) {
+              console.error(`Failed to allocate stock for ingredient ${ing.name}:`, allocError);
+            } else {
+              const newStockQty = Math.max(0, Number(matchedStock.current_quantity) - ing.qty);
+              await supabase.from('stock_items')
+                .update({
+                  current_quantity: newStockQty,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', matchedStock.id);
+            }
+          }
+        }
+      }
+    }
+
     if (totalCost > 0 && isIntensive) {
-      await supabase.from('expenses').insert({
+      const totalPesewas = Math.round(totalCost * 100);
+      await supabase.from('expenses').upsert({
         farm_id: farmId,
         batch_id: batch.id,
         category: 'feed',
         description: `Concentrate mix: ${selectedProduct.name} + ${grainName} — ${totalKg}kg`,
         amount: totalCost,
-        source: 'feed_formulation',
+        amount_pesewas: totalPesewas,
+        date: new Date().toISOString().split('T')[0],
+        source: 'auto:feed',
         source_ref: formulation.id,
-      });
+      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
     }
 
     await supabase.from('activity_log').insert({
@@ -195,6 +255,13 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone }: Concentra
               <Label className="text-xs">Bag Size (kg)</Label>
               <Input type="number" min="1" value={bagSize} onChange={e => setBagSize(e.target.value)} />
             </div>
+            {targetKg && phase && (
+              <div className="col-span-2 mt-1">
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Pre-filled from your plan ({plannedDays} days &times; {batch.current_population} birds &times; {phase.feedPerBirdG}g/bird)
+                </p>
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-2 gap-3 mt-3">
             <div className="space-y-1">

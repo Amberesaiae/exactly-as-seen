@@ -1,269 +1,247 @@
 import { Link } from 'react-router-dom';
 import { motion, type Variants } from 'framer-motion';
-import { ArrowUpRight, Bird, FlaskConical, HeartPulse, LineChart } from 'lucide-react';
+import { ArrowUpRight, Bird, FlaskConical, HeartPulse, LineChart, WifiOff, ShieldCheck, Zap } from 'lucide-react';
 import { AnimatedCounter } from '@/components/landing/AnimatedCounter';
 import { Eyebrow } from '@/components/landing/LandingLayout';
+import { LandingNav } from '@/components/landing/LandingNav';
 
 const IMG = {
   hero: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&q=80&auto=format&fit=crop',
-  field: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=1200&q=80&auto=format&fit=crop',
+  field: 'https://images.unsplash.com/photo-1595113316349-9fa4eb24f884?w=1200&q=80&auto=format&fit=crop', // Ghanaian farm setting
   poultry: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1200&q=80&auto=format&fit=crop',
   hands: 'https://images.unsplash.com/photo-1592982537447-7440770faae9?w=1200&q=80&auto=format&fit=crop',
-  drone: 'https://images.unsplash.com/photo-1574943320219-553eb213f72d?w=1200&q=80&auto=format&fit=crop',
   feed: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1200&q=80&auto=format&fit=crop',
   panorama: 'https://images.unsplash.com/photo-1500595046743-cd271d694d30?w=1800&q=80&auto=format&fit=crop',
-  farmer1: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80&auto=format&fit=crop',
-  farmer2: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=600&q=80&auto=format&fit=crop',
+  farmer1: 'https://images.unsplash.com/photo-1542601906990-b4d3fb75bb21?w=600&q=80&auto=format&fit=crop', // Kwesi
+  farmer2: 'https://images.unsplash.com/photo-1506484334402-40ff44e58046?w=600&q=80&auto=format&fit=crop', // Adama
   blog1: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=900&q=80&auto=format&fit=crop',
   blog2: 'https://images.unsplash.com/photo-1500076656116-558758c991c1?w=900&q=80&auto=format&fit=crop',
-  blog3: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=900&q=80&auto=format&fit=crop',
 };
 
 const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
+  hidden: { opacity: 0, y: 30 },
+  show: { opacity: 1, y: 0, transition: { duration: 0.8, ease: [0.22, 1, 0.36, 1] } },
+};
+
+const staggerContainer: Variants = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.1 } },
 };
 
 export default function Welcome() {
   return (
-    <div>
-
-      {/* HERO */}
-      <section className="relative mx-auto max-w-[1400px] px-6 pb-12 pt-8 lg:px-10 lg:pb-20 lg:pt-12">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-10 items-end">
-          <motion.div initial="hidden" animate="show" variants={fadeUp} className="lg:col-span-7">
-            <Eyebrow>Smart poultry · Sustainable yields</Eyebrow>
-            <h1 className="mt-6 text-[44px] sm:text-6xl lg:text-[88px] font-black leading-[0.95] tracking-tight">
-              Grow smarter,<br />
-              <span className="italic font-serif font-normal text-primary">greener</span>, and more<br />
-              profitable poultry.
-            </h1>
-            <p className="mt-7 max-w-xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-              LampFarms turns daily flock care into clear, data-driven decisions — from feed formulation to vaccination timing — so West African farmers raise healthier birds with less waste.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
+    <div className="bg-background text-foreground selection:bg-primary/20">
+      <LandingNav />
+      {/* HERO SECTION */}
+      <section id="platform" className="relative mx-auto max-w-[1400px] px-6 pb-20 pt-32 lg:px-10 lg:pb-32 lg:pt-40">
+        <div className="grid gap-16 lg:grid-cols-12 lg:gap-10 items-center">
+          <motion.div initial="hidden" animate="show" variants={staggerContainer} className="lg:col-span-7">
+            <motion.div variants={fadeUp}>
+              <Eyebrow>Precision Poultry · West African Heritage</Eyebrow>
+            </motion.div>
+            <motion.h1 variants={fadeUp} className="mt-8 text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
+              The <span className="italic font-serif font-normal text-primary">quiet</span> rhythm of <br />
+              high-yield farming.
+            </motion.h1>
+            <motion.p variants={fadeUp} className="mt-10 max-w-xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
+              LampFarms bridges the gap between traditional wisdom and precision data. From custom feed mixes to vaccination alerts, we give you the tools to lead your flock with absolute clarity.
+            </motion.p>
+            <motion.div variants={fadeUp} className="mt-12 flex flex-wrap items-center gap-4">
               <Link to="/register"
-                    className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3.5 text-sm font-semibold text-background hover:bg-foreground/90 transition">
+                    className="inline-flex items-center gap-2 rounded-full bg-foreground px-8 py-4.5 text-sm font-bold text-background hover:bg-foreground/90 transition shadow-2xl shadow-foreground/20">
                 Start your free farm <ArrowUpRight className="h-4 w-4" />
               </Link>
-              <a href="#solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/20 px-6 py-3.5 text-sm font-semibold hover:bg-foreground/5 transition">
-                See how it works
+              <a href="#solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-8 py-4.5 text-sm font-bold hover:bg-foreground/5 transition">
+                Explore the modules
               </a>
-            </div>
+            </motion.div>
           </motion.div>
 
           <motion.div initial="hidden" animate="show" variants={fadeUp}
-                      transition={{ delay: 0.15 }} className="lg:col-span-5">
-            <div className="relative aspect-[4/5] overflow-hidden rounded-[32px] bg-secondary">
-              <img src={IMG.hands} alt="Hands cradling young chicks at a poultry farm"
-                   loading="eager" className="h-full w-full object-cover" />
-              <div className="absolute bottom-5 left-5 right-5 rounded-2xl bg-background/95 backdrop-blur px-4 py-3 flex items-center justify-between shadow-[0_20px_50px_-20px_rgba(0,0,0,0.3)]">
-                <div>
-                  <div className="text-2xl font-black tracking-tight">12,400+</div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Birds tracked daily</div>
+                      transition={{ delay: 0.3 }} className="lg:col-span-5 relative">
+            <div className="relative aspect-[4/5] overflow-hidden rounded-[40px] bg-secondary group">
+              <img src={IMG.hands} alt="West African farmer handling healthy poultry"
+                   className="h-full w-full object-cover grayscale-[20%] group-hover:grayscale-0 transition-all duration-1000" />
+              <div className="absolute inset-0 bg-gradient-to-t from-background/40 to-transparent" />
+              
+              {/* Floating Stat Card */}
+              <div className="absolute -bottom-6 -left-6 right-6 lg:right-auto lg:w-[320px] rounded-3xl bg-background/95 backdrop-blur-xl p-6 shadow-2xl border border-foreground/5">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="p-2 rounded-full bg-primary/10"><Bird className="h-5 w-5 text-primary" /></div>
+                  <div className="text-[10px] font-black uppercase tracking-[0.2em] text-primary bg-primary/5 px-3 py-1 rounded-full">Live Data</div>
                 </div>
-                <div className="h-10 w-px bg-foreground/10" />
-                <div>
-                  <div className="text-2xl font-black tracking-tight">−18%</div>
-                  <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Mortality rate</div>
+                <div className="space-y-4">
+                  <div className="flex justify-between items-end">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">Flock Health Index</span>
+                    <span className="text-2xl font-black tracking-tight">98.4%</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+                    <motion.div initial={{ width: 0 }} animate={{ width: '98.4%' }} transition={{ duration: 1.5, delay: 1 }} className="h-full bg-primary" />
+                  </div>
                 </div>
               </div>
             </div>
           </motion.div>
         </div>
-
-        {/* Wide hero image */}
-        <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-                    transition={{ duration: 0.9 }}
-                    className="mt-14 overflow-hidden rounded-[32px]">
-          <img src={IMG.hero} alt="Aerial view of patterned farmland at sunrise"
-               loading="lazy" className="h-[40vh] sm:h-[55vh] lg:h-[68vh] w-full object-cover" />
-        </motion.div>
       </section>
 
-      {/* TRUST */}
-      <section className="border-y border-foreground/10 bg-secondary/40">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 py-8 flex flex-wrap items-center justify-between gap-y-6 gap-x-10">
-          <span className="text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-            Trusted by farms across West Africa
-          </span>
-          <div className="flex flex-wrap items-center gap-x-10 gap-y-3 text-foreground/50">
-            {['Akoma Farms', 'Asante Poultry', 'Volta Layers', 'Kumasi Co-op', 'Aburi Hatchery', 'Northern Yields'].map(l => (
-              <span key={l} className="text-sm font-bold tracking-tight uppercase">{l}</span>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* COMMITMENT */}
-      <section id="platform" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-16">
-          <div className="lg:col-span-4">
-            <Eyebrow>Our commitment</Eyebrow>
-            <p className="mt-6 text-sm font-bold uppercase tracking-[0.2em] text-foreground/60">
-              (01) — A platform rooted in the field
-            </p>
-          </div>
-          <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                      className="lg:col-span-8">
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.05]">
-              We build the quiet tools that let farmers focus on what matters — the birds, the soil, and the harvest at the end of the season.
-            </h2>
-            <div className="mt-12 grid grid-cols-1 sm:grid-cols-3 gap-y-8">
-              <Stat number="12,400+" label="Birds tracked daily" />
-              <Stat number="90" label="Active farms" />
-              <Stat number="−18%" label="Avg. mortality reduction" />
-            </div>
-          </motion.div>
-        </div>
-      </section>
-
-      {/* SOLUTIONS */}
-      <section id="solutions" className="bg-secondary/30 py-24 lg:py-32">
+      {/* THE OFFLINE-FIRST PROMISE */}
+      <section id="resources" className="bg-foreground text-background py-24 lg:py-32 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-1/3 h-full bg-primary/5 blur-3xl pointer-events-none" />
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
-          <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
-            <div className="max-w-2xl">
-              <Eyebrow>Solutions</Eyebrow>
-              <h2 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
-                Four modules.<br />One quiet rhythm.
+          <div className="grid gap-16 lg:grid-cols-2 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-background/20 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">
+                <WifiOff className="h-3 w-3" /> Built for the field
+              </div>
+              <h2 className="text-4xl sm:text-6xl font-black tracking-tighter leading-[0.95] mb-8">
+                The <span className="text-primary italic font-serif font-normal">Offline-First</span><br />Promise.
               </h2>
+              <p className="text-background/70 text-lg leading-relaxed max-w-xl mb-12">
+                We know that the best farms aren't always where the strongest signal is. LampFarms works entirely offline, syncing your data automatically when you're back in range. No lost mortality logs, no missed feed records.
+              </p>
+              <div className="grid grid-cols-2 gap-8">
+                <FeatureItem icon={<Zap className="h-5 w-5" />} title="Zero Latency" desc="Instant logging, even in the deep field." />
+                <FeatureItem icon={<ShieldCheck className="h-5 w-5" />} title="Safe Sync" desc="Automated, conflict-free cloud backup." />
+              </div>
             </div>
-            <p className="text-muted-foreground max-w-sm">
-              Each module is built to be used standalone or as part of a fully integrated daily routine.
-            </p>
-          </div>
-
-          <div className="grid gap-6 md:grid-cols-2">
-            <SolutionCard image={IMG.poultry} icon={<Bird className="h-5 w-5" />}
-                          eyebrow="Flock Intelligence"
-                          title="Track every batch from chick to cull."
-                          body="Daily counts, weights, mortality, and feed conversion — surfaced as one clear performance number."
-                          to="/batches" />
-            <SolutionCard image={IMG.feed} icon={<FlaskConical className="h-5 w-5" />}
-                          eyebrow="Feed Lab"
-                          title="Three formulation methods, one optimiser."
-                          body="Ready-made, concentrate-mix, or full custom — backed by Pyomo LP and West African safety rules."
-                          to="/feed" />
-            <SolutionCard image={IMG.drone} icon={<HeartPulse className="h-5 w-5" />}
-                          eyebrow="Care &amp; Water"
-                          title="Vaccinations and withdrawals, never late."
-                          body="Protocol schedules, water-log reminders, and withdrawal warnings tuned to your species and age."
-                          to="/health" />
-            <SolutionCard image={IMG.field} icon={<LineChart className="h-5 w-5" />}
-                          eyebrow="Yield &amp; Ledger"
-                          title="Know your true cost per bird, per egg, per crate."
-                          body="Expenses, revenue, and harvest output reconcile into honest margin — with privacy when you need it."
-                          to="/finance" />
+            <div className="relative">
+              <div className="aspect-video bg-background/5 rounded-[32px] border border-background/10 p-4 flex items-center justify-center">
+                <div className="text-center">
+                  <div className="mb-4 inline-flex p-4 rounded-full bg-primary/20 text-primary">
+                    <WifiOff className="h-8 w-8" />
+                  </div>
+                  <div className="text-2xl font-black tracking-tight">Offline Mode Active</div>
+                  <p className="text-background/40 text-sm mt-2">Data will sync when connection is restored.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
-        <Eyebrow>How it works</Eyebrow>
-        <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
-          Three steps to a quieter, more profitable farm.
-        </h2>
-        <div className="mt-16 grid gap-10 md:grid-cols-3">
-          {[
-            ['01', 'Set up your farm', 'Add your houses, species, and starting flock. Takes under three minutes.'],
-            ['02', 'Track daily operations', 'Log feed, water, mortality and eggs from any device — even offline.'],
-            ['03', 'Get smarter every week', 'Performance, cost, and health trends summarised so you act before issues compound.'],
-          ].map(([n, t, b]) => (
-            <motion.div key={n} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                        className="border-t border-foreground/15 pt-6">
-              <div className="text-sm font-bold tracking-[0.2em] text-primary">{n}</div>
-              <h3 className="mt-4 text-2xl font-black tracking-tight">{t}</h3>
-              <p className="mt-3 text-muted-foreground leading-relaxed">{b}</p>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* PANORAMA */}
-      <section className="relative">
-        <div className="relative h-[60vh] overflow-hidden">
-          <img src={IMG.panorama} alt="Farmland panorama at golden hour"
-               loading="lazy" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-foreground/70 via-foreground/10 to-transparent" />
-          <div className="absolute bottom-10 left-0 right-0 mx-auto max-w-[1400px] px-6 lg:px-10">
-            <p className="text-background text-sm font-semibold tracking-[0.18em] uppercase">
-              Wendlagounda Bernadette Kassongo — Volta Region, Ghana
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* IMPACT NUMBERS */}
-      <section id="impact" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
-        <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
-          <Eyebrow>Our year in numbers</Eyebrow>
-          <p className="text-sm text-muted-foreground">2024–2025 platform metrics</p>
-        </div>
-        <div className="grid gap-12 grid-cols-2 lg:grid-cols-4">
-          <AnimatedCounter target={500} suffix="+" label={'Active\nfarms'} barColor="primary" />
-          <AnimatedCounter target={90} suffix="%" label={'Vaccination\ncompliance'} barColor="accent-cyan" />
-          <AnimatedCounter target={12400} label={'Birds tracked\ndaily'} barColor="accent-gold" />
-          <AnimatedCounter target={18} suffix="%" prefix="−" label={'Mortality\nreduction'} barColor="accent-purple" />
-        </div>
-      </section>
-
-      {/* VOICES */}
-      <section className="bg-secondary/30 py-24 lg:py-32">
+      {/* SOLUTIONS MODULES */}
+      <section id="solutions" className="py-24 lg:py-40 bg-secondary/20">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
-          <Eyebrow>Voices from the field</Eyebrow>
-          <div className="mt-12 grid gap-10 lg:grid-cols-2">
-            <Testimonial image={IMG.farmer1}
-                         name="Martin Caron"
-                         role="Layer farmer · Kumasi"
-                         quote="Before LampFarms I was guessing at feed mixes. Now I plug in what's at the market and the optimiser shows me the cheapest safe ration in seconds." />
-            <Testimonial image={IMG.farmer2}
-                         name="Hugo Beauregard-Lapointe"
-                         role="Broiler co-op · Tamale"
-                         quote="The offline mode is what made it real for us. We log mortality from the house, and it just syncs when the network comes back." />
+          <div className="max-w-3xl mb-24">
+            <Eyebrow>Integrated Ecosystem</Eyebrow>
+            <h2 className="mt-8 text-5xl sm:text-7xl font-black tracking-tighter leading-[0.95]">
+              Four modules. <br />
+              Built for <span className="text-primary">clarity</span>.
+            </h2>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <ModuleCard 
+              image={IMG.poultry} 
+              icon={<Bird className="h-6 w-6" />}
+              title="Flock Intelligence"
+              subtitle="Batch Management"
+              desc="Track every batch from chick arrival to final harvest. Real-time FCR, mortality alerts, and weight trends."
+              tags={['FCR Tracking', 'Mortality Alerts', 'Age Curves']}
+            />
+            <ModuleCard 
+              image={IMG.feed} 
+              icon={<FlaskConical className="h-6 w-6" />}
+              title="Feed Lab"
+              subtitle="Nutrition Optimizer"
+              desc="The region's most advanced feed calculator. Mix concentrates, full custom rations, or manual formulations."
+              tags={['Pyomo LP Optimizer', 'Safety Bounds', 'Cost Calculation']}
+            />
+            <ModuleCard 
+              image={IMG.field} 
+              icon={<HeartPulse className="h-6 w-6" />}
+              title="Care & Water"
+              subtitle="Health Protocols"
+              desc="Never miss a vaccination. Automated schedules tuned to West African species and withdrawal warnings."
+              tags={['Vaccination Logic', 'Withdrawal Tracking', 'Water Logs']}
+            />
+            <ModuleCard 
+              image={IMG.panorama} 
+              icon={<LineChart className="h-6 w-6" />}
+              title="Yield & Ledger"
+              subtitle="Financial Analytics"
+              desc="Know your true cost per bird. Reconcile expenses, revenue, and harvest yield into an honest margin."
+              tags={['Profit/Loss', 'Unit Costing', 'Cost Privacy']}
+            />
           </div>
         </div>
       </section>
 
-      {/* RESOURCES */}
-      <section id="resources" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
-        <div className="flex items-end justify-between flex-wrap gap-6 mb-16">
-          <div>
-            <Eyebrow>Resources</Eyebrow>
-            <h2 className="mt-5 text-4xl sm:text-5xl font-black tracking-tight leading-[1.02]">From the field journal.</h2>
+      {/* IMPACT METRICS */}
+      <section id="impact" className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-40">
+        <div className="grid lg:grid-cols-12 gap-16 items-center">
+          <div className="lg:col-span-5">
+            <Eyebrow>Real Impact</Eyebrow>
+            <h2 className="mt-8 text-5xl font-black tracking-tighter leading-[0.95] mb-10">
+              Leading the yield <br />across West Africa.
+            </h2>
+            <div className="space-y-8">
+              <ImpactStat number="500+" label="Active farms utilizing digital tracking" />
+              <ImpactStat number="18%" label="Average reduction in mortality rates" />
+              <ImpactStat number="92%" label="Vaccination compliance rate" />
+            </div>
           </div>
-          <a href="#" className="text-sm font-semibold underline underline-offset-4">View all articles</a>
-        </div>
-        <div className="grid gap-8 md:grid-cols-3">
-          <BlogCard image={IMG.blog1} tag="IoT farming" title="Sensor-driven poultry housing for tropical climates." date="Mar 2025" />
-          <BlogCard image={IMG.blog2} tag="Nutrition" title="Organic feed mixes that don't blow up your unit cost." date="Feb 2025" />
-          <BlogCard image={IMG.blog3} tag="Health" title="A vaccination playbook for first-time layer farmers." date="Jan 2025" />
+          <div className="lg:col-span-7 bg-foreground rounded-[40px] p-8 lg:p-16 text-background">
+             <div className="grid grid-cols-1 sm:grid-cols-2 gap-12">
+               <AnimatedCounter target={500} suffix="+" label={'Active\nFarms'} barColor="primary" />
+               <AnimatedCounter target={12400} label={'Daily Birds\nTracked'} barColor="accent-cyan" />
+               <AnimatedCounter target={18} prefix="−" suffix="%" label={'Mortality\nReduction'} barColor="accent-gold" />
+               <AnimatedCounter target={90} suffix="%" label={'Health\nCompliance'} barColor="accent-purple" />
+             </div>
+          </div>
         </div>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pb-16">
-        <div className="relative overflow-hidden rounded-[36px] bg-foreground text-background px-8 py-20 lg:px-20 lg:py-28">
-          <div className="absolute -top-10 -right-10 h-72 w-72 rounded-full bg-primary/30 blur-3xl" />
-          <Eyebrow>
-            <span className="text-background/70">Get started today</span>
-          </Eyebrow>
-          <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-7xl font-black leading-[1] tracking-tight">
-            Plant the seed of <span className="italic font-serif font-normal">smarter</span> farming.
+      {/* VOICES FROM THE FIELD */}
+      <section className="bg-foreground text-background py-24 lg:py-40 overflow-hidden relative">
+        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 relative z-10">
+          <div className="text-center mb-24">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-background/20 text-[10px] font-bold uppercase tracking-[0.2em] mb-8">
+              Field Reports
+            </div>
+            <h2 className="text-5xl sm:text-7xl font-black tracking-tighter leading-[0.95]">
+              Voices from <br /><span className="text-primary italic font-serif font-normal">the field</span>.
+            </h2>
+          </div>
+
+          <div className="grid gap-8 lg:grid-cols-2">
+            <Testimonial 
+              image={IMG.farmer1}
+              name="Kwesi Appiah"
+              role="Layer Farmer · Kumasi, Ghana"
+              quote="Before LampFarms I was guessing at feed mixes. Now I plug in what's at the market and the optimizer shows me the cheapest safe ration in seconds."
+            />
+            <Testimonial 
+              image={IMG.farmer2}
+              name="Adama Traoré"
+              role="Broiler Co-op · Tamale, Nigeria"
+              quote="The offline mode is what made it real for us. We log mortality from the house, and it just syncs when the network comes back. It's the quietest part of my day."
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* FINAL CTA */}
+      <section className="mx-auto max-w-[1400px] px-6 py-20 lg:py-40">
+        <div className="relative overflow-hidden rounded-[50px] bg-secondary/50 border border-foreground/5 p-12 lg:p-24 text-center">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-primary/10 blur-[120px] pointer-events-none" />
+          <Eyebrow>Start your journey</Eyebrow>
+          <h2 className="mt-10 text-5xl sm:text-8xl font-black tracking-tighter leading-[0.9] mb-12">
+            Build a <span className="italic font-serif font-normal">smarter</span> farm <br />today.
           </h2>
-          <p className="mt-6 max-w-xl text-background/70 text-lg">
-            Free for your first flock. No credit card. Works offline.
-          </p>
-          <div className="mt-10 flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Link to="/register"
-                  className="inline-flex items-center gap-2 rounded-full bg-background px-7 py-4 text-sm font-semibold text-foreground hover:bg-secondary transition">
-              Create your free farm <ArrowUpRight className="h-4 w-4" />
+                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-10 py-5 text-sm font-bold text-background hover:bg-foreground/90 transition shadow-2xl shadow-foreground/20">
+              Create free account <ArrowUpRight className="h-4 w-4" />
             </Link>
-            <Link to="/login"
-                  className="inline-flex items-center gap-2 rounded-full border border-background/30 px-7 py-4 text-sm font-semibold text-background hover:bg-background/10 transition">
-              I already have an account
+            <Link to="/login" className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-10 py-5 text-sm font-bold hover:bg-foreground/5 transition">
+              Sign in to dashboard
             </Link>
           </div>
+          <p className="mt-12 text-sm text-muted-foreground font-medium">
+            No credit card required. Free for your first flock. Unlimited offline logging.
+          </p>
         </div>
       </section>
 
@@ -271,73 +249,69 @@ export default function Welcome() {
   );
 }
 
-function Stat({ number, label }: { number: string; label: string }) {
+function FeatureItem({ icon, title, desc }: { icon: React.ReactNode; title: string; desc: string }) {
   return (
-    <div className="border-l border-foreground/15 pl-5">
-      <div className="text-3xl sm:text-4xl font-black tracking-tight">{number}</div>
-      <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{label}</div>
+    <div>
+      <div className="flex items-center gap-2 text-primary mb-2">
+        {icon}
+        <span className="text-sm font-black tracking-tight">{title}</span>
+      </div>
+      <p className="text-background/50 text-xs leading-relaxed">{desc}</p>
     </div>
   );
 }
 
-function SolutionCard({
-  image, icon, eyebrow, title, body, to,
-}: { image: string; icon: React.ReactNode; eyebrow: string; title: string; body: string; to: string }) {
+function ModuleCard({ image, icon, title, subtitle, desc, tags }: { image: string; icon: React.ReactNode; title: string; subtitle: string; desc: string; tags: string[] }) {
   return (
-    <motion.div initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}>
-      <Link to={to} className="group block rounded-[28px] bg-background overflow-hidden hover:shadow-[0_30px_60px_-30px_rgba(0,0,0,0.2)] transition">
-        <div className="aspect-[16/10] overflow-hidden">
-          <img src={image} alt={eyebrow} loading="lazy"
-               className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-        </div>
-        <div className="p-7">
-          <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
-            {icon}<span dangerouslySetInnerHTML={{ __html: eyebrow }} />
+    <motion.div variants={fadeUp} initial="hidden" whileInView="show" viewport={{ once: true }} className="group">
+      <div className="bg-background rounded-[40px] overflow-hidden border border-foreground/5 hover:shadow-2xl transition-all duration-700">
+        <div className="grid md:grid-cols-2">
+          <div className="aspect-square lg:aspect-auto overflow-hidden bg-secondary">
+            <img src={image} alt={title} className="h-full w-full object-cover grayscale-[30%] group-hover:grayscale-0 transition-all duration-700 group-hover:scale-105" />
           </div>
-          <h3 className="mt-4 text-2xl sm:text-3xl font-black tracking-tight leading-tight">{title}</h3>
-          <p className="mt-3 text-muted-foreground">{body}</p>
-          <div className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold">
-            Explore <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          <div className="p-8 lg:p-12 flex flex-col">
+            <div className="flex items-center gap-3 text-primary mb-8">
+              <div className="p-3 rounded-2xl bg-primary/10">{icon}</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.2em]">{subtitle}</div>
+            </div>
+            <h3 className="text-3xl font-black tracking-tighter mb-4 leading-tight">{title}</h3>
+            <p className="text-muted-foreground text-sm leading-relaxed mb-8">{desc}</p>
+            <div className="flex flex-wrap gap-2 mb-8">
+              {tags.map(t => <span key={t} className="text-[9px] font-bold uppercase tracking-wider bg-secondary/50 px-3 py-1.5 rounded-full">{t}</span>)}
+            </div>
+            <div className="mt-auto inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest group-hover:text-primary transition-colors">
+              Explore Module <ArrowUpRight className="h-3 w-3" />
+            </div>
           </div>
         </div>
-      </Link>
+      </div>
     </motion.div>
+  );
+}
+
+function ImpactStat({ number, label }: { number: string; label: string }) {
+  return (
+    <div className="flex items-center gap-6 group">
+      <div className="text-4xl font-black tracking-tighter text-primary group-hover:scale-110 transition-transform duration-500">{number}</div>
+      <div className="h-px flex-1 bg-foreground/10" />
+      <div className="text-[11px] font-bold uppercase tracking-[0.15em] text-muted-foreground w-32">{label}</div>
+    </div>
   );
 }
 
 function Testimonial({ image, name, role, quote }: { image: string; name: string; role: string; quote: string }) {
   return (
-    <motion.figure initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                   className="rounded-[28px] bg-background p-8 lg:p-10">
-      <div className="flex items-center gap-4">
-        <img src={image} alt={name} loading="lazy"
-             className="h-14 w-14 rounded-full object-cover" />
+    <div className="bg-background/5 border border-background/10 rounded-[40px] p-10 lg:p-16">
+      <div className="flex items-center gap-6 mb-10">
+        <img src={image} alt={name} className="h-16 w-16 rounded-full object-cover ring-4 ring-primary/20" />
         <div>
-          <div className="font-bold tracking-tight">{name}</div>
-          <div className="text-xs text-muted-foreground uppercase tracking-[0.18em]">{role}</div>
+          <div className="text-xl font-black tracking-tight text-background">{name}</div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary mt-1">{role}</div>
         </div>
       </div>
-      <blockquote className="mt-6 text-xl sm:text-2xl font-medium leading-snug tracking-tight">
+      <blockquote className="text-2xl lg:text-3xl font-medium tracking-tight text-background/90 leading-snug italic">
         "{quote}"
       </blockquote>
-    </motion.figure>
-  );
-}
-
-function BlogCard({ image, tag, title, date }: { image: string; tag: string; title: string; date: string }) {
-  return (
-    <motion.article initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                    className="group cursor-pointer">
-      <div className="aspect-[5/4] overflow-hidden rounded-[24px]">
-        <img src={image} alt={title} loading="lazy"
-             className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105" />
-      </div>
-      <div className="mt-5 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
-        <span className="text-primary">{tag}</span>
-        <span className="h-px w-4 bg-foreground/20" />
-        <span>{date}</span>
-      </div>
-      <h3 className="mt-3 text-xl font-black tracking-tight leading-snug">{title}</h3>
-    </motion.article>
+    </div>
   );
 }

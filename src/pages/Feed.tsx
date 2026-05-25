@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Calculator, Plus, CheckCircle2, Circle, Loader2, TrendingUp, AlertTriangle } from 'lucide-react';
+import { Calculator, Plus, CheckCircle2, Circle, Loader2, TrendingUp, AlertTriangle, X, Wheat } from 'lucide-react';
 import { toast } from 'sonner';
-import { FEED_PHASES, getCurrentPhase } from '@/lib/feed-data';
+import { FEED_PHASES, getCurrentPhase, COMMERCIAL_FEED_TYPES } from '@/lib/feed-data';
 import { getBatchAge } from '@/lib/batch-utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -34,13 +35,16 @@ export default function Feed() {
   // Log feed dialog
   const [showLogDialog, setShowLogDialog] = useState(false);
   const [logAmountKg, setLogAmountKg] = useState('');
+
+  // Phase transition alert
+  const [phaseAlertDismissed, setPhaseAlertDismissed] = useState(false);
   const [logSaving, setLogSaving] = useState(false);
 
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       setLoading(true);
-      const { data: farm } = await supabase.from('farms').select('id').eq('user_id', user.id).maybeSingle();
+      const { data: farm } = await supabase.from('farms').select('id').eq('user_id', user.id).order('setup_complete', { ascending: false }).order('updated_at', { ascending: false }).limit(1).maybeSingle();
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
@@ -73,6 +77,12 @@ export default function Feed() {
   const dynamics = batch ? getBatchAge(batch.start_date, batch.species) : null;
   const phase = batch && dynamics ? getCurrentPhase(batch.species, dynamics.week) : null;
 
+  // Phase transition detection (client-side, no API call)
+  const lastSchedule = schedules[0] ?? null; // ordered day DESC
+  const phaseTransitionDetected = !!(lastSchedule && phase &&
+    lastSchedule.amount_per_bird_g !== phase.feedPerBirdG);
+  const previousFeedPerBirdG = lastSchedule?.amount_per_bird_g ?? null;
+
   const todaySchedule = schedules.find(s => s.day === (dynamics?.day ?? 0));
   const dailyTotalKg = phase && batch ? (phase.feedPerBirdG * batch.current_population) / 1000 : 0;
 
@@ -86,6 +96,67 @@ export default function Feed() {
     } else {
       setSchedules(prev => prev.map(s => s.id === schedule.id ? { ...s, completed: true, completed_at: new Date().toISOString() } : s));
       toast.success('Marked as fed');
+
+      // Auto inventory deduction if intensive
+      const isIntensive = batch?.production_system === 'intensive';
+      if (isIntensive && schedule.total_amount_kg > 0 && farmId) {
+        // Find matching finished feed stock item
+        const { data: stockItems } = await supabase
+          .from('stock_items')
+          .select('*')
+          .eq('farm_id', farmId);
+
+        if (stockItems && stockItems.length > 0) {
+          const feedType = COMMERCIAL_FEED_TYPES.find(f => 
+            f.species.includes(batch.species) && 
+            f.phase === phase?.name.toLowerCase()
+          );
+
+          let matchedStock = stockItems.find(item => 
+            item.category === 'feed' && 
+            phase && item.name.toLowerCase().includes(phase.name.toLowerCase())
+          );
+
+          if (!matchedStock && feedType) {
+            matchedStock = stockItems.find(item => 
+              item.name.toLowerCase().includes(feedType.label.split('(')[0].trim().toLowerCase())
+            );
+          }
+
+          if (!matchedStock && phase) {
+            matchedStock = stockItems.find(item => 
+              item.name.toLowerCase().includes(phase.name.toLowerCase())
+            );
+          }
+
+          if (!matchedStock) {
+            matchedStock = stockItems.find(item => item.category === 'feed');
+          }
+
+          if (matchedStock) {
+            const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
+              p_farm_id: farmId,
+              p_stock_item_id: matchedStock.id,
+              p_qty_needed: schedule.total_amount_kg,
+              p_batch_id: selectedBatch,
+              p_reason: `Auto-deduction for feed schedule complete: Day ${schedule.day}`,
+              p_source_ref: schedule.id
+            });
+
+            if (allocError) {
+              console.error('Failed to allocate stock for feed mark fed:', allocError);
+            } else {
+              const newStockQty = Math.max(0, Number(matchedStock.current_quantity) - schedule.total_amount_kg);
+              await supabase.from('stock_items')
+                .update({
+                  current_quantity: newStockQty,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', matchedStock.id);
+            }
+          }
+        }
+      }
     }
   };
 
@@ -113,6 +184,67 @@ export default function Feed() {
       toast.success('Feed logged');
       setShowLogDialog(false);
       setLogAmountKg('');
+
+      // Auto inventory deduction if intensive
+      const isIntensive = batch?.production_system === 'intensive';
+      if (isIntensive) {
+        const { data: stockItems } = await supabase
+          .from('stock_items')
+          .select('*')
+          .eq('farm_id', farmId);
+
+        if (stockItems && stockItems.length > 0) {
+          const feedType = COMMERCIAL_FEED_TYPES.find(f => 
+            f.species.includes(batch.species) && 
+            f.phase === phase.name.toLowerCase()
+          );
+
+          let matchedStock = stockItems.find(item => 
+            item.category === 'feed' && 
+            item.name.toLowerCase().includes(phase.name.toLowerCase())
+          );
+
+          if (!matchedStock && feedType) {
+            matchedStock = stockItems.find(item => 
+              item.name.toLowerCase().includes(feedType.label.split('(')[0].trim().toLowerCase())
+            );
+          }
+
+          if (!matchedStock) {
+            matchedStock = stockItems.find(item => 
+              item.name.toLowerCase().includes(phase.name.toLowerCase())
+            );
+          }
+
+          if (!matchedStock) {
+            matchedStock = stockItems.find(item => item.category === 'feed');
+          }
+
+          if (matchedStock) {
+            const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
+              p_farm_id: farmId,
+              p_stock_item_id: matchedStock.id,
+              p_qty_needed: amount,
+              p_batch_id: selectedBatch,
+              p_reason: `Auto-deduction for logged feed: Day ${dynamics.day}`,
+              p_source_ref: data.id
+            });
+
+            if (allocError) {
+              console.error('Failed to allocate stock for feed log:', allocError);
+              toast.error(`Feed stock allocation failed: ${allocError.message}`);
+            } else {
+              const newStockQty = Math.max(0, Number(matchedStock.current_quantity) - amount);
+              await supabase.from('stock_items')
+                .update({
+                  current_quantity: newStockQty,
+                  updated_at: new Date().toISOString()
+                })
+                .eq('id', matchedStock.id);
+            }
+          }
+        }
+      }
     }
     setLogSaving(false);
   };
@@ -155,6 +287,39 @@ export default function Feed() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Phase transition alert */}
+          {phaseTransitionDetected && !phaseAlertDismissed && phase && previousFeedPerBirdG !== null && (
+            <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700">
+              <Wheat className="h-4 w-4 text-amber-600" />
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1">
+                  <AlertTitle className="text-amber-800 dark:text-amber-300">
+                    🌾 Feed Phase Changed — {phase.name} Phase
+                  </AlertTitle>
+                  <AlertDescription className="text-amber-700 dark:text-amber-400 mt-1">
+                    New consumption rate: <strong>{phase.feedPerBirdG}g</strong> / bird / day
+                    {' '}(was {previousFeedPerBirdG}g)
+                  </AlertDescription>
+                  <Button
+                    size="sm"
+                    className="mt-2 rounded-full h-7 text-xs gap-1"
+                    asChild
+                  >
+                    <Link to="/feed/formulate">Plan {phase.name} Feed →</Link>
+                  </Button>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 shrink-0 text-amber-600 hover:text-amber-800"
+                  onClick={() => setPhaseAlertDismissed(true)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </Alert>
+          )}
 
           {/* Current phase info */}
           {batch && phase && dynamics && (

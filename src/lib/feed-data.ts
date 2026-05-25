@@ -12,8 +12,8 @@ export interface FeedPhase {
 
 export const FEED_PHASES: Record<string, FeedPhase[]> = {
   broiler: [
-    { name: 'Starter', weekStart: 0, weekEnd: 2, proteinPct: 23, energyKcal: 3000, calciumPct: 1.0, feedPerBirdG: 25 },
-    { name: 'Grower', weekStart: 3, weekEnd: 5, proteinPct: 20, energyKcal: 3100, calciumPct: 0.9, feedPerBirdG: 80 },
+    { name: 'Starter', weekStart: 0, weekEnd: 3, proteinPct: 23, energyKcal: 3000, calciumPct: 1.0, feedPerBirdG: 25 },
+    { name: 'Grower', weekStart: 4, weekEnd: 5, proteinPct: 20, energyKcal: 3100, calciumPct: 0.9, feedPerBirdG: 80 },
     { name: 'Finisher', weekStart: 6, weekEnd: 8, proteinPct: 18, energyKcal: 3200, calciumPct: 0.85, feedPerBirdG: 130 },
   ],
   layer: [
@@ -127,17 +127,7 @@ export const SAFETY_RULES: SafetyRule[] = [
       return null;
     },
   },
-  {
-    id: 'niacin_duck',
-    description: 'Ducks require extra niacin',
-    check: (species, names) => {
-      const hasNiacin = names.some(n => n.toLowerCase().includes('niacin'));
-      if (species === 'duck' && !hasNiacin) {
-        return { warning: true, message: '⚠️ CRITICAL: Ducks require extra Niacin (Vitamin B3) — 1.5 tsp/gallon for leg health' };
-      }
-      return null;
-    },
-  },
+
   {
     id: 'cotton_seed_layer',
     description: 'Block cotton seed for layers',
@@ -206,13 +196,7 @@ export function getCompulsorySupplements(species: string, selectedNames: string[
     if (toxin) result.push(toxin);
   }
 
-  if (species === 'duck') {
-    const hasNiacin = selectedNames.some(n => n.toLowerCase().includes('niacin'));
-    if (!hasNiacin) {
-      const niacin = INGREDIENTS.find(i => i.name.toLowerCase().includes('niacin'));
-      if (niacin) result.push(niacin);
-    }
-  }
+
 
   return result;
 }

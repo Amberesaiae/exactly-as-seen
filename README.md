@@ -1,3 +1,157 @@
-# Welcome to your Lovable project
+# LampFarms — Poultry Operations Ledger
 
-TODO: Document your project here
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-org/exactly-as-seen&env=VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY&envDescription=Supabase%20project%20credentials)
+
+A **premium PWA** for small and medium-scale poultry farmers — full offline support, batch lifecycle management, financial ledger, feed formulation (HiGHS LP solver), health task tracking, and branded PDF report generation.
+
+---
+
+## Features
+
+| Module | Capabilities |
+|---|---|
+| **Batches** | Create, manage, and close broiler/layer/turkey flocks |
+| **Feed** | Schedule feeds, log consumption, LP-optimised formulations |
+| **Health** | Vaccination & medication tasks, conflict detection, auto-scheduling |
+| **Mortality** | Daily mortality logging with cause classification |
+| **Finance** | Expense ledger, revenue recording, FCR / ROI / net margin |
+| **Records** | Batch history timeline, multi-batch comparison charts, financial summary |
+| **Exports** | CSV export + branded multi-page jsPDF reports |
+| **Settings** | Farm profile, market price overrides, push notification preferences |
+| **PWA** | Offline-first with Workbox, install prompt, background sync |
+
+---
+
+## Quick Start
+
+```bash
+# 1. Clone
+git clone https://github.com/your-org/exactly-as-seen
+cd exactly-as-seen
+
+# 2. Install
+npm install
+
+# 3. Environment
+cp .env.example .env.local
+# Edit .env.local — add your Supabase URL and anon key
+
+# 4. Run
+npm run dev
+```
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|---|---|---|
+| `VITE_SUPABASE_URL` | ✅ | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | ✅ | Public anon key from Supabase dashboard |
+| `VITE_VAPID_PUBLIC_KEY` | Optional | VAPID public key for Web Push notifications |
+| `VITE_DEFAULT_CURRENCY` | Optional | Default currency code (default: `GHS`) |
+
+---
+
+## Deploy to Vercel
+
+1. Push to GitHub
+2. Click **Deploy with Vercel** above
+3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel Environment Variables
+4. Deploy — SPA routing and service worker headers are pre-configured in `vercel.json`
+
+### Manual deploy
+
+```bash
+npm run build          # Produces dist/ with service-worker.js
+npx vercel --prod      # Deploy to production
+```
+
+---
+
+## Architecture
+
+```
+src/
+├── components/
+│   ├── settings/      # 8 focused settings tabs
+│   └── records/       # Batch analytics tabs
+├── hooks/             # usePushNotifications, useHealthData, etc.
+├── lib/
+│   ├── pdf-report.ts  # jsPDF branded report generator
+│   ├── feed-lp.ts     # HiGHS LP feed optimiser
+│   ├── sync.ts        # Offline sync queue (Dexie + Supabase)
+│   └── ...
+├── pages/             # Route-level components
+├── service-worker.ts  # Workbox + Push notification handlers
+└── stores/            # Zustand app store
+```
+
+---
+
+## PDF Reports
+
+Click **Records → Exports → Download PDF** to generate a branded multi-page batch report including:
+
+- Cover page with farm name and date
+- KPI grid (birds, mortality %, FCR, feed, revenue, net margin)
+- Mortality records table
+- Feed schedule log
+- Health tasks log
+- Expense and revenue ledgers
+
+Financial data is automatically masked if **Cost Privacy** is enabled in Settings → Preferences.
+
+---
+
+## Push Notifications
+
+Enable in **Settings → Alerts**. Supported triggers:
+
+- 🔴 Mortality spike (> 2% daily loss)
+- 🟡 Overdue health task
+- 🔵 Feed schedule reminder
+- 🟢 Batch close-out reminder
+
+Generate a VAPID key pair for server-side push:
+
+```bash
+npx web-push generate-vapid-keys
+# Add VITE_VAPID_PUBLIC_KEY to .env.local
+# Add VAPID_PRIVATE_KEY to your Supabase Edge Function secrets
+```
+
+### Edge Function Deployment
+
+1. Set your Supabase Edge Function secrets:
+   ```bash
+   supabase secrets set VAPID_PUBLIC_KEY="your-public-key"
+   supabase secrets set VAPID_PRIVATE_KEY="your-private-key"
+   supabase secrets set VAPID_SUBJECT="mailto:support@lampfarms.com"
+   ```
+
+2. Deploy the `push-alerts` function:
+   ```bash
+   supabase functions deploy push-alerts
+   ```
+
+3. In your Supabase Dashboard, navigate to **Database -> Webhooks** and create a new webhook:
+   - **Name**: `mortality_spike_alert`
+   - **Table**: `mortality_records`
+   - **Events**: `INSERT`
+   - **Type**: `HTTP Request`
+   - **Method**: `POST`
+   - **URL**: `https://<your-project-ref>.supabase.co/functions/v1/push-alerts`
+   - **Headers**: Add `Authorization: Bearer <your-service-role-key>` so it bypasses RLS and triggers the push secure logic.
+
+---
+
+## Scripts
+
+| Command | Description |
+|---|---|
+| `npm run dev` | Start development server on :8080 |
+| `npm run build` | Production build with code splitting |
+| `npm run preview` | Preview production build locally |
+| `npx vitest run` | Run full test suite |
+| `npx tsc -p tsconfig.app.json --noEmit` | Type check |

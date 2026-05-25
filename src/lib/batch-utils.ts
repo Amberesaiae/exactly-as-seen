@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 /** Species-specific phase definitions */
 const PHASE_DEFINITIONS: Record<string, { name: string; weekEnd: number }[]> = {
   broiler: [
-    { name: 'starter', weekEnd: 2 },
+    { name: 'starter', weekEnd: 3 },
     { name: 'grower', weekEnd: 5 },
     { name: 'finisher', weekEnd: 99 },
   ],

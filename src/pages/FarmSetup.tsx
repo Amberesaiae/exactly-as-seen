@@ -41,11 +41,17 @@ export default function FarmSetup() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data } = await supabase
+      const { data: farms } = await supabase
         .from('farms')
-        .select('id, name, setup_complete')
-        .eq('user_id', user.id)
-        .maybeSingle();
+        .select('id, name, setup_complete, updated_at')
+        .eq('user_id', user.id);
+
+      const data = farms && farms.length > 0
+        ? [...farms].sort((a, b) => {
+            if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
+            return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+          })[0]
+        : null;
 
       if (data?.setup_complete) {
         navigate('/dashboard', { replace: true });
@@ -266,9 +272,7 @@ export default function FarmSetup() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="GHS">GHS (Ghana Cedi)</SelectItem>
-                    <SelectItem value="USD">USD (US Dollar)</SelectItem>
                     <SelectItem value="NGN">NGN (Naira)</SelectItem>
-                    <SelectItem value="KES">KES (Kenya Shilling)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

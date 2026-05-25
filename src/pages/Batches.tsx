@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { getBatchAge, recordMortality } from '@/lib/batch-utils';
+import { getBatchAge } from '@/lib/batch-utils';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { MortalityDialog } from '@/components/MortalityDialog';
 import { Plus, Layers, Eye, Skull } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -27,10 +28,6 @@ export default function Batches() {
 
   // Mortality modal
   const [mortalityBatch, setMortalityBatch] = useState<Batch | null>(null);
-  const [mortalityCount, setMortalityCount] = useState('1');
-  const [mortalityCause, setMortalityCause] = useState('');
-  const [mortalityNotes, setMortalityNotes] = useState('');
-  const [mortalitySubmitting, setMortalitySubmitting] = useState(false);
 
   useEffect(() => {
     if (!user || !farmId) return;
@@ -47,35 +44,8 @@ export default function Batches() {
     load();
   }, [user, farmId, speciesFilter, statusFilter]);
 
-  const handleRecordMortality = async () => {
-    if (!mortalityBatch || !farmId) return;
-    setMortalitySubmitting(true);
-    const count = parseInt(mortalityCount) || 0;
-    if (count <= 0) { toast.error('Count must be positive'); setMortalitySubmitting(false); return; }
-
-    const newPop = await recordMortality({
-      batchId: mortalityBatch.id,
-      farmId,
-      batchName: mortalityBatch.name,
-      currentPopulation: mortalityBatch.current_population,
-      count,
-      cause: mortalityCause || undefined,
-      notes: mortalityNotes || undefined,
-    });
-
-    if (newPop === null) {
-      toast.error('Failed to record mortality');
-      setMortalitySubmitting(false);
-      return;
-    }
-
-    setBatches(prev => prev.map(b => b.id === mortalityBatch.id ? { ...b, current_population: newPop } : b));
-    setMortalityBatch(null);
-    setMortalityCount('1');
-    setMortalityCause('');
-    setMortalityNotes('');
-    setMortalitySubmitting(false);
-    toast.success(`Recorded ${count} mortality`);
+  const handleMortalitySuccess = (batchId: string, newPop: number) => {
+    setBatches(prev => prev.map(b => b.id === batchId ? { ...b, current_population: newPop } : b));
   };
 
   if (loading) {
@@ -177,32 +147,12 @@ export default function Batches() {
         </div>
       )}
 
-      <Dialog open={!!mortalityBatch} onOpenChange={() => setMortalityBatch(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Record Mortality — {mortalityBatch?.name}</DialogTitle>
-            <DialogDescription>Record bird deaths for this batch. The population count will be updated automatically.</DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Count</Label>
-              <Input type="number" min="1" value={mortalityCount} onChange={e => setMortalityCount(e.target.value)} />
-            </div>
-            <div className="space-y-2">
-              <Label>Cause (optional)</Label>
-              <Input value={mortalityCause} onChange={e => setMortalityCause(e.target.value)} placeholder="e.g., Disease, Predator, Unknown" />
-            </div>
-            <div className="space-y-2">
-              <Label>Notes (optional)</Label>
-              <Textarea value={mortalityNotes} onChange={e => setMortalityNotes(e.target.value)} placeholder="Additional details..." />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setMortalityBatch(null)}>Cancel</Button>
-            <Button onClick={handleRecordMortality} disabled={mortalitySubmitting}>Record</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MortalityDialog
+        batch={mortalityBatch}
+        farmId={farmId}
+        onClose={() => setMortalityBatch(null)}
+        onSuccess={handleMortalitySuccess}
+      />
     </div>
   );
 }

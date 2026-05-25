@@ -1,0 +1,312 @@
+import { useEffect, useState, useMemo } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { useAppStore } from '@/stores/useAppStore';
+import { toast } from 'sonner';
+import { format, subDays } from 'date-fns';
+import { getExpectedRate } from '@/lib/health-data';
+import { getBatchAge } from '@/lib/batch-utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type Batch = Database['public']['Tables']['batches']['Row'];
+type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
+type EggSale = Database['public']['Tables']['egg_sales']['Row'];
+
+const SIZE_LABELS: Record<string, string> = {
+  small: 'Small (< 53g)',
+  medium: 'Medium (53–63g)',
+  large: 'Large (> 63g)',
+};
+
+export function useEggData() {
+  const { user } = useAuth();
+  const { costPrivacyEnabled } = useAppStore();
+  const [loading, setLoading] = useState(true);
+  const [farmId, setFarmId] = useState<string | null>(null);
+  const [batches, setBatches] = useState<Batch[]>([]);
+  const [selectedBatch, setSelectedBatch] = useState('');
+  const [records, setRecords] = useState<EggRecord[]>([]);
+  const [sales, setSales] = useState<EggSale[]>([]);
+  const [eggSubmitting, setEggSubmitting] = useState(false);
+  const [saleSubmitting, setSaleSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const load = async () => {
+      setLoading(true);
+      const { data: farms } = await supabase.from('farms').select('id, setup_complete, updated_at').eq('user_id', user.id);
+      const farm = farms && farms.length > 0 ? [...farms].sort((a, b) => {
+        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
+        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+      })[0] : null;
+      if (!farm) { setLoading(false); return; }
+      setFarmId(farm.id);
+      const { data: b } = await supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active').in('species', ['layer', 'duck', 'turkey']);
+      setBatches(b ?? []);
+      if (b?.length) setSelectedBatch(b[0].id);
+
+      const { data: s } = await supabase.from('egg_sales').select('*').eq('farm_id', farm.id).order('date', { ascending: false }).limit(30);
+      setSales(s ?? []);
+
+      setLoading(false);
+    };
+    load();
+  }, [user]);
+
+  useEffect(() => {
+    if (!selectedBatch) { setRecords([]); return; }
+    supabase.from('egg_collections').select('*').eq('batch_id', selectedBatch).order('date', { ascending: false }).limit(30)
+      .then(({ data }) => setRecords(data ?? []));
+  }, [selectedBatch]);
+
+  const batch = useMemo(() => batches.find(b => b.id === selectedBatch), [batches, selectedBatch]);
+  const batchAge = useMemo(() => batch ? getBatchAge(batch.start_date, batch.species) : null, [batch]);
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const todayRecord = useMemo(() => records.find(r => r.date === todayStr), [records, todayStr]);
+
+  const productionRate = useMemo(() => 
+    batch && batch.current_population > 0 && todayRecord
+      ? ((todayRecord.total_eggs / batch.current_population) * 100).toFixed(1)
+      : null
+  , [batch, todayRecord]);
+
+  const expectedRate = useMemo(() => batch ? getExpectedRate(batch.species, batch.current_week) : null, [batch]);
+
+  const avg7Day = useMemo(() => {
+    if (!batch || batch.current_population <= 0) return null;
+    const last7 = records.filter(r => {
+      const d = new Date(r.date);
+      return d >= subDays(new Date(), 7);
+    });
+    if (last7.length === 0) return null;
+    const avgEggs = last7.reduce((sum, r) => sum + r.total_eggs, 0) / last7.length;
+    return ((avgEggs / batch.current_population) * 100).toFixed(1);
+  }, [records, batch]);
+
+  const weekTotal = useMemo(() => {
+    return records.filter(r => {
+      const d = new Date(r.date);
+      return d >= subDays(new Date(), 7);
+    }).reduce((sum, r) => sum + r.total_eggs, 0);
+  }, [records]);
+
+  const sizeDistribution = useMemo(() => {
+    const last7 = records.filter(r => new Date(r.date) >= subDays(new Date(), 7));
+    const counts: Record<string, number> = { small: 0, medium: 0, large: 0 };
+    last7.forEach(r => { counts[r.size_category] = (counts[r.size_category] || 0) + r.total_eggs; });
+    const total = Object.values(counts).reduce((a, b) => a + b, 0);
+    return Object.entries(counts).map(([size, count]) => ({
+      size: SIZE_LABELS[size] || size,
+      count,
+      pct: total > 0 ? ((count / total) * 100).toFixed(0) : '0',
+    }));
+  }, [records]);
+
+  const qualityBreakdown = useMemo(() => {
+    const last7 = records.filter(r => new Date(r.date) >= subDays(new Date(), 7));
+    const totalEggs = last7.reduce((s, r) => s + r.total_eggs, 0);
+    const totalGood = last7.reduce((s, r) => s + r.good, 0);
+    const totalBroken = last7.reduce((s, r) => s + r.broken, 0);
+    const totalDirty = last7.reduce((s, r) => s + r.dirty, 0);
+    return { totalEggs, totalGood, totalBroken, totalDirty };
+  }, [records]);
+
+  const rateDeviation = useMemo(() => {
+    if (!productionRate || !expectedRate) return null;
+    const actual = parseFloat(productionRate);
+    if (actual < expectedRate.min) {
+      return { type: 'below' as const, diff: (expectedRate.min - actual).toFixed(1) };
+    }
+    if (actual > expectedRate.max) {
+      return { type: 'above' as const, diff: (actual - expectedRate.max).toFixed(1) };
+    }
+    return null;
+  }, [productionRate, expectedRate]);
+
+  const chartData = useMemo(() => {
+    if (!records.length || !batch) return [];
+    return [...records].reverse().map(r => {
+      const rate = batch.current_population > 0 ? ((r.total_eggs / batch.current_population) * 100) : 0;
+      const exp = getExpectedRate(batch.species, batch.current_week);
+      return {
+        date: format(new Date(r.date), 'MMM d'),
+        eggs: r.total_eggs,
+        good: r.good,
+        broken: r.broken + r.dirty,
+        rate: parseFloat(rate.toFixed(1)),
+        expectedMin: exp?.min ?? null,
+        expectedMax: exp?.max ?? null,
+      };
+    });
+  }, [records, batch]);
+
+  const salesSummary = useMemo(() => {
+    const last30 = sales.filter(s => new Date(s.date) >= subDays(new Date(), 30));
+    const totalQty = last30.reduce((sum, s) => sum + s.quantity, 0);
+    const totalRevenue = last30.reduce((sum, s) => sum + Number(s.total_amount), 0);
+    return { totalQty, totalRevenue, count: last30.length };
+  }, [sales]);
+
+  const recordCollection = async (total: number, broken: number, dirty: number, sizeCategory: string, notes: string) => {
+    if (!farmId || !selectedBatch) return;
+    if (total <= 0) { toast.error('Enter a valid egg count'); return; }
+    setEggSubmitting(true);
+
+    if (!batch) {
+      toast.error('Selected batch not found');
+      setEggSubmitting(false);
+      return;
+    }
+
+    // Start week check: Layer >= 19, Duck-layer >= 20
+    const week = batch.current_week;
+    if (batch.species === 'layer' && week < 19) {
+      toast.error(`Egg collection is not permitted for layers before week 19 (Current week: ${week})`);
+      setEggSubmitting(false);
+      return;
+    }
+    if (batch.species === 'duck' && batch.duck_type === 'layer' && week < 20) {
+      toast.error(`Egg collection is not permitted for duck layers before week 20 (Current week: ${week})`);
+      setEggSubmitting(false);
+      return;
+    }
+
+    // Duplicate check for batch + date
+    const { data: existing, error: existError } = await supabase
+      .from('egg_collections')
+      .select('id')
+      .eq('batch_id', selectedBatch)
+      .eq('date', todayStr)
+      .maybeSingle();
+
+    if (existing) {
+      toast.error('An egg collection has already been recorded for this batch today.');
+      setEggSubmitting(false);
+      return;
+    }
+
+    const good = Math.max(0, total - broken - dirty);
+
+    const { data, error } = await supabase.from('egg_collections').insert({
+      batch_id: selectedBatch,
+      farm_id: farmId,
+      total_eggs: total,
+      broken,
+      dirty,
+      good,
+      size_category: sizeCategory,
+      notes: notes || null,
+    }).select().single();
+
+    if (error) { toast.error(error.message); setEggSubmitting(false); return; }
+
+    await supabase.from('activity_log').insert({
+      farm_id: farmId,
+      batch_id: selectedBatch,
+      event_type: 'egg_collection',
+      description: `Collected ${total} eggs (${good} good, ${broken} broken, ${dirty} dirty) — ${SIZE_LABELS[sizeCategory] || sizeCategory}`,
+    });
+
+    setRecords(prev => [data, ...prev.slice(0, 29)]);
+    setEggSubmitting(false);
+    toast.success(`Recorded ${total} eggs (${good} good)`);
+  };
+
+  const recordSale = async (qty: number, price: number, sizeCategory: string, buyer: string, notes: string) => {
+    if (!farmId) return;
+    if (!selectedBatch) { toast.error('Please select a batch first'); return; }
+    if (qty <= 0 || price <= 0) { toast.error('Enter valid quantity and price'); return; }
+    setSaleSubmitting(true);
+
+    // 1. Withdrawal period check
+    if (batch?.has_active_withdrawal) {
+      toast.error('Cannot record egg sale during active medication withdrawal period');
+      setSaleSubmitting(false);
+      return;
+    }
+
+    // 2. Egg inventory verification via RPC
+    const { data: inv, error: invError } = await (supabase as any).rpc('get_egg_inventory', {
+      p_batch_id: selectedBatch,
+      p_farm_id: farmId
+    });
+
+    if (invError) {
+      toast.error('Failed to verify egg inventory');
+      setSaleSubmitting(false);
+      return;
+    }
+
+    if ((inv || 0) < qty) {
+      toast.error(`Insufficient inventory. Good eggs on hand: ${inv || 0}, requested: ${qty}`);
+      setSaleSubmitting(false);
+      return;
+    }
+
+    const totalAmount = qty * price;
+
+    const { data: sale, error } = await supabase.from('egg_sales').insert({
+      farm_id: farmId,
+      batch_id: selectedBatch,
+      quantity: qty,
+      size_category: sizeCategory,
+      unit_price: price,
+      total_amount: totalAmount,
+      buyer: buyer || null,
+      notes: notes || null,
+    }).select().single();
+
+    if (error) { toast.error(error.message); setSaleSubmitting(false); return; }
+
+    // 3. Idempotent Revenue Insert
+    await supabase.from('revenue').upsert({
+      farm_id: farmId,
+      batch_id: selectedBatch,
+      category: 'egg_sales',
+      description: `Egg sale: ${qty} ${sizeCategory} eggs @ GHS ${price}`,
+      amount: totalAmount,
+      amount_pesewas: Math.round(totalAmount * 100),
+      buyer: buyer || null,
+      date: new Date().toISOString().split('T')[0],
+      source: 'auto:eggs',
+      source_ref: sale.id
+    }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+
+    await supabase.from('activity_log').insert({
+      farm_id: farmId,
+      event_type: 'egg_sale',
+      description: `Sold ${qty} ${sizeCategory} eggs for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
+    });
+
+    setSales(prev => [sale, ...prev.slice(0, 29)]);
+    setSaleSubmitting(false);
+    toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
+  };
+
+  return {
+    loading,
+    batches,
+    selectedBatch,
+    setSelectedBatch,
+    records,
+    sales,
+    batch,
+    batchAge,
+    productionRate,
+    expectedRate,
+    avg7Day,
+    weekTotal,
+    sizeDistribution,
+    qualityBreakdown,
+    rateDeviation,
+    chartData,
+    salesSummary,
+    eggSubmitting,
+    saleSubmitting,
+    costPrivacyEnabled,
+    recordCollection,
+    recordSale,
+    todayStr,
+  };
+}

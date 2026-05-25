@@ -49,7 +49,6 @@ export function optimizeFormulation(
     else if (name.includes('salt')) allocations[idx] = targetKg * 0.003; // 0.3%
     else if (name.includes('methionine') || name.includes('lysine')) allocations[idx] = targetKg * 0.002; // 0.2%
     else if (name.includes('toxin')) allocations[idx] = targetKg * 0.005; // 0.5%
-    else if (name.includes('niacin')) allocations[idx] = targetKg * 0.001; // 0.1%
     else allocations[idx] = targetKg * 0.005; // default 0.5%
   }
 
@@ -65,7 +64,7 @@ export function optimizeFormulation(
   }
 
   const usedKg = allocations.reduce((a, b) => a + b, 0);
-  let remainingKg = targetKg - usedKg;
+  const remainingKg = targetKg - usedKg;
 
   // 3. Split remaining between energy and protein to hit targets
   if (remainingKg > 0 && (energyIdxs.length > 0 || proteinIdxs.length > 0)) {

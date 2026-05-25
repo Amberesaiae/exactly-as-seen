@@ -1,3 +1,4 @@
+import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Bird, FlaskConical, HeartPulse, Egg,
   Wallet, Package, LineChart, Settings, LogOut,
@@ -5,6 +6,7 @@ import {
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { db } from '@/lib/db';
 import {
   Sidebar,
   SidebarContent,
@@ -51,6 +53,45 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const { signOut } = useAuth();
+  const [hasEggLayers, setHasEggLayers] = useState<boolean>(true);
+
+  useEffect(() => {
+    const checkBatches = async () => {
+      try {
+        const activeBatches = await db.batches.where('status').equals('active').toArray();
+        if (activeBatches.length > 0) {
+          const hasLayers = activeBatches.some(b => b.species === 'layer' || b.species === 'duck');
+          setHasEggLayers(hasLayers);
+        } else {
+          setHasEggLayers(true);
+        }
+      } catch (err) {
+        console.error('Error checking egg layers in sidebar:', err);
+      }
+    };
+    checkBatches();
+    
+    // Periodically update active layers check to handle creation/updates
+    const interval = setInterval(checkBatches, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const filteredGroups = useMemo(() => {
+    return groups.map(group => {
+      if (group.label === 'Operations') {
+        return {
+          ...group,
+          items: group.items.filter(item => {
+            if (item.title === 'Harvest') {
+              return hasEggLayers;
+            }
+            return true;
+          })
+        };
+      }
+      return group;
+    });
+  }, [hasEggLayers]);
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -62,7 +103,7 @@ export function AppSidebar() {
       </div>
 
       <SidebarContent className="px-2 py-3">
-        {groups.map(group => (
+        {filteredGroups.map(group => (
           <SidebarGroup key={group.label}>
             {!collapsed && (
               <SidebarGroupLabel className="px-3 text-[10px] font-bold uppercase tracking-[0.22em] text-muted-foreground">
