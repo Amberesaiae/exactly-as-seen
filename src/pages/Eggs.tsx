@@ -78,7 +78,7 @@ export default function Eggs() {
       )}
 
       <EggCollectionDialog open={showCollect} onOpenChange={setShowCollect} onSubmit={recordCollection} submitting={eggSubmitting} />
-      <EggSaleDialog open={showSale} onOpenChange={setShowSale} onSubmit={recordSale} submitting={saleSubmitting} />
+      <EggSaleDialog open={showSale} onOpenChange={setShowSale} onSubmit={recordSale} submitting={saleSubmitting} hasActiveWithdrawal={batch?.has_active_withdrawal} />
     </div>
   );
 }

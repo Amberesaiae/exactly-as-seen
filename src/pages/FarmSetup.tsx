@@ -273,6 +273,7 @@ export default function FarmSetup() {
                   <SelectContent>
                     <SelectItem value="GHS">GHS (Ghana Cedi)</SelectItem>
                     <SelectItem value="NGN">NGN (Naira)</SelectItem>
+                    <SelectItem value="CFA">CFA (Franc)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

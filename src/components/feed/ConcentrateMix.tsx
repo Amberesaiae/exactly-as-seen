@@ -9,6 +9,7 @@ import { Loader2, Beaker } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { CONCENTRATE_PRODUCTS, type FeedPhase } from '@/lib/feed-data';
@@ -116,52 +117,30 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone, targetKg }:
 
       for (const ing of mixIngredients) {
         if (ing.qty > 0) {
-          const { data: matchedStock } = await supabase
-            .from('stock_items')
-            .select('*')
-            .eq('farm_id', farmId)
-            .ilike('name', ing.name)
-            .maybeSingle();
-
-          if (matchedStock) {
-            const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
-              p_farm_id: farmId,
-              p_stock_item_id: matchedStock.id,
-              p_qty_needed: ing.qty,
-              p_batch_id: batch.id,
-              p_reason: `Concentrate mix auto-deduction: ${ing.name}`,
-              p_source_ref: formulation.id
-            });
-
-            if (allocError) {
-              console.error(`Failed to allocate stock for ingredient ${ing.name}:`, allocError);
-            } else {
-              const newStockQty = Math.max(0, Number(matchedStock.current_quantity) - ing.qty);
-              await supabase.from('stock_items')
-                .update({
-                  current_quantity: newStockQty,
-                  updated_at: new Date().toISOString()
-                })
-                .eq('id', matchedStock.id);
-            }
-          }
+          // Synergy: Auto-Stock Deduction (FIFO)
+          await autoDeductStock({
+            farmId,
+            itemName: ing.name,
+            quantity: ing.qty,
+            batchId: batch.id,
+            reason: `Concentrate mix auto-deduction: ${ing.name}`,
+            sourceRef: formulation.id
+          });
         }
       }
-    }
 
-    if (totalCost > 0 && isIntensive) {
-      const totalPesewas = Math.round(totalCost * 100);
-      await supabase.from('expenses').upsert({
-        farm_id: farmId,
-        batch_id: batch.id,
-        category: 'feed',
-        description: `Concentrate mix: ${selectedProduct.name} + ${grainName} — ${totalKg}kg`,
-        amount: totalCost,
-        amount_pesewas: totalPesewas,
-        date: new Date().toISOString().split('T')[0],
-        source: 'auto:feed',
-        source_ref: formulation.id,
-      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+      if (totalCost > 0) {
+        // Synergy: Auto-Expense Creation
+        await autoCreateExpense({
+          farmId,
+          batchId: batch.id,
+          category: 'feed_and_nutrition',
+          description: `Concentrate mix: ${selectedProduct.name} + ${grainName} — ${totalKg}kg`,
+          amount: totalCost,
+          source: 'auto:feed',
+          sourceRef: formulation.id,
+        });
+      }
     }
 
     await supabase.from('activity_log').insert({

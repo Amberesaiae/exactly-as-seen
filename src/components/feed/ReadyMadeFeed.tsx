@@ -8,6 +8,7 @@ import { Loader2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { autoCreateExpense } from '@/lib/synergy';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { COMMERCIAL_FEED_TYPES } from '@/lib/feed-data';
@@ -85,18 +86,16 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
 
     // Auto-create expense
     if (totalCost > 0) {
-      const totalPesewas = Math.round(totalCost * 100);
-      await supabase.from('expenses').upsert({
-        farm_id: farmId,
-        batch_id: batch.id,
-        category: 'feed',
+      // Synergy: Auto-Expense Creation
+      await autoCreateExpense({
+        farmId,
+        batchId: batch.id,
+        category: 'feed_and_nutrition',
         description: `Ready-made feed: ${feedType || 'Commercial'} ${brand ? `(${brand})` : ''} — ${totalKg}kg`,
         amount: totalCost,
-        amount_pesewas: totalPesewas,
-        date: new Date().toISOString().split('T')[0],
         source: 'auto:feed',
-        source_ref: formulation.id,
-      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+        sourceRef: formulation.id,
+      });
     }
 
     await supabase.from('activity_log').insert({

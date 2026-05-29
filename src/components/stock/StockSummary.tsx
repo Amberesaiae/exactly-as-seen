@@ -1,5 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Package, AlertTriangle, Boxes } from 'lucide-react';
+import { PrivacyMask } from '@/components/ui/PrivacyMask';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCurrencySymbol } from '@/lib/utils';
 
 interface StockSummaryProps {
   stats: {
@@ -12,7 +15,8 @@ interface StockSummaryProps {
 }
 
 export function StockSummary({ stats, costPrivacyEnabled }: StockSummaryProps) {
-  const mask = (val: string | number) => costPrivacyEnabled ? '****' : val;
+  const { currency } = useAuth();
+  const symbol = getCurrencySymbol(currency);
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -22,7 +26,7 @@ export function StockSummary({ stats, costPrivacyEnabled }: StockSummaryProps) {
             <Package className="h-3 w-3 text-primary" />
             <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Inventory Value</p>
           </div>
-          <p className="text-xl font-black">GHS {mask(stats.totalValue.toLocaleString())}</p>
+          <p className="text-xl font-black">{symbol} <PrivacyMask value={stats.totalValue.toLocaleString()} /></p>
         </CardContent>
       </Card>
 

@@ -17,11 +17,17 @@ export async function getHighs() {
   return highsPromise;
 }
 
+export interface InfeasibilityAdvice {
+  issue: string;
+  suggestion: string;
+}
+
 export interface LPSolveResult {
   status: 'optimal' | 'fallback';
   quantities: { [key: string]: number };
   totalCostPesewas: number;
   fallbackReason?: 'LP_INFEASIBLE' | 'LP_TIMEOUT' | 'LP_WASM_ERROR';
+  advice?: InfeasibilityAdvice[];
 }
 
 export async function solveFeedLP(args: {
@@ -47,7 +53,9 @@ export async function solveFeedLP(args: {
     const columns = solution.columns || solution.Columns || {};
 
     if (status !== 'optimal') {
-      return getFallbackMix(args.selected, args.targetKg, 'LP_INFEASIBLE');
+      const result = getFallbackMix(args.selected, args.targetKg, 'LP_INFEASIBLE');
+      result.advice = analyzeInfeasibility(args);
+      return result;
     }
 
     const quantities: { [key: string]: number } = {};
@@ -82,6 +90,67 @@ export async function solveFeedLP(args: {
   }
 }
 
+function analyzeInfeasibility(args: {
+  species: string;
+  targetKg: number;
+  selected: SelectedIngredient[];
+  requirements: any;
+}): InfeasibilityAdvice[] {
+  const advice: InfeasibilityAdvice[] = [];
+  const { selected, requirements, species } = args;
+
+  // 1. Protein Check
+  const maxProtein = selected.reduce((sum, s) => {
+    const maxUsage = s.ingredient.usageLimits.max / 100;
+    return sum + (s.ingredient.proteinPct * maxUsage);
+  }, 0);
+  
+  if (requirements.protein_min && maxProtein < requirements.protein_min) {
+    advice.push({
+      issue: `Insufficient protein sources (Max possible: ${maxProtein.toFixed(1)}%)`,
+      suggestion: 'Add high-protein ingredients like Soybean Meal, Groundnut Cake, or BSF Larvae.'
+    });
+  }
+
+  // 2. Energy Check
+  const maxEnergy = selected.reduce((sum, s) => {
+    const maxUsage = s.ingredient.usageLimits.max / 100;
+    return sum + (s.ingredient.energyKcal * maxUsage);
+  }, 0);
+
+  if (requirements.energy_min && maxEnergy < requirements.energy_min) {
+    advice.push({
+      issue: `Insufficient energy sources (Max possible: ${maxEnergy.toFixed(0)} kcal/kg)`,
+      suggestion: 'Add high-energy ingredients like Maize, Sorghum, or Vegetable Oil.'
+    });
+  }
+
+  // 3. Duck Niacin Check
+  if (species === 'duck') {
+    const maxNiacin = selected.reduce((sum, s) => {
+      const maxUsage = s.ingredient.usageLimits.max / 100;
+      return sum + (s.ingredient.niacinMgKg * maxUsage);
+    }, 0);
+
+    if (maxNiacin < 55) {
+      advice.push({
+        issue: `Duck Niacin requirement impossible (Max possible: ${maxNiacin.toFixed(1)} mg/kg)`,
+        suggestion: 'Add Waterfowl Vitamin Premix (which contains 150mg/kg Niacin) or a pure Niacin supplement.'
+      });
+    }
+  }
+
+  // 4. General fallback if no specific issue found
+  if (advice.length === 0) {
+    advice.push({
+      issue: 'Complex constraint conflict',
+      suggestion: 'Try increasing the usage limits for some ingredients or adding more variety to the mix.'
+    });
+  }
+
+  return advice;
+}
+
 function getFallbackMix(
   selected: SelectedIngredient[],
   targetKg: number,
@@ -102,11 +171,26 @@ function getFallbackMix(
   }
 
   if (count > 0) {
-    const qtyPerIng = Number(((targetKg - toxinBinderKg) / count).toFixed(2));
-    remainingIngredients.forEach(s => {
-      quantities[s.ingredient.id] = qtyPerIng;
-      totalCost += qtyPerIng * s.unitPrice;
+    const totalRemainingKg = targetKg - toxinBinderKg;
+    // Simple proportional split respecting max limits where possible
+    let currentTotal = 0;
+    remainingIngredients.forEach((s, idx) => {
+      const maxAllowed = (s.ingredient.usageLimits.max / 100) * targetKg;
+      let qty = totalRemainingKg / count;
+      if (qty > maxAllowed) qty = maxAllowed;
+      
+      const roundedQty = Number(qty.toFixed(2));
+      quantities[s.ingredient.id] = roundedQty;
+      totalCost += roundedQty * s.unitPrice;
+      currentTotal += roundedQty;
     });
+
+    // Adjust last ingredient for mass balance if needed
+    if (Math.abs(currentTotal + toxinBinderKg - targetKg) > 0.01) {
+       const lastIng = remainingIngredients[remainingIngredients.length - 1];
+       const diff = targetKg - (currentTotal + toxinBinderKg);
+       quantities[lastIng.ingredient.id] = Number((quantities[lastIng.ingredient.id] + diff).toFixed(2));
+    }
   }
 
   return {
@@ -137,37 +221,42 @@ export function buildCplexLp(args: {
   lp += " mass: " + vars.map(v => `1 ${v.name}`).join(" + ") + ` = ${targetKg}\n`;
 
   if (requirements.protein_min) {
-    lp += " protein: " + vars.map(v => `${v.ing.ingredient.protein_pct} ${v.name}`).join(" + ") + ` >= ${requirements.protein_min * targetKg}\n`;
+    lp += " protein: " + vars.map(v => `${v.ing.ingredient.proteinPct} ${v.name}`).join(" + ") + ` >= ${requirements.protein_min * targetKg}\n`;
   }
   if (requirements.energy_min) {
-    lp += " energy_min: " + vars.map(v => `${v.ing.ingredient.energy_kcal_per_kg} ${v.name}`).join(" + ") + ` >= ${requirements.energy_min * targetKg}\n`;
+    lp += " energy_min: " + vars.map(v => `${v.ing.ingredient.energyKcal} ${v.name}`).join(" + ") + ` >= ${requirements.energy_min * targetKg}\n`;
   }
   if (requirements.energy_max) {
-    lp += " energy_max: " + vars.map(v => `${v.ing.ingredient.energy_kcal_per_kg} ${v.name}`).join(" + ") + ` <= ${requirements.energy_max * targetKg}\n`;
+    lp += " energy_max: " + vars.map(v => `${v.ing.ingredient.energyKcal} ${v.name}`).join(" + ") + ` <= ${requirements.energy_max * targetKg}\n`;
   }
   if (requirements.calcium_min) {
-    lp += " calcium_min: " + vars.map(v => `${v.ing.ingredient.calcium_pct} ${v.name}`).join(" + ") + ` >= ${requirements.calcium_min * targetKg}\n`;
+    lp += " calcium_min: " + vars.map(v => `${v.ing.ingredient.calciumPct} ${v.name}`).join(" + ") + ` >= ${requirements.calcium_min * targetKg}\n`;
   }
   if (requirements.calcium_max) {
-    lp += " calcium_max: " + vars.map(v => `${v.ing.ingredient.calcium_pct} ${v.name}`).join(" + ") + ` <= ${requirements.calcium_max * targetKg}\n`;
+    lp += " calcium_max: " + vars.map(v => `${v.ing.ingredient.calciumPct} ${v.name}`).join(" + ") + ` <= ${requirements.calcium_max * targetKg}\n`;
   }
   if (requirements.phosphorus_min) {
-    lp += " phosphorus: " + vars.map(v => `${v.ing.ingredient.phosphorus_pct} ${v.name}`).join(" + ") + ` >= ${requirements.phosphorus_min * targetKg}\n`;
+    lp += " phosphorus: " + vars.map(v => `${v.ing.ingredient.phosphorusPct} ${v.name}`).join(" + ") + ` >= ${requirements.phosphorus_min * targetKg}\n`;
   }
   if (requirements.lysine_min) {
-    lp += " lysine: " + vars.map(v => `${v.ing.ingredient.lysine_pct} ${v.name}`).join(" + ") + ` >= ${requirements.lysine_min * targetKg}\n`;
+    lp += " lysine: " + vars.map(v => `${v.ing.ingredient.lysinePct} ${v.name}`).join(" + ") + ` >= ${requirements.lysine_min * targetKg}\n`;
   }
   if (requirements.methionine_min) {
-    lp += " methionine: " + vars.map(v => `${v.ing.ingredient.methionine_pct} ${v.name}`).join(" + ") + ` >= ${requirements.methionine_min * targetKg}\n`;
+    lp += " methionine: " + vars.map(v => `${v.ing.ingredient.methioninePct} ${v.name}`).join(" + ") + ` >= ${requirements.methionine_min * targetKg}\n`;
+  }
+
+  // Duck Niacin Constraint
+  if (species === 'duck') {
+    lp += " niacin: " + vars.map(v => `${v.ing.ingredient.niacinMgKg} ${v.name}`).join(" + ") + ` >= ${55 * targetKg}\n`;
   }
 
   lp += "Bounds\n";
   vars.forEach(v => {
-    let maxShare = Number(v.ing.ingredient.max_share_pct) / 100;
+    let maxShare = Number(v.ing.ingredient.usageLimits.max) / 100;
     
-    if (species === 'broiler' && v.ing.ingredient.id === 'fish_meal') {
-      maxShare = 0.10;
-    }
+    // Fish meal cap from specs
+    if (species === 'layer' && v.ing.ingredient.id === 'fish_meal_65') maxShare = 0.08;
+    if (species === 'broiler' && v.ing.ingredient.id === 'fish_meal_65') maxShare = 0.10;
 
     const ub = maxShare * targetKg;
 

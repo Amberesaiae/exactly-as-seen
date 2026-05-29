@@ -1,6 +1,6 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import { Activity, AlertTriangle, Info, Egg, ThermometerSun } from 'lucide-react';
+import { Activity, AlertTriangle, Info, Egg, ThermometerSun, Droplets } from 'lucide-react';
 import { format } from 'date-fns';
 import { MEDICATION_TEMPLATES } from '@/lib/health-data';
 
@@ -16,6 +16,7 @@ interface HealthAlertBannerProps {
   latestTemp: number | string | null;
   healthAlerts: any[];
   eggDiscardInfo: any;
+  waterPrescription: any;
 }
 
 export function HealthAlertBanner({
@@ -30,6 +31,7 @@ export function HealthAlertBanner({
   latestTemp,
   healthAlerts,
   eggDiscardInfo,
+  waterPrescription,
 }: HealthAlertBannerProps) {
   if (!batch || !batchAge) return null;
 
@@ -79,6 +81,20 @@ export function HealthAlertBanner({
         </CardContent>
       </Card>
 
+      {/* Heat Stress Advisory (Refactored from hard multiplier) */}
+      {waterPrescription?.caution && (
+        <Alert className={waterPrescription.caution.type === 'extreme_heat' ? 'border-red-500 bg-red-50' : 'border-orange-500/50 bg-orange-50'}>
+          <ThermometerSun className={`h-4 w-4 ${waterPrescription.caution.type === 'extreme_heat' ? 'text-red-600' : 'text-orange-600'}`} />
+          <AlertTitle className="text-sm font-bold flex items-center gap-2">
+            {waterPrescription.caution.type === 'extreme_heat' ? 'EXTREME HEAT DANGER' : 'HEAT STRESS ADVISORY'}
+            <Badge variant="outline" className="text-[10px] h-4 bg-white border-orange-200">Lean Guidance</Badge>
+          </AlertTitle>
+          <AlertDescription className="text-xs font-medium text-orange-900">
+            {waterPrescription.caution.message}
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Species-Specific Health Alerts */}
       {healthAlerts.length > 0 && (
         <div className="space-y-2">
@@ -112,17 +128,6 @@ export function HealthAlertBanner({
             {eggDiscardInfo.estimatedEggs > 0 && (
               <> Estimated <strong>~{eggDiscardInfo.estimatedEggs} eggs</strong> affected.</>
             )}
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Heat Stress Alert */}
-      {latestTemp && Number(latestTemp) > 32 && (
-        <Alert className="border-orange-500/50 bg-orange-50 text-orange-900">
-          <ThermometerSun className="h-4 w-4 text-orange-600" />
-          <AlertTitle className="text-sm">Heat Stress Warning — {latestTemp}°C</AlertTitle>
-          <AlertDescription className="text-xs">
-            Temperature exceeds 32°C. Increase ventilation, provide cool water, add electrolytes ({MEDICATION_TEMPLATES.find(m => m.name.includes('Electrolytes'))?.dosePerGallon ?? '1 tbsp/gal'}), and reduce feeding during peak heat.
           </AlertDescription>
         </Alert>
       )}

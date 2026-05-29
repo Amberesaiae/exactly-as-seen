@@ -14,6 +14,7 @@ import type { User as SupabaseUser } from '@supabase/supabase-js';
 const CURRENCIES = [
   { value: 'GHS', label: 'GHS', name: 'Ghana Cedi', symbol: '₵' },
   { value: 'NGN', label: 'NGN', name: 'Nigerian Naira', symbol: '₦' },
+  { value: 'CFA', label: 'CFA', name: 'CFA Franc', symbol: 'CFA' },
 ];
 
 interface PreferencesTabProps {

@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard, Bird, FlaskConical, HeartPulse, Egg,
-  Wallet, Package, LineChart, Settings, LogOut,
+  Wallet, Package, LineChart, Settings, LogOut, Eye, EyeOff
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAppStore } from '@/stores/useAppStore';
 import { db } from '@/lib/db';
 import {
   Sidebar,
@@ -52,8 +53,30 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
+  const { costPrivacyEnabled, toggleCostPrivacy, setCostPrivacy } = useAppStore();
   const [hasEggLayers, setHasEggLayers] = useState<boolean>(true);
+
+  // Load initial privacy preference
+  useEffect(() => {
+    if (user) {
+      supabase.from('user_preferences').select('cost_privacy_enabled').eq('user_id', user.id).maybeSingle()
+        .then(({ data }) => {
+          if (data) setCostPrivacy(data.cost_privacy_enabled);
+        });
+    }
+  }, [user, setCostPrivacy]);
+
+  const handleTogglePrivacy = async () => {
+    const newVal = !costPrivacyEnabled;
+    toggleCostPrivacy();
+    if (user) {
+      await supabase.from('user_preferences').upsert({
+        user_id: user.id,
+        cost_privacy_enabled: newVal
+      }, { onConflict: 'user_id' });
+    }
+  };
 
   useEffect(() => {
     const checkBatches = async () => {
@@ -139,8 +162,14 @@ export function AppSidebar() {
         ))}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border p-2">
+      <SidebarFooter className="border-t border-sidebar-border p-2 space-y-1">
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton onClick={handleTogglePrivacy} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent">
+              {costPrivacyEnabled ? <Eye className="h-[18px] w-[18px] shrink-0" /> : <EyeOff className="h-[18px] w-[18px] shrink-0" />}
+              {!collapsed && <span>{costPrivacyEnabled ? 'Show Costs' : 'Hide Costs'}</span>}
+            </SidebarMenuButton>
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton onClick={signOut} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent">
               <LogOut className="h-[18px] w-[18px] shrink-0" />
@@ -152,3 +181,4 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
+

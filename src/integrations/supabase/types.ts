@@ -416,6 +416,8 @@ export type Database = {
           description: string
           farm_id: string
           id: string
+          payment_method: string | null
+          payment_status: string
           source: string
           source_ref: string | null
         }
@@ -429,6 +431,8 @@ export type Database = {
           description: string
           farm_id: string
           id?: string
+          payment_method?: string | null
+          payment_status?: string
           source?: string
           source_ref?: string | null
         }
@@ -442,6 +446,8 @@ export type Database = {
           description?: string
           farm_id?: string
           id?: string
+          payment_method?: string | null
+          payment_status?: string
           source?: string
           source_ref?: string | null
         }
@@ -477,6 +483,7 @@ export type Database = {
           updated_at: string
           user_id: string
           water_source_chlorinated: boolean
+          water_rate_per_liter_pesewas: number | null
         }
         Insert: {
           created_at?: string
@@ -492,6 +499,7 @@ export type Database = {
           updated_at?: string
           user_id: string
           water_source_chlorinated?: boolean
+          water_rate_per_liter_pesewas?: number | null
         }
         Update: {
           created_at?: string
@@ -507,6 +515,7 @@ export type Database = {
           updated_at?: string
           user_id?: string
           water_source_chlorinated?: boolean
+          water_rate_per_liter_pesewas?: number | null
         }
         Relationships: []
       }
@@ -567,6 +576,50 @@ export type Database = {
           },
         ]
       }
+      feed_recipes: {
+        Row: {
+          created_at: string
+          description: string | null
+          farm_id: string
+          id: string
+          ingredients: Json
+          name: string
+          nutritional_profile: Json | null
+          species: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          farm_id: string
+          id?: string
+          ingredients: Json
+          name: string
+          nutritional_profile?: Json | null
+          species: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          farm_id?: string
+          id?: string
+          ingredients?: Json
+          name?: string
+          nutritional_profile?: Json | null
+          species?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_recipes_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_ingredients: {
         Row: {
           category: string
@@ -578,6 +631,7 @@ export type Database = {
           total_cost_pesewas: number | null
           unit_price: number
           unit_price_pesewas: number | null
+          stock_item_id: string | null
         }
         Insert: {
           category?: string
@@ -589,6 +643,7 @@ export type Database = {
           total_cost_pesewas?: number | null
           unit_price?: number
           unit_price_pesewas?: number | null
+          stock_item_id?: string | null
         }
         Update: {
           category?: string
@@ -600,6 +655,7 @@ export type Database = {
           total_cost_pesewas?: number | null
           unit_price?: number
           unit_price_pesewas?: number | null
+          stock_item_id?: string | null
         }
         Relationships: [
           {
@@ -607,6 +663,13 @@ export type Database = {
             columns: ["formulation_id"]
             isOneToOne: false
             referencedRelation: "feed_formulations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_ingredients_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "stock_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1063,6 +1126,8 @@ export type Database = {
           description: string
           farm_id: string
           id: string
+          payment_method: string | null
+          payment_status: string
           source: string
           source_ref: string | null
         }
@@ -1077,6 +1142,8 @@ export type Database = {
           description: string
           farm_id: string
           id?: string
+          payment_method?: string | null
+          payment_status?: string
           source?: string
           source_ref?: string | null
         }
@@ -1091,6 +1158,8 @@ export type Database = {
           description?: string
           farm_id?: string
           id?: string
+          payment_method?: string | null
+          payment_status?: string
           source?: string
           source_ref?: string | null
         }

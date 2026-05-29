@@ -3,9 +3,36 @@ import { Button } from '@/components/ui/button';
 import { TrendingUp, BarChart3, Egg, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import {
-  ResponsiveContainer, AreaChart, Area, CartesianGrid, XAxis, YAxis, Tooltip,
+  AreaChart, Area, CartesianGrid, XAxis, YAxis,
   BarChart, Bar, Legend,
 } from 'recharts';
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from '@/components/ui/chart';
+
+const productionRateConfig = {
+  rate: {
+    label: 'Actual Rate',
+    color: 'hsl(var(--primary))',
+  },
+  expectedMin: {
+    label: 'Expected Min',
+    color: '#10b981',
+  },
+  expectedMax: {
+    label: 'Expected Max',
+    color: '#10b981',
+  },
+} satisfies ChartConfig;
+
+const dailyCollectionConfig = {
+  good: {
+    label: 'Good',
+    color: 'hsl(var(--primary))',
+  },
+  broken: {
+    label: 'Broken/Dirty',
+    color: '#ef4444',
+  },
+} satisfies ChartConfig;
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -50,25 +77,38 @@ export function ProductionTab({
           </CardHeader>
           <CardContent>
             <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={productionRateConfig}>
                 <AreaChart data={chartData}>
+                  <defs>
+                    <linearGradient id="colorExpected" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.15}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.02}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} domain={[0, 100]} unit="%" />
-                  <Tooltip
-                    contentStyle={{ fontSize: 12, borderRadius: 8 }}
-                    formatter={(value: number, name: string) => {
-                      if (name === 'rate') return [`${value}%`, 'Actual Rate'];
-                      if (name === 'expectedMin') return [`${value}%`, 'Expected Min'];
-                      if (name === 'expectedMax') return [`${value}%`, 'Expected Max'];
-                      return [value, name];
-                    }}
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, name) => (
+                          <div className="flex flex-1 justify-between items-center leading-none gap-4">
+                            <span className="text-muted-foreground">
+                              {name === 'rate' ? 'Actual Rate' : name === 'expectedMin' ? 'Expected Min' : 'Expected Max'}
+                            </span>
+                            <span className="font-mono font-medium tabular-nums text-foreground">
+                              {value}%
+                            </span>
+                          </div>
+                        )}
+                      />
+                    }
                   />
-                  <Area type="monotone" dataKey="expectedMax" stroke="none" fill="#10b981" fillOpacity={0.1} />
+                  <Area type="monotone" dataKey="expectedMax" stroke="none" fill="url(#colorExpected)" />
                   <Area type="monotone" dataKey="expectedMin" stroke="none" fill="#ffffff" fillOpacity={1} />
-                  <Area type="monotone" dataKey="rate" stroke="hsl(var(--primary))" strokeWidth={2.5} dot={{ r: 3 }} fill="transparent" />
+                  <Area type="monotone" dataKey="rate" stroke="var(--color-rate)" strokeWidth={2.5} dot={{ r: 3 }} fill="transparent" />
                 </AreaChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
             {expectedRate && (
               <p className="text-xs text-muted-foreground mt-1 text-center">
@@ -89,17 +129,32 @@ export function ProductionTab({
           </CardHeader>
           <CardContent>
             <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
+              <ChartContainer config={dailyCollectionConfig}>
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} />
                   <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
-                  <Bar dataKey="good" fill="hsl(var(--primary))" name="Good" radius={[2, 2, 0, 0]} />
-                  <Bar dataKey="broken" fill="#ef4444" name="Broken/Dirty" radius={[2, 2, 0, 0]} />
+                  <ChartTooltip
+                    content={
+                      <ChartTooltipContent
+                        formatter={(value, name) => (
+                          <div className="flex flex-1 justify-between items-center leading-none gap-4">
+                            <span className="text-muted-foreground">
+                              {name === 'good' ? 'Good' : 'Broken/Dirty'}
+                            </span>
+                            <span className="font-mono font-medium tabular-nums text-foreground">
+                              {value} eggs
+                            </span>
+                          </div>
+                        )}
+                      />
+                    }
+                  />
+                  <Bar dataKey="good" fill="var(--color-good)" name="Good" radius={[2, 2, 0, 0]} />
+                  <Bar dataKey="broken" fill="var(--color-broken)" name="Broken/Dirty" radius={[2, 2, 0, 0]} />
                   <Legend wrapperStyle={{ fontSize: 10 }} />
                 </BarChart>
-              </ResponsiveContainer>
+              </ChartContainer>
             </div>
           </CardContent>
         </Card>

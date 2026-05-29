@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, Outlet } from 'react-router-dom';
 import { ArrowUpRight } from 'lucide-react';
 import { LandingNav } from './LandingNav';
+import { ScrollToTop } from './ScrollToTop';
 
 export function Eyebrow({ children }: { children: ReactNode }) {
   return (
@@ -15,13 +16,14 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 export default function LandingLayout() {
   return (
     <div className="min-h-screen bg-background text-foreground antialiased selection:bg-primary/20">
+      <ScrollToTop />
       <LandingNav />
 
       <main>
         <Outlet />
       </main>
 
-      <footer className="border-t border-foreground/5 py-20 bg-background relative overflow-hidden">
+      <footer className="border-t border-foreground/5 py-20 bg-background relative overflow-hidden text-foreground">
         <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-1/2 h-1/2 bg-primary/5 blur-[120px] pointer-events-none" />
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10 relative z-10">
           <div className="grid gap-16 lg:grid-cols-12 mb-20">
@@ -39,7 +41,7 @@ export default function LandingLayout() {
               </div>
             </div>
             
-            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-12">
+            <div className="lg:col-span-7 grid grid-cols-2 sm:grid-cols-3 gap-12 text-foreground">
               <FooterCol 
                 title="Platform" 
                 links={[

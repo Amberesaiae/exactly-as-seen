@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/contexts/AuthContext';
 import type { Database } from '@/integrations/supabase/types';
 
 type StockItem = Database['public']['Tables']['stock_items']['Row'];
@@ -18,7 +19,17 @@ interface StockDialogsProps {
   txType: 'purchase' | 'usage' | 'adjustment' | null;
   stockItems: StockItem[];
   onAddItem: (data: Partial<StockItem>) => Promise<void>;
-  onRecordTx: (itemId: string, type: 'purchase' | 'usage' | 'adjustment', qty: number, price?: number, notes?: string) => Promise<void>;
+  onRecordTx: (params: {
+    itemId: string;
+    type: 'purchase' | 'usage' | 'adjustment';
+    qty: number;
+    price?: number;
+    notes?: string;
+    qualityGrade?: string;
+    expiryDate?: string;
+    batchId?: string | null;
+  }) => Promise<void>;
+  batches: any[];
   submitting: boolean;
   costPrivacyEnabled: boolean;
 }
@@ -28,10 +39,11 @@ export function StockDialogs({
   txDialogOpen, setTxDialogOpen,
   selectedItemId, txType, stockItems,
   onAddItem, onRecordTx,
-  submitting, costPrivacyEnabled
+  batches, submitting, costPrivacyEnabled
 }: StockDialogsProps) {
-  const [newItem, setNewItem] = useState({ name: '', category: 'feed', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
-  const [txData, setTxData] = useState({ qty: '', price: '', notes: '' });
+  const { currency } = useAuth();
+  const [newItem, setNewItem] = useState({ name: '', category: 'feed_ingredient', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
+  const [txData, setTxData] = useState({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
 
   const selectedItem = stockItems.find(i => i.id === selectedItemId);
 
@@ -44,21 +56,24 @@ export function StockDialogs({
       unit_price: parseFloat(newItem.unit_price)
     });
     setItemDialogOpen(false);
-    setNewItem({ name: '', category: 'feed', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
+    setNewItem({ name: '', category: 'feed_ingredient', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
   };
 
   const handleRecordTx = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedItemId || !txType) return;
-    await onRecordTx(
-      selectedItemId,
-      txType,
-      parseFloat(txData.qty),
-      txData.price ? parseFloat(txData.price) : undefined,
-      txData.notes
-    );
+    await onRecordTx({
+      itemId: selectedItemId,
+      type: txType,
+      qty: parseFloat(txData.qty),
+      price: txData.price ? parseFloat(txData.price) : undefined,
+      notes: txData.notes,
+      qualityGrade: txData.qualityGrade,
+      expiryDate: txData.expiryDate || undefined,
+      batchId: txData.batchId === 'none' ? null : txData.batchId
+    });
     setTxDialogOpen(false);
-    setTxData({ qty: '', price: '', notes: '' });
+    setTxData({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
   };
 
   return (
@@ -81,10 +96,11 @@ export function StockDialogs({
                   <Select value={newItem.category} onValueChange={v => setNewItem({...newItem, category: v})}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="feed">Feed</SelectItem>
+                      <SelectItem value="feed_ingredient">Feed Ingredient</SelectItem>
                       <SelectItem value="medication">Medication</SelectItem>
+                      <SelectItem value="vaccine">Vaccine</SelectItem>
+                      <SelectItem value="supplement">Supplement</SelectItem>
                       <SelectItem value="equipment">Equipment</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -126,13 +142,48 @@ export function StockDialogs({
                   <Label htmlFor="tx-qty">Quantity ({selectedItem?.unit})</Label>
                   <Input id="tx-qty" type="number" value={txData.qty} onChange={e => setTxData({...txData, qty: e.target.value})} required />
                 </div>
-                {txType === 'purchase' && (
+                {txType === 'purchase' ? (
                   <div className="space-y-2">
-                    <Label htmlFor="tx-price">Unit Price (GHS)</Label>
+                    <Label htmlFor="tx-price">Unit Price ({currency})</Label>
                     <Input id="tx-price" type="number" step="0.01" value={txData.price} onChange={e => setTxData({...txData, price: e.target.value})} required />
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <Label>Link to Batch</Label>
+                    <Select value={txData.batchId} onValueChange={v => setTxData({...txData, batchId: v})}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">General Farm</SelectItem>
+                        {batches.map(b => (
+                          <SelectItem key={b.id} value={b.id} className="text-xs">{b.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 )}
               </div>
+
+              {txType === 'purchase' && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Quality Grade</Label>
+                    <Select value={txData.qualityGrade} onValueChange={v => setTxData({...txData, qualityGrade: v})}>
+                      <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="excellent">Excellent (A+)</SelectItem>
+                        <SelectItem value="good">Good (A)</SelectItem>
+                        <SelectItem value="fair">Fair (B)</SelectItem>
+                        <SelectItem value="poor">Poor (C)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Expiry Date</Label>
+                    <Input type="date" value={txData.expiryDate} onChange={e => setTxData({...txData, expiryDate: e.target.value})} className="h-9 text-xs" />
+                  </div>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="tx-notes">Notes</Label>
                 <Textarea id="tx-notes" value={txData.notes} onChange={e => setTxData({...txData, notes: e.target.value})} placeholder="Optional" />

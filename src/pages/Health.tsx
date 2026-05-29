@@ -42,7 +42,7 @@ export default function Health() {
     activeWithdrawals,
     eggDiscardInfo,
     waterChartData,
-    waterGuideline,
+    waterPrescription,
     todayWaterLogged,
     generateVaccinationSchedule,
     markVaccineAdministered,
@@ -52,6 +52,8 @@ export default function Health() {
     medications,
     containerTypes,
     waterSourceChlorinated,
+    todayTemp,
+    farmRegion,
     weeklySummary,
     weeklyLoading,
     batchTasks,
@@ -116,6 +118,7 @@ export default function Health() {
             latestTemp={latestTemp}
             healthAlerts={healthAlerts}
             eggDiscardInfo={eggDiscardInfo}
+            waterPrescription={waterPrescription}
           />
 
           <Tabs defaultValue="this_week" className="w-full">
@@ -362,11 +365,28 @@ export default function Health() {
                 containerTypes={containerTypes}
                 waterSourceChlorinated={waterSourceChlorinated}
                 batch={batch}
+                batchAge={batchAge}
+                waterPrescription={waterPrescription}
+                waterRatePesewas={waterRatePesewas}
+                onUpdateWaterRate={updateWaterRate}
               />
             </TabsContent>
 
             <TabsContent value="water" className="mt-4">
-              <WaterTab batch={batch} waterRecords={waterRecords} waterChartData={waterChartData} waterGuideline={waterGuideline} waterSaving={waterSaving} onLogWater={logWater} />
+              <WaterTab
+                batch={batch}
+                waterRecords={waterRecords}
+                waterChartData={waterChartData}
+                waterPrescription={waterPrescription}
+                waterSaving={waterSaving}
+                onFulfillTask={fulfillOperationalTask}
+                todayTemp={todayTemp}
+                farmRegion={farmRegion}
+                totalWaterCostPesewas={totalWaterCostPesewas}
+                costPrivacyEnabled={costPrivacyEnabled}
+                pendingWaterMeds={pendingWaterMeds}
+                dailyOperationalTasks={dailyOperationalTasks}
+              />
             </TabsContent>
           </Tabs>
         </>

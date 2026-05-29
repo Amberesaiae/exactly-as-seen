@@ -38,18 +38,19 @@ const STORIES = [
 
 export default function Impact() {
   return (
-    <div>
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-10 pb-16 lg:pt-16">
-        <Eyebrow>Impact</Eyebrow>
-        <h1 className="mt-6 max-w-4xl text-5xl sm:text-6xl lg:text-[88px] font-black leading-[0.95] tracking-tight">
-          What changes when farms <span className="italic font-serif font-normal text-primary">measure</span> what matters.
+    <div className="bg-background text-foreground">
+      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
+        <Eyebrow>Real Impact</Eyebrow>
+        <h1 className="mt-8 max-w-5xl text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
+          What changes when <br />
+          farms <span className="italic font-serif font-normal text-primary">measure</span> matters.
         </h1>
-        <p className="mt-7 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-          Two cycles in, most LampFarms users see lower mortality, lower feed cost, and a clear margin number for the first time — without hiring anyone new and without buying new sensors.
+        <p className="mt-10 max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
+          Two cycles in, most LampFarms users see lower mortality, lower feed cost, and a clear margin number for the first time — without hiring anyone new.
         </p>
       </section>
 
-      <section className="border-y border-foreground/10 bg-secondary/40 py-20">
+      <section className="border-y border-foreground/10 bg-secondary/20 py-20">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
           <div className="flex items-end justify-between flex-wrap gap-6 mb-12">
             <Eyebrow>2024–2025 in numbers</Eyebrow>
@@ -70,7 +71,7 @@ export default function Impact() {
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Avg. feed cost reduction</div>
               <div className="mt-2 text-3xl font-black tracking-tight">−₵0.86 / kg</div>
-              <p className="mt-2 text-muted-foreground">From the Pyomo LP optimiser using weekly market prices.</p>
+              <p className="mt-2 text-muted-foreground">From the HiGHS WASM LP solver using weekly market prices.</p>
             </div>
             <div>
               <div className="text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Days to first margin number</div>

@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/button';
 import { ShoppingCart, Receipt, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCurrencySymbol } from '@/lib/utils';
 
 type EggSale = Database['public']['Tables']['egg_sales']['Row'];
 
@@ -19,6 +21,8 @@ export function SalesTab({
   costPrivacyEnabled,
   onShowSale,
 }: SalesTabProps) {
+  const { currency } = useAuth();
+  const symbol = getCurrencySymbol(currency);
   const mask = (val: string | number) => costPrivacyEnabled ? '****' : val;
 
   return (
@@ -27,7 +31,7 @@ export function SalesTab({
         <Card className="bg-secondary/20 border-none shadow-none">
           <CardContent className="pt-4 px-4 pb-3">
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider mb-1">Last 30d Revenue</p>
-            <p className="text-xl font-black">GHS {mask(salesSummary.totalRevenue.toLocaleString())}</p>
+            <p className="text-xl font-black">{symbol} {mask(salesSummary.totalRevenue.toLocaleString())}</p>
             <p className="text-[10px] text-muted-foreground">{salesSummary.count} transactions</p>
           </CardContent>
         </Card>
@@ -75,8 +79,8 @@ export function SalesTab({
                     </div>
                   </div>
                   <div className="text-right shrink-0">
-                    <div className="font-bold">GHS {mask(Number(s.total_amount).toLocaleString())}</div>
-                    <div className="text-[10px] text-muted-foreground">GHS {mask(Number(s.unit_price).toFixed(2))}/ea</div>
+                    <div className="font-bold">{symbol} {mask(Number(s.total_amount).toLocaleString())}</div>
+                    <div className="text-[10px] text-muted-foreground">{symbol} {mask(Number(s.unit_price).toFixed(2))}/ea</div>
                   </div>
                 </div>
               ))}

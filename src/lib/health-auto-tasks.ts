@@ -1,4 +1,5 @@
 import { addDays, format, parseISO } from 'date-fns';
+import { VACCINATION_TEMPLATES } from './health-data';
 
 export interface AutoTaskInsert {
   batch_id: string;
@@ -8,100 +9,94 @@ export interface AutoTaskInsert {
   medication_id: string;
   delivery_method: string;
   scheduled_date: string;
-  completed: boolean;
-  duration_days?: number;
-  withdrawal_meat_days?: number;
-  withdrawal_egg_days?: number;
+  scheduled_week: number;
+  duration_days: number;
+  indication: string;
+  priority: string;
+  withdrawal_meat_days: number;
+  withdrawal_egg_days: number;
 }
 
-export function generateInitialTasks(args: {
+/**
+ * Lean Task Orchestrator: Realigned to Project Foundation.
+ * Uses established VACCINATION_TEMPLATES for core schedules.
+ * Provides proactive 'House Protocols' rather than overkill historical records.
+ */
+export function generateAutoTasks(args: {
   batchId: string;
   farmId: string;
   species: string;
-  startDate: string; // YYYY-MM-DD
+  startDate: string;
   cycleLengthWeeks: number;
 }): AutoTaskInsert[] {
   const tasks: AutoTaskInsert[] = [];
   const start = parseISO(args.startDate);
 
-  // 1. Day 1–3 Chick Arrival Protocol: Anti-stress + Glucose for all species
-  for (let day = 0; day < 3; day++) {
-    const scheduledDate = format(addDays(start, day), 'yyyy-MM-dd');
+  // 1. Core Vaccination Protocols (From Project health-data.ts)
+  VACCINATION_TEMPLATES.filter(t => t.species.includes(args.species)).forEach(vax => {
+    // Only schedule if within cycle length
+    if (vax.scheduledWeek > args.cycleLengthWeeks) return;
+
+    const scheduledDate = addDays(start, (vax.scheduledDay || (vax.scheduledWeek * 7)) - 1);
+    
     tasks.push({
       batch_id: args.batchId,
       farm_id: args.farmId,
-      task_type: 'supplement',
-      product_name: 'Glucose/Sugar Water',
-      medication_id: 'glucose',
-      delivery_method: 'drinking_water',
-      scheduled_date: scheduledDate,
-      completed: false,
+      task_type: 'vaccination',
+      product_name: vax.name,
+      medication_id: vax.name.toLowerCase().replace(/\s+/g, '_'),
+      delivery_method: vax.route === 'Drinking water' ? 'drinking_water' : 'injection',
+      scheduled_date: format(scheduledDate, 'yyyy-MM-dd'),
+      scheduled_week: vax.scheduledWeek,
       duration_days: 1,
+      indication: 'Preventive Protocol',
+      priority: 'critical',
       withdrawal_meat_days: 0,
-      withdrawal_egg_days: 0,
+      withdrawal_egg_days: 0
+    });
+  });
+
+  // 2. High-Value House Protocols (Lean Guidance)
+  // These are scheduled milestones that trigger 'Operational Synergy'
+  if (args.species === 'duck') {
+    // Duck Niacin Alert Task (Lean Guidance)
+    tasks.push({
+      batch_id: args.batchId,
+      farm_id: args.farmId,
+      task_type: 'medication',
+      product_name: 'Niacin Supplement',
+      medication_id: 'niacin',
+      delivery_method: 'drinking_water',
+      scheduled_date: args.startDate,
+      scheduled_week: 1,
+      duration_days: args.cycleLengthWeeks * 7,
+      indication: 'CRITICAL: Preventing leg weakness in ducks',
+      priority: 'high',
+      withdrawal_meat_days: 0,
+      withdrawal_egg_days: 0
     });
   }
 
-  // 2. Species-specific auto tasks
-  if (args.species === 'duck') {
-    // Daily niacin tasks for Days 1 to 28
-    for (let day = 0; day < 28; day++) {
-      const scheduledDate = format(addDays(start, day), 'yyyy-MM-dd');
-      tasks.push({
-        batch_id: args.batchId,
-        farm_id: args.farmId,
-        task_type: 'supplement',
-        product_name: 'Niacin (Vitamin B3)',
-        medication_id: 'niacin',
-        delivery_method: 'drinking_water',
-        scheduled_date: scheduledDate,
-        completed: false,
-        duration_days: 1,
-        withdrawal_meat_days: 0,
-        withdrawal_egg_days: 0,
-      });
-    }
-
-    // Weekly niacin tasks from Week 5 to Week 20
-    const maxNiacinWeek = Math.min(20, args.cycleLengthWeeks);
-    for (let week = 5; week <= maxNiacinWeek; week++) {
-      const dayOffset = (week - 1) * 7;
-      const scheduledDate = format(addDays(start, dayOffset), 'yyyy-MM-dd');
-      tasks.push({
-        batch_id: args.batchId,
-        farm_id: args.farmId,
-        task_type: 'supplement',
-        product_name: 'Niacin (Vitamin B3)',
-        medication_id: 'niacin',
-        delivery_method: 'drinking_water',
-        scheduled_date: scheduledDate,
-        completed: false,
-        duration_days: 1,
-        withdrawal_meat_days: 0,
-        withdrawal_egg_days: 0,
-      });
-    }
-  } else if (args.species === 'turkey') {
-    // metronidazole every 2 weeks (Week 1, Week 3, Week 5, ...) up to cycleLengthWeeks
-    for (let week = 1; week <= args.cycleLengthWeeks; week += 2) {
-      const dayOffset = (week - 1) * 7;
-      const scheduledDate = format(addDays(start, dayOffset), 'yyyy-MM-dd');
+  if (args.species === 'turkey') {
+    // Bi-weekly Blackhead Prevention Protocol (Production Spec Logic)
+    for (let w = 4; w <= args.cycleLengthWeeks; w += 2) {
       tasks.push({
         batch_id: args.batchId,
         farm_id: args.farmId,
         task_type: 'medication',
-        product_name: 'Metronidazole',
-        medication_id: 'metronidazole',
+        product_name: 'Blackhead Preventive',
+        medication_id: 'blackhead_prev',
         delivery_method: 'drinking_water',
-        scheduled_date: scheduledDate,
-        completed: false,
+        scheduled_date: format(addDays(start, (w * 7) - 1), 'yyyy-MM-dd'),
+        scheduled_week: w,
         duration_days: 5,
+        indication: 'Strict Bi-weekly Turkey Protocol',
+        priority: 'critical',
         withdrawal_meat_days: 5,
-        withdrawal_egg_days: 0,
+        withdrawal_egg_days: 0
       });
     }
   }
 
   return tasks;
 }
-

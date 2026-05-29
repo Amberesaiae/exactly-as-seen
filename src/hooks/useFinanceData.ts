@@ -145,6 +145,8 @@ export function useFinanceData() {
       batch_id: data.batch_id,
       date: data.date,
       farm_id: farmId,
+      payment_method: data.payment_method ?? 'cash',
+      payment_status: data.payment_status ?? 'paid',
     } as Database['public']['Tables']['expenses']['Insert']).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
@@ -165,13 +167,15 @@ export function useFinanceData() {
     if (!farmId) return;
     setSubmitting(true);
     const { data: entry, error } = await supabase.from('revenue').insert({
-      amount: data.amount,
+      amount_pesewas: Math.round(Number(data.amount) * 100),
       category: data.category,
       description: data.description,
       batch_id: data.batch_id,
       buyer: data.buyer,
       date: data.date,
       farm_id: farmId,
+      payment_method: data.payment_method ?? 'cash',
+      payment_status: data.payment_status ?? 'paid',
     } as Database['public']['Tables']['revenue']['Insert']).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }

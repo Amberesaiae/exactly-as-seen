@@ -4,8 +4,25 @@ import { TrendingUp, Filter, Plus, Search, DollarSign } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCurrencySymbol } from '@/lib/utils';
 
 type Revenue = Database['public']['Tables']['revenue']['Row'];
+
+// Human-readable canonical labels
+const CATEGORY_LABELS: Record<string, string> = {
+  egg_sales:    'Egg Sales',
+  bird_sales:   'Bird Sales',
+  meat_sales:   'Meat Sales',
+  manure_sales: 'Manure Sales',
+  other:        'Other Revenue',
+};
+
+const STATUS_STYLES: Record<string, string> = {
+  paid:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+  pending: 'bg-amber-100  text-amber-700  dark:bg-amber-900/40  dark:text-amber-300',
+  partial: 'bg-blue-100   text-blue-700   dark:bg-blue-900/40   dark:text-blue-300',
+};
 
 interface RevenueTabProps {
   revenue: Revenue[];
@@ -18,7 +35,9 @@ export function RevenueTab({
   costPrivacyEnabled,
   onShowDialog,
 }: RevenueTabProps) {
-  const mask = (val: string | number) => costPrivacyEnabled ? '****' : val;
+  const { currency } = useAuth();
+  const symbol = getCurrencySymbol(currency);
+  const mask = (val: string | number) => costPrivacyEnabled ? '●●●●' : val;
 
   return (
     <div className="space-y-4 mt-4">
@@ -42,24 +61,42 @@ export function RevenueTab({
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-1.5">
-            {revenue.map(r => (
-              <div key={r.id} className="flex items-center justify-between text-sm border-b pb-2 last:border-0">
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium truncate">{r.description}</p>
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
-                    <span>{format(new Date(r.date), 'MMM d')}</span>
-                    <span>•</span>
-                    <span>{r.category.replace('_', ' ')}</span>
+          {revenue.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">No revenue recorded yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {revenue.map(r => {
+                const status = (r.payment_status ?? 'paid') as string;
+                const categoryLabel = CATEGORY_LABELS[r.category] ?? r.category.replace('_', ' ');
+                return (
+                  <div key={r.id} className="flex items-start justify-between text-sm border-b pb-2.5 last:border-0 gap-2">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium truncate">{r.description}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wide">
+                          {format(new Date(r.date), 'MMM d')}
+                        </span>
+                        <span className="text-muted-foreground/40 text-[10px]">•</span>
+                        <span className="text-[10px] text-muted-foreground">{categoryLabel}</span>
+                        {r.buyer && (
+                          <>
+                            <span className="text-muted-foreground/40 text-[10px]">•</span>
+                            <span className="text-[10px] text-muted-foreground truncate max-w-[90px]">{r.buyer}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                      <p className="font-black text-primary">{symbol} {mask((Number(r.amount_pesewas ?? 0) / 100 || Number(r.amount)).toLocaleString())}</p>
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${STATUS_STYLES[status] ?? STATUS_STYLES['paid']}`}>
+                        {status}
+                      </span>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right ml-3 shrink-0">
-                  <p className="font-black text-primary">GHS {mask(Number(r.amount).toLocaleString())}</p>
-                  {r.buyer && <p className="text-[10px] text-muted-foreground uppercase truncate max-w-[80px]">{r.buyer}</p>}
-                </div>
-              </div>
-            ))}
-          </div>
+                );
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

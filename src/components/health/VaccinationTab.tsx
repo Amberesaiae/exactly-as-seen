@@ -4,13 +4,15 @@ import { Badge } from '@/components/ui/badge';
 import { Syringe, Check, Zap, Loader2 } from 'lucide-react';
 import { format, isBefore, isToday, isAfter, differenceInDays } from 'date-fns';
 import { VACCINATION_TEMPLATES, getVaccineRoute } from '@/lib/health-data';
+import { useState } from 'react';
+import { VaccinationFulfillmentModal } from './VaccinationFulfillmentModal';
 
 interface VaccinationTabProps {
   batch: any;
   vaccinations: any[];
   generatingVaccines: boolean;
   onGenerateSchedule: () => void;
-  onMarkAdministered: (id: string) => void;
+  onMarkAdministered: (id: string, costPesewas?: number, notes?: string) => Promise<void>;
 }
 
 export function VaccinationTab({
@@ -21,6 +23,18 @@ export function VaccinationTab({
   onMarkAdministered,
 }: VaccinationTabProps) {
   const today = new Date();
+  const [selectedVaxId, setSelectedVaxId] = useState<string | null>(null);
+  const [fulfilling, setFulfilling] = useState(false);
+
+  const selectedVax = vaccinations.find(v => v.id === selectedVaxId);
+
+  const handleConfirm = async (cost: number, notes: string) => {
+    if (!selectedVaxId) return;
+    setFulfilling(true);
+    await onMarkAdministered(selectedVaxId, cost, notes);
+    setFulfilling(false);
+    setSelectedVaxId(null);
+  };
 
   if (vaccinations.length === 0) {
     return (
@@ -95,8 +109,13 @@ export function VaccinationTab({
                 </div>
               </div>
               {!v.administered ? (
-                <Button size="sm" variant={overdue || dueToday ? 'default' : 'outline'} className="h-8 rounded-full text-xs shrink-0" onClick={() => onMarkAdministered(v.id)}>
-                  <Check className="h-3 w-3 mr-1" /> Done
+                <Button 
+                  size="sm" 
+                  variant={overdue || dueToday ? 'default' : 'outline'} 
+                  className="h-8 rounded-full text-xs shrink-0" 
+                  onClick={() => setSelectedVaxId(v.id)}
+                >
+                  <Check className="h-3 w-3 mr-1" /> Complete
                 </Button>
               ) : (
                 <span className="text-xs text-green-600 shrink-0">
@@ -107,6 +126,15 @@ export function VaccinationTab({
           </Card>
         );
       })}
+
+      <VaccinationFulfillmentModal 
+        open={!!selectedVaxId}
+        onOpenChange={(open) => !open && setSelectedVaxId(null)}
+        onConfirm={handleConfirm}
+        vaccineName={selectedVax?.vaccine_name || ''}
+        batchName={batch?.name || ''}
+        submitting={fulfilling}
+      />
     </div>
   );
 }

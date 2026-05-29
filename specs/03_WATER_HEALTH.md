@@ -255,6 +255,71 @@ export function computeDose(med: Medication, waterVolumeL: number) {
 
 The legacy `(water_volume_l / 3.785) × 1.5` formula is **removed**. All medications now use their own `dose_per_gallon`.
 
+### 3.6 water_records Table + Water Consumption Rates
+
+The `water_records` table tracks daily water consumption log entries for batches.
+
+#### Schema & Columns
+- `id` (uuid, Primary Key)
+- `batch_id` (uuid, references `batches(id)`)
+- `farm_id` (uuid, references `farms(id)`)
+- `date` (date, not null)
+- `gallons_consumed` (real, not null)
+- `temperature_c` (real)
+- `notes` (text)
+- `created_at` (timestamp with timezone, default now)
+
+#### Water Consumption Rates per Species/Week (ml/bird/day)
+- **Broiler:**
+  - Week 1: 50 ml
+  - Week 2: 100 ml
+  - Week 3: 150 ml
+  - Week 4: 200 ml
+  - Week 5+: 250 ml
+- **Layer:**
+  - Weeks 1–2: 50 ml
+  - Weeks 3–4: 100 ml
+  - Weeks 5–8: 150 ml
+  - Weeks 9–15: 200 ml
+  - Weeks 16–18: 250 ml
+  - Week 19+: 300 ml
+- **Duck:**
+  - Layer Week 20+: 500 ml
+  - Other/All weeks:
+    - Weeks 1–2: 150 ml
+    - Weeks 3–4: 250 ml
+    - Weeks 5–6: 350 ml
+    - Weeks 7–8: 400 ml
+    - Week 9+: 455 ml (or 450 ml per dosing-utils code)
+- **Turkey:**
+  - Weeks 1–2: 100 ml
+  - Weeks 3–4: 150 ml
+  - Weeks 5–6: 200 ml
+  - Weeks 7–8: 300 ml
+  - Weeks 9–10: 350 ml
+  - Weeks 11–12: 400 ml
+  - Weeks 13–14: 455 ml (or 450 ml per dosing-utils code)
+  - Weeks 15–16: 500 ml
+  - Week 17+: 550 ml
+
+*Note: Duck and Turkey default fallbacks correspond to the final listed rates (e.g. 450 ml / 550 ml respectively).*
+
+#### Heat Stress Multipliers
+- Temperature < 20°C: 1.0×
+- Temperature 20–25°C: 1.2×
+- Temperature 25–30°C: 1.5×
+- Temperature 30–35°C: 2.0×
+- Temperature > 35°C: 2.5×
+
+#### Prescribed Consumption Formula
+`daily_water_gallons = (ml_per_bird × population × heat_multiplier) / 3785`
+
+#### Heat Stress Alert
+When `temperature_c > 32` °C, show electrolyte warning toast.
+
+#### Financial Integration
+Note: water logging does NOT create an expense record.
+
 ---
 
 ## 4. State Machine

@@ -59,7 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('user_id', userId)
       .maybeSingle();
     if (prefs) {
-      const VALID_CURRENCIES = ['GHS', 'NGN'];
+      const VALID_CURRENCIES = ['GHS', 'NGN', 'CFA'];
       let finalCurrency = prefs.currency;
 
       if (!VALID_CURRENCIES.includes(finalCurrency)) {

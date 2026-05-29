@@ -9,61 +9,62 @@ const fadeUp: Variants = {
 
 const FEATURED = {
   image: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1800&q=80&auto=format&fit=crop',
-  tag: 'Climate · Housing',
-  title: 'Designing naturally ventilated layer houses for the Volta basin.',
-  date: 'Mar 2025 · 12 min read',
-  excerpt: 'How a 3-degree drop in afternoon indoor temperature — achieved with ridge venting, side-curtains and reflective roofing — lifted hen-day rate by 4.6 points across two farms we audited last harmattan.',
+  tag: 'Protocols · Health',
+  title: 'Managing active withdrawal periods in multi-species flocks.',
+  date: 'Mar 2025 · 8 min read',
+  excerpt: 'Why safety windows for ducks and turkeys differ from broiler cycles, and how automated alerts prevent tainted harvests in mixed-production systems.',
 };
 
 const ARTICLES = [
   { image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=900&q=80&auto=format&fit=crop',
-    tag: 'Nutrition', title: 'Substituting maize with wheat bran without crashing FCR.', date: 'Feb 2025',
-    excerpt: 'A 6% swap that saved ₵1.10/kg this cycle — and the lysine math that made it safe.' },
+    tag: 'Nutrition', title: 'Using HQCP Cassava and BSF Larvae as high-yield local alternatives.', date: 'Feb 2025',
+    excerpt: 'Leveraging the 48-ingredient library to find least-cost local swaps without sacrificing protein targets.' },
   { image: 'https://images.unsplash.com/photo-1605883705077-8d3d3cebe78c?w=900&q=80&auto=format&fit=crop',
-    tag: 'Health', title: 'A Newcastle + Gumboro vaccination schedule for first-time layer farmers.', date: 'Jan 2025',
-    excerpt: 'Day-by-day protocol for 0–18 weeks, plus what to do when you miss a window.' },
+    tag: 'Health', title: 'Duck Viral Hepatitis & Duck Plague vaccination schedule.', date: 'Jan 2025',
+    excerpt: 'A specialized day-by-day protocol for waterfowl, including critical Niacin supplementation milestones.' },
   { image: 'https://images.unsplash.com/photo-1556386734-04d24c5708d4?w=900&q=80&auto=format&fit=crop',
-    tag: 'Operations', title: 'Reading mortality patterns before they become outbreaks.', date: 'Dec 2024',
-    excerpt: 'The three curve shapes that predict a problem 4–7 days out — with field examples.' },
+    tag: 'Operations', title: 'Lean Logic: Transitioning from Intensive to Semi-Intensive systems.', date: 'Dec 2024',
+    excerpt: 'How foraging modifiers can reduce feed costs by up to 25% for pasture-based turkey and duck batches.' },
   { image: 'https://images.unsplash.com/photo-1569288063643-5d29ad6ad7a5?w=900&q=80&auto=format&fit=crop',
-    tag: 'Finance', title: 'Why cost-per-egg beats price-per-crate every cycle.', date: 'Nov 2024',
-    excerpt: 'Walkthrough of a real Volta layer farm where price-per-crate hid a 6-month loss.' },
+    tag: 'Finance', title: 'Dovetail Synergy: Automating your farm ledger from daily logs.', date: 'Nov 2024',
+    excerpt: 'How one-tap mortality and feed entries keep your financial reports accurate to the pesewa.' },
   { image: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=900&q=80&auto=format&fit=crop',
-    tag: 'Field notes', title: 'Three farms, three rhythms — interviews from the Volta delta.', date: 'Oct 2024',
-    excerpt: 'How shift timing, ration cadence and worker incentives differ between top performers.' },
+    tag: 'Field notes', title: 'Ghanaian Smallholders: Practical water planning for heat stress.', date: 'Oct 2024',
+    excerpt: 'Using regional temperature fallbacks and container-based dosing (Jerry Cans/Drums) in low-signal areas.' },
   { image: 'https://images.unsplash.com/photo-1444465693019-aa0b6392460d?w=900&q=80&auto=format&fit=crop',
-    tag: 'Brooding', title: 'The first 14 days: brooder temperature, water and 7-day mortality.', date: 'Sep 2024',
-    excerpt: 'Why placement-week decisions decide 60% of cycle profitability — and how to log them.' },
+    tag: 'Protocols', title: 'The 36-Schedule Matrix: Precision care for the modern African farm.', date: 'Sep 2024',
+    excerpt: 'A breakdown of the pre-loaded vaccination and medication templates for all four supported species.' },
 ];
 
 const CATEGORIES = [
-  { icon: BookOpen, title: 'Guides', body: 'Step-by-step playbooks for batch setup, LP feed formulation, vaccination scheduling, and end-of-cycle reconciliation.' },
-  { icon: FileText, title: 'Whitepapers', body: 'Research on West African poultry economics, climate-adapted housing, and least-cost feed modelling — co-authored with KNUST faculty.' },
-  { icon: GraduationCap, title: 'Academy', body: 'Short video courses for managers and field workers, in EN, FR and TWI. Downloadable for offline viewing on 32 MB device packs.' },
-  { icon: PlayCircle, title: 'Webinars', body: 'Live sessions with veterinarians, feed-mill operators and co-op leaders. Recordings available within 24 hours.' },
+  { icon: BookOpen, title: 'Guides', body: 'Step-by-step playbooks for batch setup, WASM feed formulation, vaccination scheduling, and Dovetail ledger reconciliation.' },
+  { icon: FileText, title: 'Case Studies', body: 'Real-world data on least-cost feed modelling and climate-adapted protocols from active Ghanaian smallholder poultry farms.' },
+  { icon: GraduationCap, title: 'Academy', body: 'Short video courses for managers and field workers, in EN, FR and TWI. Downloadable for offline viewing in the field.' },
+  { icon: PlayCircle, title: 'Webinars', body: 'Live sessions with veterinarians and coop leaders on regional disease prevention and market price trends.' },
 ];
 
 const FAQ = [
   ['Does LampFarms work without internet?',
-   'Yes. Every screen logs locally to IndexedDB and syncs the moment a 2G signal returns. We test on Tecno Spark devices in Northern Region houses with no signal during shifts.'],
+   'Yes. Every screen logs locally to IndexedDB and syncs the moment a 2G signal returns. We test on affordable devices in remote houses with no signal during shifts.'],
   ['Which species and breeds do you support?',
-   'Broilers (Cobb 500, Ross 308, Arbor Acres), layers (Lohmann Brown, Isa Brown, Bovans), breeders (parent-stock cycles), and day-old chick brooder phases. Reference curves are pre-loaded.'],
+   'Broilers, layers, ducks, and turkeys. 72+ pre-loaded protocols are available, including species-specific safety warnings like Gossypol and Niacin floors.'],
   ['How is feed cost actually calculated?',
-   'Real LP — not heuristics. A Pyomo linear-programming solver computes the least-cost ration under your nutrient bands, safety caps, and current ingredient prices. You see the binding constraint that drove the solution.'],
+   'HiGHS WASM Solver — a professional linear-programming engine. It computes the least-cost ration under your nutrient targets, safety caps, and local ingredient prices.'],
   ['Can my farm workers see profit numbers?',
-   'Only if you allow it. A one-tap privacy mask hides every monetary value on a device. Role-based access separates owner, manager and field-worker views — enforced server-side.'],
+   'Only if you allow it. A persistent cost privacy mask hides every monetary value on the device. Role-based access ensures owner control over sensitive financial data.'],
 ];
 
 export default function Resources() {
   return (
-    <div>
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-10 pb-12 lg:pt-16">
+    <div className="bg-background text-foreground">
+      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
         <Eyebrow>Resources</Eyebrow>
-        <h1 className="mt-6 max-w-4xl text-5xl sm:text-6xl lg:text-[88px] font-black leading-[0.95] tracking-tight">
-          The field <span className="italic font-serif font-normal text-primary">journal</span>.
+        <h1 className="mt-8 max-w-5xl text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
+          The poultry <br />
+          field <span className="italic font-serif font-normal text-primary">journal</span>.
         </h1>
-        <p className="mt-7 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
-          Practical, plain-language writing on poultry economics, health and the small daily decisions that decide a cycle. Written with vets, agronomists and farmers we visit every quarter.
+        <p className="mt-10 max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
+          Practical, plain-language writing on poultry economics, health and the small daily decisions that decide a cycle. Written with vets and agronomists.
         </p>
       </section>
 
@@ -92,7 +93,7 @@ export default function Resources() {
         </motion.a>
       </section>
 
-      <section className="border-y border-foreground/10 bg-secondary/30 py-24">
+      <section className="border-y border-foreground/10 bg-secondary/20 py-24">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
           <div className="flex items-end justify-between flex-wrap gap-6 mb-12">
             <div>
@@ -128,7 +129,7 @@ export default function Resources() {
         <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {CATEGORIES.map(c => (
             <motion.div key={c.title} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                        className="rounded-[24px] bg-secondary/40 p-7">
+                        className="rounded-[24px] bg-secondary/20 p-7">
               <c.icon className="h-6 w-6 text-primary" />
               <h3 className="mt-5 text-xl font-black tracking-tight">{c.title}</h3>
               <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{c.body}</p>

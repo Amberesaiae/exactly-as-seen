@@ -1,17 +1,4 @@
-export interface Ingredient {
-  id: string;
-  name: string;
-  category: string;
-  protein_pct: number;
-  energy_kcal_per_kg: number;
-  calcium_pct: number;
-  phosphorus_pct: number;
-  lysine_pct: number;
-  methionine_pct: number;
-  contains_gossypol: boolean;
-  contains_aflatoxin_risk: boolean;
-  max_share_pct: number;
-}
+import { Ingredient } from './feed-data';
 
 export interface SelectedIngredient {
   ingredient: Ingredient;
@@ -25,8 +12,14 @@ export interface PreprocessResult {
   blocked: boolean;
   blockedReason?: string;
   warnings: string[];
+  suggestions: { id: string; name: string; reason: string }[];
 }
 
+/**
+ * Production-Grade Feed Safety Preprocessor.
+ * Realigned to 'Lean Engineering' foundation: Guidance over Enforcement, 
+ * except for Fatal or Mandatory Biosecurity rules.
+ */
 export function preprocessFormulation(args: {
   species: string;
   targetKg: number;
@@ -34,64 +27,68 @@ export function preprocessFormulation(args: {
   availableIngredients: Ingredient[];
 }): PreprocessResult {
   const warnings: string[] = [];
+  const suggestions: PreprocessResult['suggestions'] = [];
   let blocked = false;
   let blockedReason: string | undefined = undefined;
 
-  let currentSelected = [...args.selected];
+  const currentSelected = [...args.selected];
 
-  // Rule R-FC-5: Duck niacin must NOT be added by the preprocessor (handled via Water-Health auto-tasks)
-  currentSelected = currentSelected.filter(s => s.ingredient.id !== 'niacin');
-
-  // Rule R-FC-4: Single calcium source (keep only the last calcium source)
-  const calciumSelected = currentSelected.filter(s => s.ingredient.category === 'calcium');
-  if (calciumSelected.length > 1) {
-    const lastCalcium = calciumSelected[calciumSelected.length - 1];
-    currentSelected = currentSelected.filter(s => s.ingredient.category !== 'calcium' || s.ingredient.id === lastCalcium.ingredient.id);
-    warnings.push(`CALCIUM_SOURCE_REPLACED: Multiple calcium sources selected. Persisting only the last selection: ${lastCalcium.ingredient.name}.`);
-  }
-
-  // Rule R-FC-2: Gossypol block for layers
-  if (args.species === 'layer') {
-    const hasGossypol = currentSelected.some(s => s.ingredient.contains_gossypol);
-    if (hasGossypol) {
-      blocked = true;
-      blockedReason = 'LAYER_GOSSYPOL_BLOCKED';
-    }
-  }
-
-  // Rule R-FC-3: Fish meal cap for broilers
-  if (args.species === 'broiler') {
-    const hasFishMeal = currentSelected.some(s => s.ingredient.id === 'fish_meal');
-    if (hasFishMeal) {
-      warnings.push(`BROILER_FISH_MEAL_CAPPED: Fish meal is capped at 10% of target formulation to prevent flavor taint.`);
-    }
-  }
-
-  // Rule R-FC-1: Aflatoxin binder (COMPULSORY at exactly 0.5% of target weight)
+  // 1. Aflatoxin Protocol (MANDATORY in West Africa)
+  // maize, groundnut, and cotton seed have HIGH risk.
+  const highRiskSelected = currentSelected.some(s => 
+    ['maize', 'groundnut', 'cotton_seed'].some(risk => s.ingredient.id.toLowerCase().includes(risk))
+  );
   const hasToxinBinder = currentSelected.some(s => s.ingredient.id === 'toxin_binder');
-  const targetToxinBinderKg = Number((args.targetKg * 0.005).toFixed(2));
-
-  if (!hasToxinBinder) {
-    const toxinBinderIng = args.availableIngredients.find(i => i.id === 'toxin_binder');
-    if (toxinBinderIng) {
-      currentSelected.push({
-        ingredient: toxinBinderIng,
-        quantityKg: targetToxinBinderKg,
-        unitPrice: 0, // default if not set
-        autoAdded: true,
-      });
-    }
-  } else {
-    currentSelected = currentSelected.map(s => {
-      if (s.ingredient.id === 'toxin_binder') {
-        return {
-          ...s,
-          quantityKg: targetToxinBinderKg,
-          autoAdded: true,
-        };
-      }
-      return s;
+  
+  if (highRiskSelected && !hasToxinBinder) {
+    // ELITE SPEC: Blocking is mandatory if toxin binder is missing with high-risk ingredients
+    blocked = true;
+    blockedReason = 'MANDATORY SAFETY: Toxin Binder must be included when using Maize or Groundnut (West African Aflatoxin Protocol).';
+    
+    suggestions.push({
+      id: 'toxin_binder',
+      name: 'Toxin Binder',
+      reason: 'Aflatoxin Protection: 0.1% inclusion mandatory for maize-based mixes.'
     });
+  }
+
+  // 2. Duck Niacin: CRITICAL Blocking (NRC 1994)
+  if (args.species === 'duck') {
+    const hasNiacinSource = currentSelected.some(s => 
+      s.ingredient.id === 'niacin_pure' || s.ingredient.id === 'premix_duck'
+    );
+    if (!hasNiacinSource) {
+      blocked = true;
+      blockedReason = 'CRITICAL NUTRITION: Ducks require high Niacin (55mg/kg) to prevent leg weakness. Add Waterfowl Premix or Niacin.';
+    }
+  }
+
+  // 3. Raw Cassava: Fatal Block
+  const hasRawCassava = currentSelected.some(s => s.ingredient.id.includes('raw_cassava'));
+  if (hasRawCassava) {
+    blocked = true;
+    blockedReason = 'FATAL SAFETY: Raw cassava contains high HCN (Cyanide). Use only HQCP processed cassava.';
+  }
+
+  // 4. Gossypol: Quality Block for Layers
+  if (args.species === 'layer' && currentSelected.some(s => s.ingredient.id.includes('cotton_seed'))) {
+    blocked = true;
+    blockedReason = 'QUALITY BLOCK: Cotton Seed Meal causes egg yolk discoloration in layers.';
+  }
+
+  // 5. Fish Meal Taint: Guidance
+  const fishMealQty = currentSelected.filter(s => s.ingredient.id.includes('fish_meal'))
+    .reduce((sum, s) => sum + s.quantityKg, 0);
+  const fishMealPct = (fishMealQty / args.targetKg) * 100;
+  
+  if (args.species === 'layer' && fishMealPct > 8) {
+    warnings.push('CAUTION: Fish meal > 8% causes fishy taint in eggs.');
+  }
+
+  // 6. Calcium Imbalance: Guidance
+  const calciumCount = currentSelected.filter(s => s.ingredient.category === 'calcium').length;
+  if (calciumCount > 1) {
+    warnings.push('LEAN TIP: Multiple calcium sources selected. Consider using only one to avoid mineral locking.');
   }
 
   return {
@@ -99,5 +96,6 @@ export function preprocessFormulation(args: {
     blocked,
     blockedReason,
     warnings,
+    suggestions,
   };
 }

@@ -15,7 +15,8 @@ interface IngredientPickerProps {
   species: string;
   alreadySelected: string[];
   singleSelect?: boolean; // for calcium
-  onSelect: (ingredient: Ingredient, quantityKg: number, unitPrice: number) => void;
+  onSelect: (ingredient: Ingredient, quantityKg: number, unitPrice: number, stockItemId?: string) => void;
+  stockItems?: any[];
 }
 
 const categoryTitles: Record<string, string> = {
@@ -25,7 +26,7 @@ const categoryTitles: Record<string, string> = {
   supplement: 'Supplement',
 };
 
-export function IngredientPicker({ open, onClose, category, ingredients, species, alreadySelected, singleSelect, onSelect }: IngredientPickerProps) {
+export function IngredientPicker({ open, onClose, category, ingredients, species, alreadySelected, singleSelect, onSelect, stockItems = [] }: IngredientPickerProps) {
   const [tab, setTab] = useState<'library' | 'custom'>('library');
   const [selectedIng, setSelectedIng] = useState<Ingredient | null>(null);
   const [quantityKg, setQuantityKg] = useState('');
@@ -49,7 +50,9 @@ export function IngredientPicker({ open, onClose, category, ingredients, species
     if (!selectedIng) return;
     const qty = parseFloat(quantityKg) || 0;
     const price = parseFloat(unitPrice) || selectedIng.defaultPricePerKg;
-    onSelect(selectedIng, qty, price);
+    const stockItem = stockItems.find(si => si.name.toLowerCase() === selectedIng.name.toLowerCase());
+    
+    onSelect(selectedIng, qty, price, stockItem?.id);
     setSelectedIng(null);
     setQuantityKg('');
     setUnitPrice('');
@@ -77,10 +80,17 @@ export function IngredientPicker({ open, onClose, category, ingredients, species
                   <div key={ing.name} className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
                     <div>
                       <p className="font-semibold text-sm">{ing.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        CP: {ing.proteinPct}% · E: {ing.energyKcal} kcal · Ca: {ing.calciumPct}%
-                      </p>
-                      <p className="text-xs text-muted-foreground">Default price: GH₵{ing.defaultPricePerKg}/kg</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="text-[10px] text-muted-foreground uppercase font-bold">
+                          CP: {ing.proteinPct}% · E: {ing.energyKcal} kcal
+                        </p>
+                        {stockItems.find(si => si.name.toLowerCase() === ing.name.toLowerCase()) && (
+                          <Badge variant="outline" className="text-[9px] h-3.5 px-1 bg-primary/5 text-primary border-primary/20">
+                            {stockItems.find(si => si.name.toLowerCase() === ing.name.toLowerCase()).current_quantity} kg in stock
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 font-medium">Default price: GH₵{ing.defaultPricePerKg}/kg</p>
                     </div>
                     {blocked ? (
                       <Badge variant="destructive" className="text-xs">Blocked</Badge>

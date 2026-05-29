@@ -1,12 +1,10 @@
-import { differenceInDays, parseISO, addDays, isWithinInterval } from 'date-fns';
+import { differenceInDays, parseISO, addDays } from 'date-fns';
 
 export interface Medication {
   id: string;
   name: string;
   category: string;
-  delivery_method: string;
-  withdrawal_meat_days: number;
-  withdrawal_egg_days: number;
+  delivery_method?: string;
   is_live_vaccine: boolean;
   is_sulfa: boolean;
   contains_calcium: boolean;
@@ -25,6 +23,7 @@ export interface ConflictHit {
   code: string;
   severity: 'BLOCK' | 'WARN';
   message: string;
+  suggestion?: string;
 }
 
 /**
@@ -34,9 +33,13 @@ function isOverlap(s1: Date, e1: Date, s2: Date, e2: Date): boolean {
   return s1 <= e2 && s2 <= e1;
 }
 
+/**
+ * Lean Conflict Engine: Blocks only for biological/fatal risks.
+ * Pragmatic timing issues are moved to WARN with timing guidance.
+ */
 export function detectConflicts(args: {
   newMed: Medication;
-  newDate: string; // YYYY-MM-DD
+  newDate: string; 
   newDuration: number;
   neighborhood: { task: HealthTask; med: Medication }[];
   waterSourceChlorinated: boolean;
@@ -45,12 +48,13 @@ export function detectConflicts(args: {
   const newStart = parseISO(args.newDate);
   const newEnd = addDays(newStart, args.newDuration - 1);
 
-  // Rule C8: Live vaccine + chlorinated water
+  // Rule C8: Live vaccine + chlorinated water (BLOCK - Biologically incompatible)
   if (args.newMed.is_live_vaccine && args.waterSourceChlorinated) {
     hits.push({
       code: 'C8',
       severity: 'BLOCK',
-      message: 'C8 BLOCK: Live vaccine cannot be administered with chlorinated water source.',
+      message: 'Live vaccine cannot be administered with a chlorinated water source.',
+      suggestion: 'Use non-chlorinated water or add a chlorine neutralizer.',
     });
   }
 
@@ -59,100 +63,63 @@ export function detectConflicts(args: {
     const taskEnd = addDays(taskStart, item.task.duration_days - 1);
     const diffDays = Math.abs(differenceInDays(newStart, taskStart));
 
-    // Rule C1: Coccidiostat + Sulfa drug [today, +5d]
-    if (args.newMed.category === 'coccidiostat') {
-      if (item.med.is_sulfa) {
-        const diff = differenceInDays(taskStart, newStart);
-        if (diff >= 0 && diff <= 5) {
-          hits.push({
-            code: 'C1',
-            severity: 'BLOCK',
-            message: `C1 BLOCK: Coccidiostat conflicts with Sulfa drug (${item.med.name}) scheduled in the next 5 days.`,
-          });
-        }
-      }
-    }
-    if (args.newMed.is_sulfa) {
-      if (item.med.category === 'coccidiostat') {
-        const diff = differenceInDays(newStart, taskStart);
-        if (diff >= 0 && diff <= 5) {
-          hits.push({
-            code: 'C1',
-            severity: 'BLOCK',
-            message: `C1 BLOCK: Sulfa drug conflicts with Coccidiostat (${item.med.name}) scheduled in the last 5 days.`,
-          });
-        }
-      }
+    // Rule C1: Coccidiostat + Sulfa drug [today, +5d] (BLOCK - Toxic combination)
+    const coccidiostatSulfa = (args.newMed.category === 'coccidiostat' && item.med.is_sulfa) ||
+                              (args.newMed.is_sulfa && item.med.category === 'coccidiostat');
+    if (coccidiostatSulfa && diffDays <= 5) {
+      hits.push({
+        code: 'C1',
+        severity: 'BLOCK',
+        message: `Coccidiostat and Sulfa drugs (${item.med.name}) cannot be used within 5 days of each other.`,
+        suggestion: 'Separate these treatments by at least 6 days to avoid toxicity.',
+      });
     }
 
-    // Rule C2: Two antibiotics overlap
+    // Rule C2: Two antibiotics overlap (BLOCK - Over-medication risk)
     if (args.newMed.category === 'antibiotic' && item.med.category === 'antibiotic') {
       if (isOverlap(newStart, newEnd, taskStart, taskEnd)) {
         hits.push({
           code: 'C2',
           severity: 'BLOCK',
-          message: `C2 BLOCK: Antibiotic treatment overlaps with another active antibiotic treatment (${item.med.name}).`,
+          message: `Antibiotic treatment overlaps with another active antibiotic treatment (${item.med.name}).`,
+          suggestion: 'Complete one treatment fully before starting another.',
         });
       }
     }
 
-    // Rule C3: Dewormer + Coccidiostat same day (WARN)
-    if (args.newMed.category === 'dewormer' && item.med.category === 'coccidiostat' && diffDays === 0) {
-      hits.push({
-        code: 'C3',
-        severity: 'WARN',
-        message: `C3 WARNING: Dewormer and Coccidiostat (${item.med.name}) are scheduled on the same day. Monitor birds for stress.`,
-      });
-    }
-    if (args.newMed.category === 'coccidiostat' && item.med.category === 'dewormer' && diffDays === 0) {
-      hits.push({
-        code: 'C3',
-        severity: 'WARN',
-        message: `C3 WARNING: Coccidiostat and Dewormer (${item.med.name}) are scheduled on the same day. Monitor birds for stress.`,
-      });
-    }
-
-    // Rule C4: Live vaccine ± antibiotic (±72 hours)
-    const isLiveVaccineConflict = (args.newMed.is_live_vaccine && item.med.category === 'antibiotic') ||
+    // Rule C4: Live vaccine ± antibiotic (±72 hours) (BLOCK - Antibiotic kills live vaccine)
+    const liveVaccineAntibiotic = (args.newMed.is_live_vaccine && item.med.category === 'antibiotic') ||
                                   (args.newMed.category === 'antibiotic' && item.med.is_live_vaccine);
-    if (isLiveVaccineConflict && diffDays <= 3) {
+    if (liveVaccineAntibiotic && diffDays <= 3) {
       hits.push({
         code: 'C4',
         severity: 'BLOCK',
-        message: `C4 BLOCK: Live vaccine and antibiotic (${item.med.name}) scheduled within 72 hours of each other.`,
+        message: `Live vaccine and antibiotic (${item.med.name}) cannot be administered within 72 hours of each other.`,
+        suggestion: 'Ensure a 3-day gap between live vaccines and antibiotic treatments.',
       });
     }
 
-    // Rule C5: Enrofloxacin + any antibiotic
-    const isEnrofloxacinConflict = (args.newMed.id === 'enrofloxacin' && item.med.category === 'antibiotic') ||
-                                   (item.med.id === 'enrofloxacin' && args.newMed.category === 'antibiotic');
-    if (isEnrofloxacinConflict && isOverlap(newStart, newEnd, taskStart, taskEnd)) {
-      hits.push({
-        code: 'C5',
-        severity: 'BLOCK',
-        message: `C5 BLOCK: Enrofloxacin overlaps with another antibiotic treatment (${item.med.name}).`,
-      });
-    }
-
-    // Rule C6: Activated charcoal + oral med (±4h / same day)
+    // Rule C6: Activated charcoal + oral med (Refactored to WARN - Pragmatic timing)
     const isCharcoalOral = (args.newMed.is_activated_charcoal && (item.task.delivery_method === 'drinking_water' || item.med.delivery_method === 'drinking_water')) ||
                            (item.med.is_activated_charcoal && args.newMed.delivery_method === 'drinking_water');
     if (isCharcoalOral && diffDays === 0) {
       hits.push({
         code: 'C6',
-        severity: 'BLOCK',
-        message: `C6 BLOCK: Activated charcoal and oral medication (${item.med.name}) scheduled on the same day (conflicting oral absorption).`,
+        severity: 'WARN',
+        message: `Charcoal and oral medication (${item.med.name}) scheduled on the same day.`,
+        suggestion: 'LEAN ADVICE: Wait at least 2 hours between charcoal and other oral medications to ensure effective absorption.',
       });
     }
 
-    // Rule C7: Calcium + Tetracycline (±4h / same day)
+    // Rule C7: Calcium + Tetracycline (Refactored to WARN - Pragmatic timing)
     const isCalciumTetracycline = (args.newMed.contains_calcium && item.med.is_tetracycline) ||
                                   (args.newMed.is_tetracycline && item.med.contains_calcium);
     if (isCalciumTetracycline && diffDays === 0) {
       hits.push({
         code: 'C7',
-        severity: 'BLOCK',
-        message: `C7 BLOCK: Calcium supplement and Tetracycline class drug (${item.med.name}) scheduled on the same day (calcium blocks absorption).`,
+        severity: 'WARN',
+        message: `Calcium and Tetracycline drug (${item.med.name}) scheduled on the same day.`,
+        suggestion: 'LEAN ADVICE: Wait at least 4 hours between calcium and tetracycline to avoid binding.',
       });
     }
   }

@@ -7,6 +7,7 @@ import { format, subDays } from 'date-fns';
 import { getExpectedRate } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
 import type { Database } from '@/integrations/supabase/types';
+import { autoCreateRevenue } from '@/lib/synergy';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
@@ -213,10 +214,24 @@ export function useEggData() {
     toast.success(`Recorded ${total} eggs (${good} good)`);
   };
 
-  const recordSale = async (qty: number, price: number, sizeCategory: string, buyer: string, notes: string) => {
+  const recordSale = async (params: {
+    crates: number,
+    looses: number,
+    pricePerCrate: number,
+    pricePerLoose: number,
+    sizeCategory: string,
+    buyer: string,
+    paymentMethod: string,
+    paymentStatus: string,
+    notes: string
+  }) => {
+    const { crates, looses, pricePerCrate, pricePerLoose, sizeCategory, buyer, paymentMethod, paymentStatus, notes } = params;
     if (!farmId) return;
     if (!selectedBatch) { toast.error('Please select a batch first'); return; }
-    if (qty <= 0 || price <= 0) { toast.error('Enter valid quantity and price'); return; }
+    
+    const totalEggs = (crates * 30) + looses;
+    if (totalEggs <= 0) { toast.error('Enter a valid quantity'); return; }
+    
     setSaleSubmitting(true);
 
     // 1. Withdrawal period check
@@ -226,60 +241,63 @@ export function useEggData() {
       return;
     }
 
-    // 2. Egg inventory verification via RPC
-    const { data: inv, error: invError } = await (supabase as any).rpc('get_egg_inventory', {
+    // 2. Egg inventory verification (Graded)
+    const { data: inv } = await (supabase as any).rpc('get_graded_egg_inventory', {
       p_batch_id: selectedBatch,
-      p_farm_id: farmId
+      p_farm_id: farmId,
+      p_size: sizeCategory
     });
 
-    if (invError) {
-      toast.error('Failed to verify egg inventory');
+    if ((inv || 0) < totalEggs) {
+      toast.error(`Insufficient ${sizeCategory} eggs. On hand: ${inv || 0}, requested: ${totalEggs}`);
       setSaleSubmitting(false);
       return;
     }
 
-    if ((inv || 0) < qty) {
-      toast.error(`Insufficient inventory. Good eggs on hand: ${inv || 0}, requested: ${qty}`);
-      setSaleSubmitting(false);
-      return;
-    }
-
-    const totalAmount = qty * price;
+    const totalAmount = (crates * pricePerCrate) + (looses * pricePerLoose);
+    const totalPesewas = Math.round(totalAmount * 100);
 
     const { data: sale, error } = await supabase.from('egg_sales').insert({
       farm_id: farmId,
       batch_id: selectedBatch,
-      quantity: qty,
+      quantity: totalEggs,
+      crates_sold: crates,
+      looses_sold: looses,
       size_category: sizeCategory,
-      unit_price: price,
+      unit_price: pricePerLoose, // average or base
+      price_per_crate_pesewas: Math.round(pricePerCrate * 100),
+      price_per_loose_pesewas: Math.round(pricePerLoose * 100),
       total_amount: totalAmount,
+      total_revenue_pesewas: totalPesewas,
       buyer: buyer || null,
+      payment_method: paymentMethod,
       notes: notes || null,
-    }).select().single();
+    } as any).select().single();
 
     if (error) { toast.error(error.message); setSaleSubmitting(false); return; }
 
-    // 3. Idempotent Revenue Insert
-    await supabase.from('revenue').upsert({
-      farm_id: farmId,
-      batch_id: selectedBatch,
+    // 3. Synergy: Financial Ledger Entry with Metadata
+    await autoCreateRevenue({
+      farmId,
+      batchId: selectedBatch,
       category: 'egg_sales',
-      description: `Egg sale: ${qty} ${sizeCategory} eggs @ GHS ${price}`,
+      description: `Egg sale: ${crates} crates & ${looses} looses (${sizeCategory})`,
       amount: totalAmount,
-      amount_pesewas: Math.round(totalAmount * 100),
-      buyer: buyer || null,
-      date: new Date().toISOString().split('T')[0],
+      buyer: buyer || undefined,
+      paymentMethod,
+      paymentStatus: paymentStatus as any,
       source: 'auto:eggs',
-      source_ref: sale.id
-    }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+      sourceRef: sale.id
+    } as any);
 
     await supabase.from('activity_log').insert({
       farm_id: farmId,
+      batch_id: selectedBatch,
       event_type: 'egg_sale',
-      description: `Sold ${qty} ${sizeCategory} eggs for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
+      description: `Sold ${totalEggs} eggs (${crates} crt, ${looses} loose) for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
     });
 
-    setSales(prev => [sale, ...prev.slice(0, 29)]);
+    setSales(prev => [sale as any, ...prev.slice(0, 29)]);
     setSaleSubmitting(false);
     toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
   };

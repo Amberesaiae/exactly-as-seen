@@ -12,60 +12,95 @@ export interface FeedPhase {
 
 export const FEED_PHASES: Record<string, FeedPhase[]> = {
   broiler: [
-    { name: 'Starter', weekStart: 0, weekEnd: 3, proteinPct: 23, energyKcal: 3000, calciumPct: 1.0, feedPerBirdG: 25 },
-    { name: 'Grower', weekStart: 4, weekEnd: 5, proteinPct: 20, energyKcal: 3100, calciumPct: 0.9, feedPerBirdG: 80 },
-    { name: 'Finisher', weekStart: 6, weekEnd: 8, proteinPct: 18, energyKcal: 3200, calciumPct: 0.85, feedPerBirdG: 130 },
+    { name: 'Starter', weekStart: 0, weekEnd: 3, proteinPct: 23, energyKcal: 3200, calciumPct: 1.0, feedPerBirdG: 25 },
+    { name: 'Grower', weekStart: 4, weekEnd: 5, proteinPct: 20, energyKcal: 3200, calciumPct: 0.9, feedPerBirdG: 80 },
+    { name: 'Finisher', weekStart: 6, weekEnd: 8, proteinPct: 19, energyKcal: 3200, calciumPct: 0.85, feedPerBirdG: 130 },
   ],
   layer: [
-    { name: 'Chick', weekStart: 0, weekEnd: 8, proteinPct: 20, energyKcal: 2900, calciumPct: 1.0, feedPerBirdG: 30 },
-    { name: 'Grower', weekStart: 9, weekEnd: 18, proteinPct: 16, energyKcal: 2800, calciumPct: 1.0, feedPerBirdG: 70 },
-    { name: 'Layer', weekStart: 19, weekEnd: 999, proteinPct: 17, energyKcal: 2750, calciumPct: 3.5, feedPerBirdG: 110 },
+    { name: 'Chick', weekStart: 0, weekEnd: 8, proteinPct: 19, energyKcal: 2800, calciumPct: 1.0, feedPerBirdG: 30 },
+    { name: 'Grower', weekStart: 9, weekEnd: 18, proteinPct: 17, energyKcal: 2750, calciumPct: 1.0, feedPerBirdG: 70 },
+    { name: 'Layer', weekStart: 19, weekEnd: 999, proteinPct: 16.5, energyKcal: 2800, calciumPct: 3.5, feedPerBirdG: 110 },
   ],
   duck: [
-    { name: 'Starter', weekStart: 0, weekEnd: 3, proteinPct: 22, energyKcal: 2900, calciumPct: 1.0, feedPerBirdG: 40 },
-    { name: 'Grower', weekStart: 4, weekEnd: 7, proteinPct: 18, energyKcal: 2800, calciumPct: 0.8, feedPerBirdG: 100 },
-    { name: 'Finisher/Layer', weekStart: 8, weekEnd: 999, proteinPct: 16, energyKcal: 2700, calciumPct: 3.0, feedPerBirdG: 150 },
+    { name: 'Starter', weekStart: 0, weekEnd: 3, proteinPct: 22, energyKcal: 2900, calciumPct: 0.8, feedPerBirdG: 40 },
+    { name: 'Grower', weekStart: 4, weekEnd: 7, proteinPct: 19, energyKcal: 2850, calciumPct: 0.7, feedPerBirdG: 100 },
+    { name: 'Finisher/Layer', weekStart: 8, weekEnd: 999, proteinPct: 17, energyKcal: 2800, calciumPct: 0.6, feedPerBirdG: 150 },
   ],
   turkey: [
-    { name: 'Starter', weekStart: 0, weekEnd: 4, proteinPct: 28, energyKcal: 2800, calciumPct: 1.2, feedPerBirdG: 30 },
-    { name: 'Grower', weekStart: 5, weekEnd: 12, proteinPct: 22, energyKcal: 2900, calciumPct: 1.0, feedPerBirdG: 120 },
-    { name: 'Finisher', weekStart: 13, weekEnd: 20, proteinPct: 18, energyKcal: 3000, calciumPct: 0.85, feedPerBirdG: 250 },
+    { name: 'Starter', weekStart: 0, weekEnd: 4, proteinPct: 27, energyKcal: 2950, calciumPct: 1.2, feedPerBirdG: 30 },
+    { name: 'Grower', weekStart: 5, weekEnd: 12, proteinPct: 23, energyKcal: 3000, calciumPct: 1.0, feedPerBirdG: 120 },
+    { name: 'Finisher', weekStart: 13, weekEnd: 20, proteinPct: 19, energyKcal: 2950, calciumPct: 0.9, feedPerBirdG: 250 },
   ],
 };
 
 export interface Ingredient {
+  id: string;
   name: string;
   category: 'energy' | 'protein' | 'calcium' | 'supplement';
   proteinPct: number;
   energyKcal: number;
   calciumPct: number;
+  fiberPct: number;
+  lysinePct: number;
+  methioninePct: number;
+  phosphorusPct: number;
+  niacinMgKg: number;
+  usageLimits: {
+    min: number;
+    max: number;
+  };
   defaultPricePerKg: number; // GHS
 }
 
 export const INGREDIENTS: Ingredient[] = [
-  // Energy sources
-  { name: 'Maize (Yellow Corn)', category: 'energy', proteinPct: 9, energyKcal: 3350, calciumPct: 0.02, defaultPricePerKg: 3.5 },
-  { name: 'Wheat Bran', category: 'energy', proteinPct: 15, energyKcal: 1800, calciumPct: 0.12, defaultPricePerKg: 2.0 },
-  { name: 'Rice Bran', category: 'energy', proteinPct: 12, energyKcal: 2200, calciumPct: 0.08, defaultPricePerKg: 1.8 },
-  { name: 'Palm Kernel Cake (PKC)', category: 'energy', proteinPct: 18, energyKcal: 2200, calciumPct: 0.3, defaultPricePerKg: 2.5 },
-  { name: 'Sorghum (Low-Tannin)', category: 'energy', proteinPct: 10, energyKcal: 3200, calciumPct: 0.03, defaultPricePerKg: 3.2 },
-  { name: 'Cassava Peel (HQCP)', category: 'energy', proteinPct: 4, energyKcal: 2800, calciumPct: 0.1, defaultPricePerKg: 0.9 },
-  // Protein sources
-  { name: 'Soybean Meal', category: 'protein', proteinPct: 44, energyKcal: 2230, calciumPct: 0.3, defaultPricePerKg: 6.0 },
-  { name: 'Fish Meal', category: 'protein', proteinPct: 60, energyKcal: 2800, calciumPct: 5.0, defaultPricePerKg: 8.0 },
-  { name: 'Groundnut Cake', category: 'protein', proteinPct: 45, energyKcal: 2500, calciumPct: 0.2, defaultPricePerKg: 5.5 },
-  { name: 'Cotton Seed Meal', category: 'protein', proteinPct: 41, energyKcal: 2100, calciumPct: 0.2, defaultPricePerKg: 4.0 },
-  // Calcium sources
-  { name: 'Oyster Shell', category: 'calcium', proteinPct: 0, energyKcal: 0, calciumPct: 38, defaultPricePerKg: 1.0 },
-  { name: 'Limestone', category: 'calcium', proteinPct: 0, energyKcal: 0, calciumPct: 36, defaultPricePerKg: 0.8 },
-  { name: 'Bone Meal', category: 'calcium', proteinPct: 12, energyKcal: 0, calciumPct: 24, defaultPricePerKg: 3.0 },
-  // Supplements
-  { name: 'Premix (Vitamin/Mineral)', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 15.0 },
-  { name: 'Salt (NaCl)', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 1.5 },
-  { name: 'Methionine', category: 'supplement', proteinPct: 58, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 25.0 },
-  { name: 'Lysine', category: 'supplement', proteinPct: 78, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 20.0 },
-  { name: 'Toxin Binder', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 12.0 },
-  { name: 'Niacin (Vitamin B3)', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, defaultPricePerKg: 30.0 },
+  // Energy Sources (9)
+  { id: 'maize', name: 'Maize (Corn)', category: 'energy', proteinPct: 8.5, energyKcal: 3350, fiberPct: 2.2, lysinePct: 0.24, methioninePct: 0.18, calciumPct: 0.02, phosphorusPct: 0.28, niacinMgKg: 20, usageLimits: { min: 0, max: 70 }, defaultPricePerKg: 3.5 },
+  { id: 'sorghum', name: 'Sorghum (Low-Tannin)', category: 'energy', proteinPct: 10.0, energyKcal: 3250, fiberPct: 2.7, lysinePct: 0.22, methioninePct: 0.16, calciumPct: 0.04, phosphorusPct: 0.30, niacinMgKg: 45, usageLimits: { min: 0, max: 60 }, defaultPricePerKg: 3.2 },
+  { id: 'pearl_millet', name: 'Pearl Millet', category: 'energy', proteinPct: 11.0, energyKcal: 3150, fiberPct: 3.0, lysinePct: 0.30, methioninePct: 0.22, calciumPct: 0.05, phosphorusPct: 0.30, niacinMgKg: 0, usageLimits: { min: 0, max: 50 }, defaultPricePerKg: 3.0 },
+  { id: 'cassava_peel', name: 'Cassava Peel (HQCP)', category: 'energy', proteinPct: 2.5, energyKcal: 2800, fiberPct: 10.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.10, phosphorusPct: 0.08, niacinMgKg: 0, usageLimits: { min: 0, max: 20 }, defaultPricePerKg: 0.9 },
+  { id: 'wheat_bran', name: 'Wheat Bran', category: 'energy', proteinPct: 15.5, energyKcal: 2100, fiberPct: 11.0, lysinePct: 0.60, methioninePct: 0.25, calciumPct: 0.12, phosphorusPct: 1.20, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 2.0 },
+  { id: 'rice_bran', name: 'Rice Bran', category: 'energy', proteinPct: 13.5, energyKcal: 2040, fiberPct: 12.0, lysinePct: 0.60, methioninePct: 0.28, calciumPct: 0.08, phosphorusPct: 1.40, niacinMgKg: 0, usageLimits: { min: 0, max: 15 }, defaultPricePerKg: 1.8 },
+  { id: 'palm_oil', name: 'Palm Oil', category: 'energy', proteinPct: 0.0, energyKcal: 8800, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 12.0 },
+  { id: 'vegetable_oil', name: 'Vegetable Oil', category: 'energy', proteinPct: 0.0, energyKcal: 8500, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 15.0 },
+  { id: 'molasses', name: 'Molasses', category: 'energy', proteinPct: 4.0, energyKcal: 2400, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.80, phosphorusPct: 0.08, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 5.0 },
+
+  // Protein Sources (15)
+  { id: 'soybean_meal_44', name: 'Soybean Meal (44% CP)', category: 'protein', proteinPct: 44.0, energyKcal: 2230, fiberPct: 6.5, lysinePct: 2.8, methioninePct: 0.60, calciumPct: 0.30, phosphorusPct: 0.65, niacinMgKg: 0, usageLimits: { min: 0, max: 30 }, defaultPricePerKg: 6.0 },
+  { id: 'soybean_meal_48', name: 'Soybean Meal (48% CP)', category: 'protein', proteinPct: 48.0, energyKcal: 2400, fiberPct: 3.5, lysinePct: 2.9, methioninePct: 0.65, calciumPct: 0.30, phosphorusPct: 0.65, niacinMgKg: 0, usageLimits: { min: 0, max: 30 }, defaultPricePerKg: 6.5 },
+  { id: 'groundnut_cake', name: 'Groundnut Cake', category: 'protein', proteinPct: 45.0, energyKcal: 2150, fiberPct: 5.0, lysinePct: 1.5, methioninePct: 0.50, calciumPct: 0.15, phosphorusPct: 0.55, niacinMgKg: 160, usageLimits: { min: 0, max: 25 }, defaultPricePerKg: 5.5 },
+  { id: 'fish_meal_65', name: 'Fish Meal (65% CP)', category: 'protein', proteinPct: 65.0, energyKcal: 2800, fiberPct: 1.0, lysinePct: 5.0, methioninePct: 1.8, calciumPct: 5.0, phosphorusPct: 3.0, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 8.0 },
+  { id: 'fish_meal_72', name: 'Fish Meal (72% CP)', category: 'protein', proteinPct: 72.0, energyKcal: 3000, fiberPct: 0.5, lysinePct: 5.8, methioninePct: 2.1, calciumPct: 4.5, phosphorusPct: 2.8, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 10.0 },
+  { id: 'palm_kernel_cake', name: 'Palm Kernel Cake (PKC)', category: 'protein', proteinPct: 18.0, energyKcal: 2400, fiberPct: 16.0, lysinePct: 0.65, methioninePct: 0.35, calciumPct: 0.25, phosphorusPct: 0.60, niacinMgKg: 0, usageLimits: { min: 0, max: 20 }, defaultPricePerKg: 2.5 },
+  { id: 'cotton_seed_cake', name: 'Cotton Seed Cake', category: 'protein', proteinPct: 41.0, energyKcal: 2100, fiberPct: 12.0, lysinePct: 1.6, methioninePct: 0.55, calciumPct: 0.20, phosphorusPct: 1.00, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 4.0 },
+  { id: 'blood_meal', name: 'Blood Meal', category: 'protein', proteinPct: 80.0, energyKcal: 2600, fiberPct: 1.0, lysinePct: 7.5, methioninePct: 1.0, calciumPct: 0.30, phosphorusPct: 0.25, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 12.0 },
+  { id: 'meat_bone_meal', name: 'Meat and Bone Meal', category: 'protein', proteinPct: 50.0, energyKcal: 2400, fiberPct: 2.0, lysinePct: 2.5, methioninePct: 0.70, calciumPct: 10.0, phosphorusPct: 5.0, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 7.5 },
+  { id: 'feather_meal', name: 'Feather Meal', category: 'protein', proteinPct: 85.0, energyKcal: 2300, fiberPct: 1.0, lysinePct: 2.0, methioninePct: 0.60, calciumPct: 0.40, phosphorusPct: 0.70, niacinMgKg: 0, usageLimits: { min: 0, max: 3 }, defaultPricePerKg: 9.0 },
+  { id: 'bsf_larvae', name: 'Black Soldier Fly Larvae (BSF)', category: 'protein', proteinPct: 42.0, energyKcal: 2400, fiberPct: 7.0, lysinePct: 2.4, methioninePct: 0.85, calciumPct: 3.0, phosphorusPct: 0.90, niacinMgKg: 0, usageLimits: { min: 0, max: 15 }, defaultPricePerKg: 8.5 },
+  { id: 'azolla', name: 'Azolla (Water Fern)', category: 'protein', proteinPct: 25.0, energyKcal: 1600, fiberPct: 15.0, lysinePct: 1.0, methioninePct: 0.40, calciumPct: 1.5, phosphorusPct: 0.50, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 2.0 },
+  { id: 'sunflower_meal', name: 'Sunflower Seed Meal', category: 'protein', proteinPct: 38.0, energyKcal: 2100, fiberPct: 14.0, lysinePct: 1.2, methioninePct: 0.70, calciumPct: 0.40, phosphorusPct: 1.00, niacinMgKg: 0, usageLimits: { min: 0, max: 15 }, defaultPricePerKg: 4.5 },
+  { id: 'sesame_cake', name: 'Sesame Seed Cake', category: 'protein', proteinPct: 40.0, energyKcal: 2200, fiberPct: 6.0, lysinePct: 1.0, methioninePct: 1.10, calciumPct: 2.0, phosphorusPct: 1.10, niacinMgKg: 0, usageLimits: { min: 0, max: 15 }, defaultPricePerKg: 5.0 },
+  { id: 'brewers_grains', name: 'Brewers Dried Grains', category: 'protein', proteinPct: 25.0, energyKcal: 1900, fiberPct: 15.0, lysinePct: 0.8, methioninePct: 0.45, calciumPct: 0.30, phosphorusPct: 0.50, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 1.5 },
+
+  // Calcium Sources (6)
+  { id: 'limestone', name: 'Limestone', category: 'calcium', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 38.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 0.8 },
+  { id: 'oyster_shell', name: 'Oyster Shell', category: 'calcium', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 36.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 1.0 },
+  { id: 'bone_meal', name: 'Bone Meal', category: 'calcium', proteinPct: 12.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 24.0, phosphorusPct: 12.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 3.0 },
+  { id: 'dcp', name: 'Dicalcium Phosphate (DCP)', category: 'calcium', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 22.0, phosphorusPct: 18.0, niacinMgKg: 0, usageLimits: { min: 0, max: 2 }, defaultPricePerKg: 15.0 },
+  { id: 'mcp', name: 'Monocalcium Phosphate (MCP)', category: 'calcium', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 16.0, phosphorusPct: 21.0, niacinMgKg: 0, usageLimits: { min: 0, max: 2 }, defaultPricePerKg: 18.0 },
+  { id: 'eggshell_meal', name: 'Eggshell Meal', category: 'calcium', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 36.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 1.2 },
+
+  // Supplements (11)
+  { id: 'salt', name: 'Salt (Sodium Chloride)', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0.2, max: 0.5 }, defaultPricePerKg: 1.5 },
+  { id: 'lysine_hcl', name: 'L-Lysine HCl', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 78.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 1 }, defaultPricePerKg: 20.0 },
+  { id: 'dl_methionine', name: 'DL-Methionine', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 99.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 1 }, defaultPricePerKg: 25.0 },
+  { id: 'toxin_binder', name: 'Mycotoxin Binder', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0.1, max: 0.3 }, defaultPricePerKg: 12.0 },
+  { id: 'premix_broiler', name: 'Vitamin Premix (Broiler)', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0.25, max: 0.5 }, defaultPricePerKg: 15.0 },
+  { id: 'premix_layer', name: 'Vitamin Premix (Layer)', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0.25, max: 0.5 }, defaultPricePerKg: 15.0 },
+  { id: 'premix_duck', name: 'Waterfowl Vitamin Premix', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 150, usageLimits: { min: 0.25, max: 0.5 }, defaultPricePerKg: 18.0 },
+  { id: 'premix_turkey', name: 'Vitamin Premix (Turkey)', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0.25, max: 0.5 }, defaultPricePerKg: 18.0 },
+  { id: 'niacin_pure', name: 'Niacin (Vitamin B3)', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 500000, usageLimits: { min: 0, max: 0.1 }, defaultPricePerKg: 30.0 },
+  { id: 'coccidiostat', name: 'Coccidiostat', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 0.1 }, defaultPricePerKg: 20.0 },
+  { id: 'blackhead_prev', name: 'Blackhead Preventive', category: 'supplement', proteinPct: 0.0, energyKcal: 0, fiberPct: 0.0, lysinePct: 0.0, methioninePct: 0.0, calciumPct: 0.0, phosphorusPct: 0.0, niacinMgKg: 0, usageLimits: { min: 0, max: 0.1 }, defaultPricePerKg: 22.0 },
 ];
 
 // Commercial feed types per species
@@ -106,6 +141,17 @@ export const CONCENTRATE_PRODUCTS: ConcentrateProduct[] = [
   { name: 'Super Concentrate 45%', proteinPct: 45, species: ['broiler', 'layer', 'turkey'], ratioRange: [30, 50], defaultRatio: 40, pricePerKg: 10.0 },
   { name: 'Duck/Turkey Concentrate 38%', proteinPct: 38, species: ['duck', 'turkey'], ratioRange: [30, 50], defaultRatio: 40, pricePerKg: 8.5 },
 ];
+
+/**
+ * Feed reduction percentages for semi-intensive/free-range systems.
+ * Applied to computed target weight when foraging is active.
+ */
+export const FORAGING_MODIFIERS: Record<string, number> = {
+  duck: 0.25,   // 25% reduction (High foraging efficiency)
+  turkey: 0.20, // 20% reduction
+  layer: 0.12,  // 12% reduction
+  broiler: 0.0, // Commercial broilers rarely forage effectively
+};
 
 export interface SafetyRule {
   id: string;
@@ -195,8 +241,6 @@ export function getCompulsorySupplements(species: string, selectedNames: string[
     const toxin = INGREDIENTS.find(i => i.name.toLowerCase().includes('toxin'));
     if (toxin) result.push(toxin);
   }
-
-
 
   return result;
 }

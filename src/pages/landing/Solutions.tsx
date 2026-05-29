@@ -10,27 +10,27 @@ const fadeUp: Variants = {
 
 const MODULES = [
   { icon: Bird, eyebrow: 'Flock Intelligence', title: 'Batch lifecycle, end to end.',
-    body: 'Every batch — broiler, layer or breeder — owns a five-tab record: overview, feed, health, harvest, ledger. A state machine blocks impossible transitions (no egg sales during a withdrawal, no closure with open expenses).',
+    body: 'Every batch — broiler, layer, duck or turkey — owns a dedicated record: overview, feed, care, mortality, and settings. A synergy engine blocks impossible transitions (no sales during a withdrawal period).',
     bullets: [
-      'Reference curves: Cobb 500, Ross 308, Lohmann Brown',
-      'Daily counts, weight sampling, FCR rollups',
-      'Mortality with 9-cause tagging and house-level heatmap',
-      'Performance Index per batch (0–100, explainable)',
+      'Reference curves: Broiler, Layer, Duck, Turkey',
+      'Daily counts, mortality with 9-cause tagging',
+      'Performance tracking from day-0 to harvest',
+      'Production system toggles (Intensive vs Semi-Intensive)',
     ],
     image: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1400&q=80&auto=format&fit=crop',
-    species: 'Broilers · Layers · Breeders',
+    species: 'Broilers · Layers · Ducks · Turkeys',
     to: '/batches' },
 
   { icon: FlaskConical, eyebrow: 'Feed Lab', title: 'Three methods, one optimiser.',
-    body: 'Ready-made for quick days, concentrate-mix for premix users, custom LP for full-control formulators. All three paths land in the same audit trail and deduct from the same stock.',
+    body: 'Ready-made for quick recording, concentrate-mix for standard users, custom LP for full-control formulators. All three paths land in the same ledger and deduct from the same stock.',
     bullets: [
-      'Pyomo LP solver — 22 ingredients, sub-second solve',
-      'Ghana & Nigeria ingredient libraries with live market pricing',
-      'Aflatoxin caps, salt ceilings, calcium/phosphorus ratios',
-      'Withdrawal-period guards block unsafe ration approval',
+      'HiGHS WASM LP solver — 48+ local ingredients',
+      'Intelligent safety preprocessor & aflatoxin caps',
+      'Calcium/Phosphorus ratios & Niacin floors (Ducks)',
+      'Infeasibility analysis with actionable advice',
     ],
     image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1400&q=80&auto=format&fit=crop',
-    species: 'Maize · Soya · Wheat bran · Fish meal · Premix',
+    species: 'Maize · Soya · Cassava (HQCP) · BSF Larvae',
     to: '/feed' },
 
   { icon: HeartPulse, eyebrow: 'Care & Water', title: 'Vaccinations never late.',
@@ -84,18 +84,19 @@ const MODULES = [
 
 export default function Solutions() {
   return (
-    <div>
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-10 pb-16 lg:pt-16">
+    <div className="bg-background text-foreground">
+      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
         <Eyebrow>Solutions</Eyebrow>
-        <h1 className="mt-6 max-w-4xl text-5xl sm:text-6xl lg:text-[88px] font-black leading-[0.95] tracking-tight">
-          Six modules. One <span className="italic font-serif font-normal text-primary">quiet</span> rhythm.
+        <h1 className="mt-8 max-w-5xl text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
+          Six modules. One <br />
+          <span className="italic font-serif font-normal text-primary">quiet</span> rhythm.
         </h1>
-        <p className="mt-7 max-w-2xl text-base sm:text-lg text-muted-foreground leading-relaxed">
+        <p className="mt-10 max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
           Each module solves a real daily pain — and each one is dovetailed, so logging once updates feed stock, the ledger, and the performance curve at the same time.
         </p>
       </section>
 
-      <section className="bg-secondary/30 py-20 lg:py-28">
+      <section className="bg-secondary/20 py-20 lg:py-28">
         <div className="mx-auto max-w-[1400px] px-6 lg:px-10 space-y-20">
           {MODULES.map((m, idx) => (
             <motion.div key={m.title} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}

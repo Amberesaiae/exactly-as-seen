@@ -15,6 +15,7 @@ export function useStockData() {
   const [farmId, setFarmId] = useState<string | null>(null);
   const [stockItems, setStockItems] = useState<StockItem[]>([]);
   const [transactions, setTransactions] = useState<StockTransaction[]>([]);
+  const [batches, setBatches] = useState<any[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -29,11 +30,15 @@ export function useStockData() {
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
-      const { data: items } = await supabase.from('stock_items').select('*').eq('farm_id', farm.id).order('name');
-      setStockItems(items ?? []);
+      const [itemsRes, txsRes, batchesRes] = await Promise.all([
+        supabase.from('stock_items').select('*').eq('farm_id', farm.id).order('name'),
+        supabase.from('stock_transactions').select('*').eq('farm_id', farm.id).order('date', { ascending: false }).limit(50),
+        supabase.from('batches').select('id, name').eq('farm_id', farm.id).eq('status', 'active')
+      ]);
 
-      const { data: txs } = await supabase.from('stock_transactions').select('*').eq('farm_id', farm.id).order('date', { ascending: false }).limit(50);
-      setTransactions(txs ?? []);
+      setStockItems(itemsRes.data ?? []);
+      setTransactions(txsRes.data ?? []);
+      setBatches(batchesRes.data ?? []);
 
       setLoading(false);
     };
@@ -77,7 +82,17 @@ export function useStockData() {
     toast.success('Stock item added');
   };
 
-  const recordTransaction = async (itemId: string, type: 'purchase' | 'usage' | 'adjustment', qty: number, price?: number, notes?: string) => {
+  const recordTransaction = async (params: {
+    itemId: string;
+    type: 'purchase' | 'usage' | 'adjustment';
+    qty: number;
+    price?: number;
+    notes?: string;
+    qualityGrade?: string;
+    expiryDate?: string;
+    batchId?: string | null;
+  }) => {
+    const { itemId, type, qty, price, notes, qualityGrade, expiryDate, batchId } = params;
     if (!farmId) return;
     setSubmitting(true);
     
@@ -99,14 +114,15 @@ export function useStockData() {
 
     if (txError) { toast.error(txError.message); setSubmitting(false); return; }
 
-    // If purchase, create a stock lot
+    // If purchase, create a stock lot with Quality and Expiry (Spec Essential)
     if (type === 'purchase') {
       const { error: lotError } = await supabase.from('stock_lots').insert({
         farm_id: farmId,
         stock_item_id: itemId,
         qty_on_hand: qty,
         unit_price_pesewas: price ? Math.round(price * 100) : 0,
-        quality_grade: 'A',
+        quality_grade: qualityGrade || 'excellent',
+        expiry_date: expiryDate || null,
         received_at: new Date().toISOString()
       });
       if (lotError) {
@@ -116,13 +132,13 @@ export function useStockData() {
       }
     }
 
-    // If usage, perform FIFO allocation via RPC
+    // If usage, perform FIFO allocation via RPC with Batch attribution
     if (type === 'usage') {
       const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
         p_farm_id: farmId,
         p_stock_item_id: itemId,
         p_qty_needed: qty,
-        p_batch_id: null,
+        p_batch_id: batchId || null,
         p_reason: notes || 'Stock usage',
         p_source_ref: tx.id
       });
@@ -141,20 +157,20 @@ export function useStockData() {
     if (itemError) { toast.error(itemError.message); setSubmitting(false); return; }
 
     if (type === 'purchase' && price) {
-      let expenseCategory = 'other';
-      if (item.category === 'feed_ingredients' || item.category === 'feed') {
-        expenseCategory = 'feed_purchase';
-      } else if (item.category === 'medications' || item.category === 'medicine') {
-        expenseCategory = 'medications';
-      } else if (item.category === 'chicks' || item.category === 'birds') {
-        expenseCategory = 'chicks_and_birds';
-      } else if (item.category === 'equipment') {
-        expenseCategory = 'equipment';
+      let expenseCategory = 'other_expenses';
+      const cat = item.category.toLowerCase();
+      if (cat.includes('feed') || cat.includes('ingredient') || cat.includes('supplement')) {
+        expenseCategory = 'feed_and_nutrition';
+      } else if (cat.includes('medication') || cat.includes('vaccine') || cat.includes('medicine')) {
+        expenseCategory = 'health_and_medicine';
+      } else if (cat.includes('equipment') || cat.includes('tool')) {
+        expenseCategory = 'equipment_and_tools';
       }
 
       const totalPesewas = Math.round(qty * price * 100);
       await supabase.from('expenses').upsert({
         farm_id: farmId,
+        batch_id: batchId || null,
         category: expenseCategory,
         description: `Purchase: ${qty} ${item.unit} of ${item.name}`,
         amount_pesewas: totalPesewas,
@@ -186,5 +202,6 @@ export function useStockData() {
     costPrivacyEnabled,
     addStockItem,
     recordTransaction,
+    batches,
   };
 }

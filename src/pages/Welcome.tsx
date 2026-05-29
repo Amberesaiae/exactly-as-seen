@@ -31,9 +31,8 @@ const staggerContainer: Variants = {
 export default function Welcome() {
   return (
     <div className="bg-background text-foreground selection:bg-primary/20">
-      <LandingNav />
       {/* HERO SECTION */}
-      <section id="platform" className="relative mx-auto max-w-[1400px] px-6 pb-20 pt-32 lg:px-10 lg:pb-32 lg:pt-40">
+      <section id="hero" className="relative mx-auto max-w-[1400px] px-6 pb-20 pt-32 lg:px-10 lg:pb-32 lg:pt-40">
         <div className="grid gap-16 lg:grid-cols-12 lg:gap-10 items-center">
           <motion.div initial="hidden" animate="show" variants={staggerContainer} className="lg:col-span-7">
             <motion.div variants={fadeUp}>
@@ -51,9 +50,9 @@ export default function Welcome() {
                     className="inline-flex items-center gap-2 rounded-full bg-foreground px-8 py-4.5 text-sm font-bold text-background hover:bg-foreground/90 transition shadow-2xl shadow-foreground/20">
                 Start your free farm <ArrowUpRight className="h-4 w-4" />
               </Link>
-              <a href="#solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-8 py-4.5 text-sm font-bold hover:bg-foreground/5 transition">
+              <Link to="/solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-8 py-4.5 text-sm font-bold hover:bg-foreground/5 transition">
                 Explore the modules
-              </a>
+              </Link>
             </motion.div>
           </motion.div>
 
@@ -138,15 +137,15 @@ export default function Welcome() {
               title="Flock Intelligence"
               subtitle="Batch Management"
               desc="Track every batch from chick arrival to final harvest. Real-time FCR, mortality alerts, and weight trends."
-              tags={['FCR Tracking', 'Mortality Alerts', 'Age Curves']}
+              tags={['Broilers & Layers', 'Ducks & Turkeys', 'Age Curves']}
             />
             <ModuleCard 
               image={IMG.feed} 
               icon={<FlaskConical className="h-6 w-6" />}
               title="Feed Lab"
               subtitle="Nutrition Optimizer"
-              desc="The region's most advanced feed calculator. Mix concentrates, full custom rations, or manual formulations."
-              tags={['Pyomo LP Optimizer', 'Safety Bounds', 'Cost Calculation']}
+              desc="The region's most advanced feed calculator. HiGHS WASM solver handles 48+ local ingredients with sub-second precision."
+              tags={['WASM LP Solver', 'Safety Bounds', 'Cost Calculation']}
             />
             <ModuleCard 
               image={IMG.field} 

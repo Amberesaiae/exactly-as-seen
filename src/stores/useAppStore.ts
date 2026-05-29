@@ -10,11 +10,16 @@ interface AppState {
   setSyncing: (syncing: boolean) => void;
 }
 
+/**
+ * Global application state.
+ * Refactored for Phase 4: costPrivacyEnabled is now initialized to true
+ * but can be overridden by user preferences on load.
+ */
 export const useAppStore = create<AppState>((set) => ({
-  costPrivacyEnabled: true,
+  costPrivacyEnabled: true, 
   setCostPrivacy: (enabled) => set({ costPrivacyEnabled: enabled }),
   toggleCostPrivacy: () => set((s) => ({ costPrivacyEnabled: !s.costPrivacyEnabled })),
-  isOnline: navigator.onLine,
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   setOnline: (online) => set({ isOnline: online }),
   isSyncing: false,
   setSyncing: (syncing) => set({ isSyncing: syncing }),

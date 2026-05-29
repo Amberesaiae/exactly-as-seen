@@ -63,7 +63,7 @@ export default function Stock() {
       <StockDialogs
         itemDialogOpen={itemDialogOpen} setItemDialogOpen={setItemDialogOpen} txDialogOpen={txDialogOpen} setTxDialogOpen={setTxDialogOpen}
         selectedItemId={selectedItemId} txType={txType} stockItems={stockItems} onAddItem={addStockItem} onRecordTx={recordTransaction}
-        submitting={submitting} costPrivacyEnabled={costPrivacyEnabled}
+        batches={batches} submitting={submitting} costPrivacyEnabled={costPrivacyEnabled}
       />
     </div>
   );
