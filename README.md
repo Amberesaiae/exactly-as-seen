@@ -1,8 +1,8 @@
-# LampFarms — Poultry Operations Ledger
+# LampFarms â€” Poultry Operations Ledger
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-org/exactly-as-seen&env=VITE_SUPABASE_URL,VITE_SUPABASE_ANON_KEY&envDescription=Supabase%20project%20credentials)
 
-A **premium PWA** for small and medium-scale poultry farmers — full offline support, batch lifecycle management, financial ledger, feed formulation (HiGHS LP solver), health task tracking, and branded PDF report generation.
+A **premium PWA** for small and medium-scale poultry farmers â€” full offline support, batch lifecycle management, financial ledger, feed formulation (HiGHS LP solver), health task tracking, and branded PDF report generation.
 
 ---
 
@@ -34,7 +34,7 @@ npm install
 
 # 3. Environment
 cp .env.example .env.local
-# Edit .env.local — add your Supabase URL and anon key
+# Edit .env.local â€” add your Supabase URL and anon key
 
 # 4. Run
 npm run dev
@@ -46,8 +46,8 @@ npm run dev
 
 | Variable | Required | Description |
 |---|---|---|
-| `VITE_SUPABASE_URL` | ✅ | Your Supabase project URL |
-| `VITE_SUPABASE_ANON_KEY` | ✅ | Public anon key from Supabase dashboard |
+| `VITE_SUPABASE_URL` | âœ… | Your Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | âœ… | Public anon key from Supabase dashboard |
 | `VITE_VAPID_PUBLIC_KEY` | Optional | VAPID public key for Web Push notifications |
 | `VITE_DEFAULT_CURRENCY` | Optional | Default currency code (default: `GHS`) |
 
@@ -58,7 +58,7 @@ npm run dev
 1. Push to GitHub
 2. Click **Deploy with Vercel** above
 3. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel Environment Variables
-4. Deploy — SPA routing and service worker headers are pre-configured in `vercel.json`
+4. Deploy â€” SPA routing and service worker headers are pre-configured in `vercel.json`
 
 ### Manual deploy
 
@@ -72,34 +72,46 @@ npx vercel --prod      # Deploy to production
 ## Architecture
 
 **Runtime stack:** React 18 + Vite + Supabase (Postgres, RLS, RPCs, Edge Functions).  
-**Canonical contracts:** [`docs/CANONICAL_RUNTIME.md`](docs/CANONICAL_RUNTIME.md) and [`src/lib/canonical.ts`](src/lib/canonical.ts) — enums, money, production systems, synergy sources. Do not invent alternate category slugs in UI.
+**Canonical contracts:** [`docs/CANONICAL_RUNTIME.md`](docs/CANONICAL_RUNTIME.md) and [`src/lib/canonical.ts`](src/lib/canonical.ts) â€” enums, money, production systems, synergy sources. Do not invent alternate category slugs in UI.
 
 ```
 src/
-├── components/
-│   ├── settings/      # Settings tabs
-│   └── records/       # Batch analytics tabs
-├── hooks/             # Domain data hooks
-├── lib/
-│   ├── canonical.ts   # Runtime enums & money helpers (source of truth)
-│   ├── production-system.ts
-│   ├── pdf-report.ts
-│   ├── feed-lp.ts     # HiGHS LP feed optimiser
-│   ├── synergy.ts     # Cross-module auto ledger/stock
-│   └── sync.ts        # Offline sync queue (Dexie + Supabase; partial)
-├── pages/
-├── service-worker.ts
-└── stores/
+â”œâ”€â”€ components/
+â”‚   â”œâ”€â”€ settings/      # Settings tabs
+â”‚   â””â”€â”€ records/       # Batch analytics tabs
+â”œâ”€â”€ hooks/             # Domain data hooks
+â”œâ”€â”€ lib/
+â”‚   â”œâ”€â”€ canonical.ts   # Runtime enums & money helpers (source of truth)
+â”‚   â”œâ”€â”€ production-system.ts
+â”‚   â”œâ”€â”€ pdf-report.ts
+â”‚   â”œâ”€â”€ feed-lp.ts     # HiGHS LP feed optimiser
+â”‚   â”œâ”€â”€ synergy.ts     # Cross-module auto ledger/stock
+â”‚   â””â”€â”€ sync.ts        # Offline sync queue (Dexie + Supabase; partial)
+â”œâ”€â”€ pages/
+â”œâ”€â”€ service-worker.ts
+â””â”€â”€ stores/
 supabase/
-├── migrations/        # SQL schema + RPCs (apply with supabase db push)
-└── functions/         # Edge cron wrappers
+â”œâ”€â”€ migrations/        # SQL schema + RPCs (apply with supabase db push)
+â””â”€â”€ functions/         # Edge cron wrappers
 ```
 
 ---
 
+
+## Database / Docker (deferred)
+
+Infra may not be running yet. **Code on `main` expects migrations including** `20260711000000_contract_alignment.sql`.
+
+See **[docs/DEFERRED_SUPABASE_AND_DOCKER.md](docs/DEFERRED_SUPABASE_AND_DOCKER.md)** for:
+- what is already in git vs what needs Supabase/Docker
+- full migration list and apply commands
+- Edge Function deploys and post-apply checklist
+
+When ready: `supabase db push` (hosted) or apply SQL against self-hosted Postgres per that guide.
+
 ## PDF Reports
 
-Click **Records → Exports → Download PDF** to generate a branded multi-page batch report including:
+Click **Records â†’ Exports â†’ Download PDF** to generate a branded multi-page batch report including:
 
 - Cover page with farm name and date
 - KPI grid (birds, mortality %, FCR, feed, revenue, net margin)
@@ -108,18 +120,18 @@ Click **Records → Exports → Download PDF** to generate a branded multi-page 
 - Health tasks log
 - Expense and revenue ledgers
 
-Financial data is automatically masked if **Cost Privacy** is enabled in Settings → Preferences.
+Financial data is automatically masked if **Cost Privacy** is enabled in Settings â†’ Preferences.
 
 ---
 
 ## Push Notifications
 
-Enable in **Settings → Alerts**. Supported triggers:
+Enable in **Settings â†’ Alerts**. Supported triggers:
 
-- 🔴 Mortality spike (> 2% daily loss)
-- 🟡 Overdue health task
-- 🔵 Feed schedule reminder
-- 🟢 Batch close-out reminder
+- ðŸ”´ Mortality spike (> 2% daily loss)
+- ðŸŸ¡ Overdue health task
+- ðŸ”µ Feed schedule reminder
+- ðŸŸ¢ Batch close-out reminder
 
 Generate a VAPID key pair for server-side push:
 
