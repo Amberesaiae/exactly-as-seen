@@ -71,20 +71,28 @@ npx vercel --prod      # Deploy to production
 
 ## Architecture
 
+**Runtime stack:** React 18 + Vite + Supabase (Postgres, RLS, RPCs, Edge Functions).  
+**Canonical contracts:** [`docs/CANONICAL_RUNTIME.md`](docs/CANONICAL_RUNTIME.md) and [`src/lib/canonical.ts`](src/lib/canonical.ts) — enums, money, production systems, synergy sources. Do not invent alternate category slugs in UI.
+
 ```
 src/
 ├── components/
-│   ├── settings/      # 8 focused settings tabs
+│   ├── settings/      # Settings tabs
 │   └── records/       # Batch analytics tabs
-├── hooks/             # usePushNotifications, useHealthData, etc.
+├── hooks/             # Domain data hooks
 ├── lib/
-│   ├── pdf-report.ts  # jsPDF branded report generator
+│   ├── canonical.ts   # Runtime enums & money helpers (source of truth)
+│   ├── production-system.ts
+│   ├── pdf-report.ts
 │   ├── feed-lp.ts     # HiGHS LP feed optimiser
-│   ├── sync.ts        # Offline sync queue (Dexie + Supabase)
-│   └── ...
-├── pages/             # Route-level components
-├── service-worker.ts  # Workbox + Push notification handlers
-└── stores/            # Zustand app store
+│   ├── synergy.ts     # Cross-module auto ledger/stock
+│   └── sync.ts        # Offline sync queue (Dexie + Supabase; partial)
+├── pages/
+├── service-worker.ts
+└── stores/
+supabase/
+├── migrations/        # SQL schema + RPCs (apply with supabase db push)
+└── functions/         # Edge cron wrappers
 ```
 
 ---

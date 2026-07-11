@@ -6,44 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertTriangle } from 'lucide-react';
+import {
+  EXPENSE_CATEGORIES,
+  REVENUE_CATEGORIES,
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+} from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
-
-// ─── Canonical 9 expense categories (DB CHECK / fifth sprint) ────────────────
-const EXPENSE_CATEGORIES = [
-  { value: 'feed_and_nutrition',      label: 'Feed & Nutrition' },
-  { value: 'health_and_medicine',     label: 'Health & Medicine' },
-  { value: 'labor_and_workers',       label: 'Labor & Workers' },
-  { value: 'utilities_and_services',  label: 'Utilities & Services' },
-  { value: 'equipment_and_tools',     label: 'Equipment & Tools' },
-  { value: 'transport_and_delivery',  label: 'Transport & Delivery' },
-  { value: 'housing_and_facilities',  label: 'Housing & Facilities' },
-  { value: 'chicks_and_birds',        label: 'Chicks & Birds' },
-  { value: 'other_expenses',          label: 'Other Expenses' },
-] as const;
-
-// ─── Canonical 5 revenue categories (DB CHECK / fifth sprint) ────────────────
-const REVENUE_CATEGORIES = [
-  { value: 'egg_sales',    label: 'Egg Sales' },
-  { value: 'bird_sales',   label: 'Bird Sales (Live)' },
-  { value: 'meat_sales',   label: 'Meat Sales (Dressed)' },
-  { value: 'manure_sales', label: 'Manure Sales' },
-  { value: 'other_revenue', label: 'Other Revenue' },
-] as const;
-
-const PAYMENT_METHODS = [
-  { value: 'cash',          label: 'Cash' },
-  { value: 'mobile_money',  label: 'Mobile Money' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'credit',        label: 'Credit' },
-] as const;
-
-const PAYMENT_STATUSES = [
-  { value: 'paid',    label: 'Paid' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'partial', label: 'Partial Payment' },
-] as const;
 
 interface FinanceDialogsProps {
   expenseOpen: boolean;

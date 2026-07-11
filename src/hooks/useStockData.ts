@@ -3,6 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
+import {
+  DEFAULT_STOCK_QUALITY,
+  expenseCategoryForStockItem,
+  toPesewas,
+  ledgerDate,
+  LEDGER_SOURCES,
+  selectPrimaryFarm,
+} from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type StockItem = Database['public']['Tables']['stock_items']['Row'];
@@ -23,10 +31,7 @@ export function useStockData() {
     const load = async () => {
       setLoading(true);
       const { data: farms } = await supabase.from('farms').select('id, setup_complete, updated_at').eq('user_id', user.id);
-      const farm = farms && farms.length > 0 ? [...farms].sort((a, b) => {
-        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-      })[0] : null;
+      const farm = selectPrimaryFarm(farms);
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
@@ -121,7 +126,7 @@ export function useStockData() {
         stock_item_id: itemId,
         qty_on_hand: qty,
         unit_price_pesewas: price ? Math.round(price * 100) : 0,
-        quality_grade: qualityGrade || 'A',
+        quality_grade: (qualityGrade as typeof DEFAULT_STOCK_QUALITY) || DEFAULT_STOCK_QUALITY,
         expiry_date: expiryDate || null,
         received_at: new Date().toISOString()
       });
@@ -157,26 +162,18 @@ export function useStockData() {
     if (itemError) { toast.error(itemError.message); setSubmitting(false); return; }
 
     if (type === 'purchase' && price) {
-      let expenseCategory = 'other_expenses';
-      const cat = item.category.toLowerCase();
-      if (cat.includes('feed') || cat.includes('ingredient') || cat.includes('supplement')) {
-        expenseCategory = 'feed_and_nutrition';
-      } else if (cat.includes('medication') || cat.includes('vaccine') || cat.includes('medicine')) {
-        expenseCategory = 'health_and_medicine';
-      } else if (cat.includes('equipment') || cat.includes('tool')) {
-        expenseCategory = 'equipment_and_tools';
-      }
-
-      const totalPesewas = Math.round(qty * price * 100);
+      const totalPesewas = toPesewas(qty * price);
       await supabase.from('expenses').upsert({
         farm_id: farmId,
         batch_id: batchId || null,
-        category: expenseCategory,
+        category: expenseCategoryForStockItem(item.category),
         description: `Purchase: ${qty} ${item.unit} of ${item.name}`,
         amount_pesewas: totalPesewas,
-        date: new Date().toISOString(),
-        source: 'auto:stock',
-        source_ref: tx.id
+        date: ledgerDate(),
+        source: LEDGER_SOURCES.stock,
+        source_ref: tx.id,
+        payment_method: 'cash',
+        payment_status: 'paid',
       }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
     }
 

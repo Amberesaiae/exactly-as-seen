@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 import { format, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
+import { selectPrimaryFarm, toPesewas, fromPesewas } from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type Expense = Database['public']['Tables']['expenses']['Row'];
@@ -28,10 +29,7 @@ export function useFinanceData() {
     const load = async () => {
       setLoading(true);
       const { data: farms } = await supabase.from('farms').select('id, setup_complete, updated_at').eq('user_id', user.id);
-      const farm = farms && farms.length > 0 ? [...farms].sort((a, b) => {
-        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-      })[0] : null;
+      const farm = selectPrimaryFarm(farms);
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
@@ -138,8 +136,9 @@ export function useFinanceData() {
   const addExpense = async (data: Partial<Expense>) => {
     if (!farmId) return;
     setSubmitting(true);
+    const major = Number((data as any).amount ?? fromPesewas(data.amount_pesewas));
     const { data: entry, error } = await supabase.from('expenses').insert({
-      amount_pesewas: Math.round(Number(data.amount) * 100),
+      amount_pesewas: toPesewas(major),
       category: data.category,
       description: data.description,
       batch_id: data.batch_id,
@@ -147,6 +146,8 @@ export function useFinanceData() {
       farm_id: farmId,
       payment_method: data.payment_method ?? 'cash',
       payment_status: data.payment_status ?? 'paid',
+      source: 'manual',
+      source_ref: null,
     } as Database['public']['Tables']['expenses']['Insert']).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
@@ -155,7 +156,7 @@ export function useFinanceData() {
       farm_id: farmId,
       batch_id: data.batch_id || null,
       event_type: 'expense',
-      description: `Added expense: ${data.category} — GHS ${Number(data.amount).toFixed(2)} (${data.description})`,
+      description: `Added expense: ${data.category} — ${major.toFixed(2)} (${data.description})`,
     });
 
     setExpenses(prev => [entry, ...prev]);
@@ -166,8 +167,9 @@ export function useFinanceData() {
   const addRevenue = async (data: Partial<Revenue>) => {
     if (!farmId) return;
     setSubmitting(true);
+    const major = Number((data as any).amount ?? fromPesewas(data.amount_pesewas));
     const { data: entry, error } = await supabase.from('revenue').insert({
-      amount_pesewas: Math.round(Number(data.amount) * 100),
+      amount_pesewas: toPesewas(major),
       category: data.category,
       description: data.description,
       batch_id: data.batch_id,
@@ -176,6 +178,8 @@ export function useFinanceData() {
       farm_id: farmId,
       payment_method: data.payment_method ?? 'cash',
       payment_status: data.payment_status ?? 'paid',
+      source: 'manual',
+      source_ref: null,
     } as Database['public']['Tables']['revenue']['Insert']).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
@@ -184,7 +188,7 @@ export function useFinanceData() {
       farm_id: farmId,
       batch_id: data.batch_id || null,
       event_type: 'revenue',
-      description: `Added revenue: ${data.category} — GHS ${data.amount} (${data.description})`,
+      description: `Added revenue: ${data.category} — ${major.toFixed(2)} (${data.description})`,
     });
 
     setRevenue(prev => [entry, ...prev]);

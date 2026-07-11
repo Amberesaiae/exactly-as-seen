@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { toPesewas, ledgerDate } from '@/lib/canonical';
 
 /**
  * Synergy Service (Dovetail Synergy)
@@ -45,8 +46,8 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
     batch_id: batchId || null,
     category,
     description,
-    amount_pesewas: Math.round(amount * 100),
-    date: date || new Date().toISOString().split('T')[0],
+    amount_pesewas: toPesewas(amount),
+    date: date || ledgerDate(),
     source,
     source_ref: sourceRef,
     payment_method: paymentMethod,
@@ -146,9 +147,9 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
     batch_id: batchId,
     category,
     description,
-    amount_pesewas: Math.round(amount * 100),
+    amount_pesewas: toPesewas(amount),
     buyer: buyer || null,
-    date: date || new Date().toISOString().split('T')[0],
+    date: date || ledgerDate(),
     source,
     source_ref: sourceRef,
     payment_method: paymentMethod,
