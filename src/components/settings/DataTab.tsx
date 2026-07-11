@@ -30,7 +30,7 @@ export default function DataTab({ farm, signOut }: DataTabProps) {
     try {
       const [batchesRes, eggsRes, feedRes, healthRes, mortalityRes, expensesRes, revenueRes, stockRes] = await Promise.all([
         supabase.from('batches').select('*').eq('farm_id', farm.id),
-        supabase.from('egg_records').select('*').eq('farm_id', farm.id),
+        supabase.from('egg_collections').select('*').eq('farm_id', farm.id),
         supabase.from('feed_schedules').select('*').eq('farm_id', farm.id),
         supabase.from('health_tasks').select('*').eq('farm_id', farm.id),
         supabase.from('mortality_records').select('*').eq('farm_id', farm.id),
@@ -43,7 +43,7 @@ export default function DataTab({ farm, signOut }: DataTabProps) {
         exported_at: new Date().toISOString(),
         farm: { name: farm.name, type: farm.farm_type, region: farm.location_region, district: farm.location_district },
         batches: batchesRes.data ?? [],
-        egg_records: eggsRes.data ?? [],
+        egg_collections: eggsRes.data ?? [],
         feed_schedules: feedRes.data ?? [],
         health_tasks: healthRes.data ?? [],
         mortality_records: mortalityRes.data ?? [],
@@ -79,16 +79,18 @@ export default function DataTab({ farm, signOut }: DataTabProps) {
     setExporting(true);
     try {
       const [expensesRes, revenueRes] = await Promise.all([
-        supabase.from('expenses').select('date, category, description, amount').eq('farm_id', farm.id).order('date', { ascending: false }),
-        supabase.from('revenue').select('date, category, description, amount, buyer').eq('farm_id', farm.id).order('date', { ascending: false }),
+        supabase.from('expenses').select('date, category, description, amount_pesewas').eq('farm_id', farm.id).order('date', { ascending: false }),
+        supabase.from('revenue').select('date, category, description, amount_pesewas, buyer').eq('farm_id', farm.id).order('date', { ascending: false }),
       ]);
 
       let csv = 'Type,Date,Category,Description,Amount,Buyer\n';
       (revenueRes.data ?? []).forEach(r => {
-        csv += `Revenue,${r.date},${r.category},"${r.description}",${r.amount},${r.buyer || ''}\n`;
+        const amt = Number((r as any).amount_pesewas ?? 0) / 100;
+        csv += `Revenue,${r.date},${r.category},"${r.description}",${amt},${(r as any).buyer || ''}\n`;
       });
       (expensesRes.data ?? []).forEach(e => {
-        csv += `Expense,${e.date},${e.category},"${e.description}",-${e.amount},\n`;
+        const amt = Number((e as any).amount_pesewas ?? 0) / 100;
+        csv += `Expense,${e.date},${e.category},"${e.description}",-${amt},\n`;
       });
 
       const blob = new Blob([csv], { type: 'text/csv' });

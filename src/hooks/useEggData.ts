@@ -241,21 +241,32 @@ export function useEggData() {
       return;
     }
 
-    // 2. Egg inventory verification (Graded)
-    const { data: inv } = await (supabase as any).rpc('get_graded_egg_inventory', {
+    // 2. Egg inventory verification (graded when available, else total good eggs)
+    let onHand = 0;
+    const graded = await (supabase as any).rpc('get_graded_egg_inventory', {
       p_batch_id: selectedBatch,
       p_farm_id: farmId,
       p_size: sizeCategory
     });
+    if (!graded.error && graded.data != null) {
+      onHand = Number(graded.data) || 0;
+    } else {
+      const fallback = await (supabase as any).rpc('get_egg_inventory', {
+        p_batch_id: selectedBatch,
+        p_farm_id: farmId,
+      });
+      onHand = Number(fallback.data) || 0;
+    }
 
-    if ((inv || 0) < totalEggs) {
-      toast.error(`Insufficient ${sizeCategory} eggs. On hand: ${inv || 0}, requested: ${totalEggs}`);
+    if (onHand < totalEggs) {
+      toast.error(`Insufficient ${sizeCategory} eggs. On hand: ${onHand}, requested: ${totalEggs}`);
       setSaleSubmitting(false);
       return;
     }
 
     const totalAmount = (crates * pricePerCrate) + (looses * pricePerLoose);
     const totalPesewas = Math.round(totalAmount * 100);
+    const normalizedPayment = paymentMethod === 'momo' ? 'mobile_money' : paymentMethod;
 
     const { data: sale, error } = await supabase.from('egg_sales').insert({
       farm_id: farmId,
@@ -264,13 +275,11 @@ export function useEggData() {
       crates_sold: crates,
       looses_sold: looses,
       size_category: sizeCategory,
-      unit_price: pricePerLoose, // average or base
       price_per_crate_pesewas: Math.round(pricePerCrate * 100),
       price_per_loose_pesewas: Math.round(pricePerLoose * 100),
-      total_amount: totalAmount,
       total_revenue_pesewas: totalPesewas,
       buyer: buyer || null,
-      payment_method: paymentMethod,
+      payment_method: normalizedPayment,
       notes: notes || null,
     } as any).select().single();
 

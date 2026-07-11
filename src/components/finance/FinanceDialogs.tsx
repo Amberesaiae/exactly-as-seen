@@ -10,26 +10,26 @@ import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 
-// ─── Canonical 9 expense categories (spec §3) ────────────────────────────────
+// ─── Canonical 9 expense categories (DB CHECK / fifth sprint) ────────────────
 const EXPENSE_CATEGORIES = [
-  { value: 'feed',       label: 'Feed & Nutrition' },
-  { value: 'medication', label: 'Health & Medicine' },
-  { value: 'labor',      label: 'Labor & Workers' },
-  { value: 'utilities',  label: 'Utilities & Services' },
-  { value: 'equipment',  label: 'Equipment & Tools' },
-  { value: 'transport',  label: 'Transport & Delivery' },
-  { value: 'housing',    label: 'Housing & Facilities' },
-  { value: 'chicks',     label: 'Chicks & Birds' },
-  { value: 'other',      label: 'Other Expenses' },
+  { value: 'feed_and_nutrition',      label: 'Feed & Nutrition' },
+  { value: 'health_and_medicine',     label: 'Health & Medicine' },
+  { value: 'labor_and_workers',       label: 'Labor & Workers' },
+  { value: 'utilities_and_services',  label: 'Utilities & Services' },
+  { value: 'equipment_and_tools',     label: 'Equipment & Tools' },
+  { value: 'transport_and_delivery',  label: 'Transport & Delivery' },
+  { value: 'housing_and_facilities',  label: 'Housing & Facilities' },
+  { value: 'chicks_and_birds',        label: 'Chicks & Birds' },
+  { value: 'other_expenses',          label: 'Other Expenses' },
 ] as const;
 
-// ─── Canonical 5 revenue categories (spec §3) ────────────────────────────────
+// ─── Canonical 5 revenue categories (DB CHECK / fifth sprint) ────────────────
 const REVENUE_CATEGORIES = [
   { value: 'egg_sales',    label: 'Egg Sales' },
   { value: 'bird_sales',   label: 'Bird Sales (Live)' },
   { value: 'meat_sales',   label: 'Meat Sales (Dressed)' },
   { value: 'manure_sales', label: 'Manure Sales' },
-  { value: 'other',        label: 'Other Revenue' },
+  { value: 'other_revenue', label: 'Other Revenue' },
 ] as const;
 
 const PAYMENT_METHODS = [

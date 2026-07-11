@@ -87,6 +87,19 @@ export function detectConflicts(args: {
       }
     }
 
+    // Rule C3: Dewormer + Coccidiostat same day (WARN - reduced efficacy)
+    const dewormerCoccidiostat =
+      (args.newMed.category === 'dewormer' && item.med.category === 'coccidiostat') ||
+      (args.newMed.category === 'coccidiostat' && item.med.category === 'dewormer');
+    if (dewormerCoccidiostat && diffDays === 0) {
+      hits.push({
+        code: 'C3',
+        severity: 'WARN',
+        message: `Dewormer and coccidiostat (${item.med.name}) scheduled on the same day.`,
+        suggestion: 'Separate by at least 1 day for best efficacy of both products.',
+      });
+    }
+
     // Rule C4: Live vaccine ± antibiotic (±72 hours) (BLOCK - Antibiotic kills live vaccine)
     const liveVaccineAntibiotic = (args.newMed.is_live_vaccine && item.med.category === 'antibiotic') ||
                                   (args.newMed.category === 'antibiotic' && item.med.is_live_vaccine);
@@ -96,6 +109,25 @@ export function detectConflicts(args: {
         severity: 'BLOCK',
         message: `Live vaccine and antibiotic (${item.med.name}) cannot be administered within 72 hours of each other.`,
         suggestion: 'Ensure a 3-day gap between live vaccines and antibiotic treatments.',
+      });
+    }
+
+    // Rule C5: Enrofloxacin + any other antibiotic (BLOCK - resistance)
+    const enroId = (id: string) => id.toLowerCase().includes('enro') || id.toLowerCase() === 'baytril';
+    const enroName = (name: string) => name.toLowerCase().includes('enro') || name.toLowerCase().includes('baytril');
+    const newIsEnro = enroId(args.newMed.id) || enroName(args.newMed.name);
+    const itemIsEnro = enroId(item.med.id) || enroName(item.med.name);
+    if (
+      (newIsEnro || itemIsEnro) &&
+      args.newMed.category === 'antibiotic' &&
+      item.med.category === 'antibiotic' &&
+      isOverlap(newStart, newEnd, taskStart, taskEnd)
+    ) {
+      hits.push({
+        code: 'C5',
+        severity: 'BLOCK',
+        message: `Enrofloxacin cannot overlap with another antibiotic (${item.med.name}).`,
+        suggestion: 'Complete enrofloxacin fully before starting another antibiotic (resistance risk).',
       });
     }
 

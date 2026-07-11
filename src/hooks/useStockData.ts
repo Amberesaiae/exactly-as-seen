@@ -121,7 +121,7 @@ export function useStockData() {
         stock_item_id: itemId,
         qty_on_hand: qty,
         unit_price_pesewas: price ? Math.round(price * 100) : 0,
-        quality_grade: qualityGrade || 'excellent',
+        quality_grade: qualityGrade || 'A',
         expiry_date: expiryDate || null,
         received_at: new Date().toISOString()
       });

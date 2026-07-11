@@ -98,7 +98,8 @@ export function useHealthData() {
     waterPrescription,
     waterChartData,
     totalWaterCostPesewas,
-    fwRatioInfo
+    fwRatioInfo,
+    dailyOperationalTasks,
   } = useHealthBatchStatus(batch, batchAge, healthTasks, waterRecords, farmRegion, waterRatePesewas, feedLogs);
 
   // Load batch-specific data
@@ -122,12 +123,13 @@ export function useHealthData() {
       const weekStartStr = format(weekStart, 'yyyy-MM-dd');
       const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
 
+      const todayStrLocal = format(new Date(), 'yyyy-MM-dd');
       const [vResult, hResult, wResult, btResult, flResult] = await Promise.all([
         supabase.from('vaccination_schedule').select('*').eq('batch_id', selectedBatch).order('scheduled_date'),
         supabase.from('health_tasks').select('*').eq('batch_id', selectedBatch).order('scheduled_date', { ascending: false }),
         supabase.from('water_records').select('*').eq('batch_id', selectedBatch).order('date', { ascending: false }).limit(14),
         supabase.from('batch_tasks').select('*').eq('batch_id', selectedBatch).eq('farm_id', farmId).gte('due_date', weekStartStr).lt('due_date', weekEndStr),
-        supabase.from('feed_logs').select('*').eq('batch_id', selectedBatch).eq('date', todayStr).limit(1),
+        supabase.from('feed_logs').select('*').eq('batch_id', selectedBatch).eq('date', todayStrLocal).limit(1),
       ]);
 
       setVaccinations(vResult.data ?? []);
@@ -197,11 +199,12 @@ export function useHealthData() {
           batch_id: selectedBatch,
           category: 'feed_and_nutrition',
           description: `Daily Feeding: ${task.amount}kg ${matchedStock[0].name}`,
-          amount: task.amount * unitPrice,
           amount_pesewas: Math.round(task.amount * unitPrice * 100),
           date: todayStr,
           source: 'auto:feed',
-          source_ref: `feed:${selectedBatch}:${todayStr}`
+          source_ref: `feed:${selectedBatch}:${todayStr}`,
+          payment_method: 'cash',
+          payment_status: 'paid',
         });
 
         setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { isBefore, isAfter, format } from 'date-fns';
 import { getActiveAlerts, getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
 import { getWaterPrescription } from '@/lib/dosing-utils';
+import { isSemiIntensiveSystem } from '@/lib/production-system';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -98,11 +99,11 @@ export function useHealthBatchStatus(
     if (!feedLoggedToday) {
        let kgPerBird = getPrescriptiveFeedIntake(batch.species, batchAge.week);
        const foragingMod = getForagingModifier(batch.species, batchAge.week);
-       
-       if (batch.production_system === 'semi_intensive' && foragingMod > 0) {
+
+       if (isSemiIntensiveSystem(batch.production_system) && foragingMod > 0) {
          kgPerBird = kgPerBird * (1 - foragingMod);
        }
-       
+
        const totalKg = batch.current_population * kgPerBird;
        
        tasks.push({

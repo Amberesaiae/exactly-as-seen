@@ -20,6 +20,7 @@ interface TerminationDialogProps {
 }
 
 export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: TerminationDialogProps) {
+  const { currency } = useAuth();
   const [terminationMode, setTerminationMode] = useState<'normal' | 'emergency'>('normal');
   const [saleRevenue, setSaleRevenue] = useState('0');
   const [completing, setCompleting] = useState(false);

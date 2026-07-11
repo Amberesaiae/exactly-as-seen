@@ -43,7 +43,7 @@ export function StockDialogs({
 }: StockDialogsProps) {
   const { currency } = useAuth();
   const [newItem, setNewItem] = useState({ name: '', category: 'feed_ingredient', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
-  const [txData, setTxData] = useState({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
+  const [txData, setTxData] = useState({ qty: '', price: '', notes: '', qualityGrade: 'A', expiryDate: '', batchId: 'none' });
 
   const selectedItem = stockItems.find(i => i.id === selectedItemId);
 
@@ -73,7 +73,7 @@ export function StockDialogs({
       batchId: txData.batchId === 'none' ? null : txData.batchId
     });
     setTxDialogOpen(false);
-    setTxData({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
+    setTxData({ qty: '', price: '', notes: '', qualityGrade: 'A', expiryDate: '', batchId: 'none' });
   };
 
   return (
@@ -170,10 +170,10 @@ export function StockDialogs({
                     <Select value={txData.qualityGrade} onValueChange={v => setTxData({...txData, qualityGrade: v})}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="excellent">Excellent (A+)</SelectItem>
-                        <SelectItem value="good">Good (A)</SelectItem>
-                        <SelectItem value="fair">Fair (B)</SelectItem>
-                        <SelectItem value="poor">Poor (C)</SelectItem>
+                        <SelectItem value="A">Grade A (Best)</SelectItem>
+                        <SelectItem value="B">Grade B</SelectItem>
+                        <SelectItem value="C">Grade C</SelectItem>
+                        <SelectItem value="damaged">Damaged (manual only)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

@@ -154,7 +154,7 @@ export function EggSaleDialog({ open, onOpenChange, onSubmit, submitting, hasAct
                   <SelectTrigger className="h-10 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="momo">Mobile Money</SelectItem>
+                    <SelectItem value="mobile_money">Mobile Money</SelectItem>
                     <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
                     <SelectItem value="credit">Credit / Debt</SelectItem>
                   </SelectContent>

@@ -30,7 +30,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       await autoCreateExpense({
         farmId,
         batchId: selectedBatch,
-        category: 'utilities',
+        category: 'utilities_and_services',
         description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
         amount,
         source: 'auto:water',

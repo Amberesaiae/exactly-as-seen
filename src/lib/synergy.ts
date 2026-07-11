@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 
 /**
  * Synergy Service (Dovetail Synergy)
- * Centralizes cross-module orchestration for Lampfarms.
+ * Money is stored only as amount_pesewas (migration 5B dropped amount).
  */
 
 interface SynergyExpenseParams {
@@ -11,10 +11,13 @@ interface SynergyExpenseParams {
   batchId?: string | null;
   category: string;
   description: string;
+  /** Major currency units (GHS/NGN); converted to pesewas on write. */
   amount: number;
   date?: string;
   source: string;
   sourceRef: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
 }
 
 interface SynergyStockDeductionParams {
@@ -30,8 +33,11 @@ interface SynergyStockDeductionParams {
  * Automates the creation of an expense from an operational event.
  */
 export async function autoCreateExpense(params: SynergyExpenseParams) {
-  const { farmId, batchId, category, description, amount, date, source, sourceRef } = params;
-  
+  const {
+    farmId, batchId, category, description, amount, date, source, sourceRef,
+    paymentMethod = 'cash', paymentStatus = 'paid',
+  } = params;
+
   if (amount <= 0) return;
 
   const { error } = await supabase.from('expenses').upsert({
@@ -39,11 +45,12 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
     batch_id: batchId || null,
     category,
     description,
-    amount,
     amount_pesewas: Math.round(amount * 100),
     date: date || new Date().toISOString().split('T')[0],
     source,
     source_ref: sourceRef,
+    payment_method: paymentMethod,
+    payment_status: paymentStatus,
   }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
 
   if (error) {
@@ -51,22 +58,19 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
   }
 }
 
-/**
- * Unit conversion helper for medication stock deduction.
- */
 function convertDoseToStockUnit(
   doseAmount: number,
   doseUnit: string | null,
   stockUnit: string
 ): number {
-  if (!doseUnit) return 1;
-  // Volume conversions to ml
+  if (!doseUnit) return doseAmount;
   const toMl: Record<string, number> = { tsp: 4.93, tbsp: 14.79, ml: 1, g: 1 };
   const doseInMl = doseAmount * (toMl[doseUnit] ?? 1);
   if (stockUnit === 'ml') return doseInMl;
-  if (stockUnit === 'g') return doseInMl; // approximate for liquids
+  if (stockUnit === 'g') return doseInMl;
   if (stockUnit === 'L' || stockUnit === 'l') return doseInMl / 1000;
-  return 1;
+  if (stockUnit === 'kg') return doseAmount;
+  return doseAmount;
 }
 
 /**
@@ -77,7 +81,6 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
 
   if (quantity <= 0) return;
 
-  // 1. Find matching stock item
   const { data: matchedStock } = await supabase
     .from('stock_items')
     .select('*')
@@ -90,17 +93,15 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
     return;
   }
 
-  // 2. Unit Conversion
   const qtyToDeduct = convertDoseToStockUnit(quantity, doseUnit || null, matchedStock.unit);
 
-  // 3. Perform FIFO allocation via RPC
   const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
     p_farm_id: farmId,
     p_stock_item_id: matchedStock.id,
     p_qty_needed: qtyToDeduct,
     p_batch_id: batchId,
     p_reason: reason,
-    p_source_ref: sourceRef
+    p_source_ref: sourceRef,
   });
 
   if (allocError) {
@@ -109,7 +110,6 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
     return;
   }
 
-  // 4. Update cached quantity in stock_items
   const newQty = Math.max(0, Number(matchedStock.current_quantity) - qtyToDeduct);
   await supabase.from('stock_items')
     .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
@@ -126,13 +126,18 @@ interface SynergyRevenueParams {
   date?: string;
   source: string;
   sourceRef: string;
+  paymentMethod?: string;
+  paymentStatus?: string;
 }
 
 /**
  * Automates the creation of a revenue entry from an operational event.
  */
 export async function autoCreateRevenue(params: SynergyRevenueParams) {
-  const { farmId, batchId, category, description, amount, buyer, date, source, sourceRef } = params;
+  const {
+    farmId, batchId, category, description, amount, buyer, date, source, sourceRef,
+    paymentMethod = 'cash', paymentStatus = 'paid',
+  } = params;
 
   if (amount <= 0) return;
 
@@ -141,12 +146,13 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
     batch_id: batchId,
     category,
     description,
-    amount,
     amount_pesewas: Math.round(amount * 100),
     buyer: buyer || null,
     date: date || new Date().toISOString().split('T')[0],
     source,
     source_ref: sourceRef,
+    payment_method: paymentMethod,
+    payment_status: paymentStatus,
   }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
 
   if (error) {
@@ -155,7 +161,7 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
 }
 
 /**
- * Bird Sale Synergy: Records revenue and reduces batch population atomically.
+ * Bird Sale Synergy: Records revenue and reduces batch population.
  */
 export async function recordBirdSale(params: {
   farmId: string;
@@ -174,35 +180,37 @@ export async function recordBirdSale(params: {
     return null;
   }
 
-  // 1. Synergy: Auto-Revenue Creation
+  const sourceRef = `${batchId}:sale:${quantity}:${Math.round(totalAmount * 100)}:${Date.now()}`;
+
   await autoCreateRevenue({
     farmId,
     batchId,
     category: 'bird_sales',
-    description: `Bird Sale: ${quantity} birds @ GHS ${unitPrice.toFixed(2)}`,
+    description: `Bird Sale: ${quantity} birds @ ${unitPrice.toFixed(2)}${notes ? ` — ${notes}` : ''}`,
     amount: totalAmount,
     buyer,
     source: 'auto:sale',
-    sourceRef: `${batchId}:sale:${Date.now()}`
+    sourceRef,
   });
 
-  // 2. Reduce population
   const newPop = currentPopulation - quantity;
-  const { error: popError } = await supabase.from('batches')
+  const { error: popError, data: updated } = await supabase.from('batches')
     .update({ current_population: newPop })
-    .eq('id', batchId);
+    .eq('id', batchId)
+    .gte('current_population', quantity)
+    .select('id')
+    .maybeSingle();
 
-  if (popError) {
-    console.error(`Synergy Error (Population Sync): ${popError.message}`);
+  if (popError || !updated) {
+    console.error(`Synergy Error (Population Sync): ${popError?.message ?? 'population race'}`);
     return null;
   }
 
-  // 3. Log Activity
   await supabase.from('activity_log').insert({
     farm_id: farmId,
     batch_id: batchId,
     event_type: 'bird_sale',
-    description: `Sold ${quantity} birds for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
+    description: `Sold ${quantity} birds for ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
   });
 
   return { newPop };

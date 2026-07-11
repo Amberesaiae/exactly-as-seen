@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
+import { isIntensiveSystem } from '@/lib/production-system';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { CONCENTRATE_PRODUCTS, type FeedPhase } from '@/lib/feed-data';
@@ -95,20 +96,20 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone, targetKg }:
         category: 'supplement' as const,
         name: selectedProduct.name,
         quantity_kg: concentrateKg,
-        unit_price: concPriceNum,
-        total_cost: concentrateKg * concPriceNum,
+        unit_price_pesewas: Math.round(concPriceNum * 100),
+        total_cost_pesewas: Math.round(concentrateKg * concPriceNum * 100),
       },
       {
         formulation_id: formulation.id,
         category: 'energy' as const,
         name: grainName,
         quantity_kg: grainKg,
-        unit_price: grainPriceNum,
-        total_cost: grainKg * grainPriceNum,
+        unit_price_pesewas: Math.round(grainPriceNum * 100),
+        total_cost_pesewas: Math.round(grainKg * grainPriceNum * 100),
       },
     ]);
 
-    const isIntensive = batch.production_system === 'intensive';
+    const isIntensive = isIntensiveSystem(batch.production_system);
     if (isIntensive) {
       const mixIngredients = [
         { name: selectedProduct.name, qty: concentrateKg },

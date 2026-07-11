@@ -36,7 +36,7 @@ const dailyCollectionConfig = {
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
-type EggRecord = Database['public']['Tables']['egg_records']['Row'];
+type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
 
 interface ChartDataItem {
   date: string;

@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
+import { isIntensiveSystem } from '@/lib/production-system';
 import type { Database } from '@/integrations/supabase/types';
 
 type Medication = Database['public']['Tables']['medications']['Row'];
@@ -134,7 +135,7 @@ export function useMedicationLogic(
     }
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
-    const isIntensive = activeBatch?.production_system === 'intensive';
+    const isIntensive = isIntensiveSystem(activeBatch?.production_system);
 
     if (isIntensive && task.product_name) {
       await autoDeductStock({

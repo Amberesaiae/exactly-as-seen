@@ -519,6 +519,39 @@ export type Database = {
         }
         Relationships: []
       }
+            feed_logs: {
+        Row: {
+          id: string
+          farm_id: string
+          batch_id: string
+          date: string
+          quantity_kg: number
+          feed_type: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          farm_id: string
+          batch_id: string
+          date?: string
+          quantity_kg?: number
+          feed_type?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          farm_id?: string
+          batch_id?: string
+          date?: string
+          quantity_kg?: number
+          feed_type?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       feed_formulations: {
         Row: {
           bag_size_kg: number
