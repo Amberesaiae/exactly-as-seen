@@ -60,10 +60,11 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
         category: 'health_and_medicine',
         description: `Vaccination: ${vaccine?.vaccine_name ?? 'Vaccine'} purchase`,
         amount_pesewas: costPesewas,
-        amount: costPesewas / 100,
         date: format(new Date(), 'yyyy-MM-dd'),
         source: 'auto:vaccination',
-        source_ref: vId
+        source_ref: vId,
+        payment_method: 'cash',
+        payment_status: 'paid',
       });
     }
 

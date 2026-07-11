@@ -6,44 +6,15 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { AlertTriangle } from 'lucide-react';
+import {
+  EXPENSE_CATEGORIES,
+  REVENUE_CATEGORIES,
+  PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+} from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
-
-// ─── Canonical 9 expense categories (spec §3) ────────────────────────────────
-const EXPENSE_CATEGORIES = [
-  { value: 'feed',       label: 'Feed & Nutrition' },
-  { value: 'medication', label: 'Health & Medicine' },
-  { value: 'labor',      label: 'Labor & Workers' },
-  { value: 'utilities',  label: 'Utilities & Services' },
-  { value: 'equipment',  label: 'Equipment & Tools' },
-  { value: 'transport',  label: 'Transport & Delivery' },
-  { value: 'housing',    label: 'Housing & Facilities' },
-  { value: 'chicks',     label: 'Chicks & Birds' },
-  { value: 'other',      label: 'Other Expenses' },
-] as const;
-
-// ─── Canonical 5 revenue categories (spec §3) ────────────────────────────────
-const REVENUE_CATEGORIES = [
-  { value: 'egg_sales',    label: 'Egg Sales' },
-  { value: 'bird_sales',   label: 'Bird Sales (Live)' },
-  { value: 'meat_sales',   label: 'Meat Sales (Dressed)' },
-  { value: 'manure_sales', label: 'Manure Sales' },
-  { value: 'other',        label: 'Other Revenue' },
-] as const;
-
-const PAYMENT_METHODS = [
-  { value: 'cash',          label: 'Cash' },
-  { value: 'mobile_money',  label: 'Mobile Money' },
-  { value: 'bank_transfer', label: 'Bank Transfer' },
-  { value: 'credit',        label: 'Credit' },
-] as const;
-
-const PAYMENT_STATUSES = [
-  { value: 'paid',    label: 'Paid' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'partial', label: 'Partial Payment' },
-] as const;
 
 interface FinanceDialogsProps {
   expenseOpen: boolean;

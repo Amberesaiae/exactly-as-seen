@@ -10,21 +10,20 @@ The original specs were written for a Python stack that does not match the codeb
 
 | Concern | Canonical Choice | Replaces (from old specs) |
 |---|---|---|
-| Language | TypeScript (Node.js 20+ ESM) | Python 3.11 |
-| HTTP framework | Express 5 | FastAPI |
-| ORM | Drizzle ORM | SQLAlchemy 2.0 |
-| Migrations | drizzle-kit | Alembic |
-| Validation | Zod (with `drizzle-zod`) | Pydantic |
-| Job queue / scheduler | **pg-boss** (Postgres-native) | APScheduler |
-| Outbox relay | pg-boss (Postgres-native) | Custom APScheduler poller |
-| FSM | XState v5 | python-statemachine |
-| LP solver | `highs-js` (WASM port of HiGHS) | Pyomo + HiGHS |
-| Logging | pino (structured JSON) | Python logging |
-| Server testing | Vitest + supertest | pytest |
-| Frontend | React 19 + Vite + TanStack Query | (same) |
+| Language | TypeScript (browser + Supabase Edge Deno) | Python 3.11 / Express 5 (deprecated) |
+| App server | **None — Supabase** (PostgREST + RLS + RPCs + Edge Functions) | FastAPI / Express |
+| ORM | Supabase client + SQL migrations | SQLAlchemy / Drizzle |
+| Migrations | `supabase/migrations/*.sql` | Alembic / drizzle-kit |
+| Validation | Zod (client) + Postgres CHECK | Pydantic |
+| Job queue / scheduler | Edge Functions + `pg_cron` / SQL cron functions | APScheduler / pg-boss |
+| Outbox | Dexie `sync_outbox` (client; partial) | pg-boss outbox |
+| FSM | XState v5 (reference/tests; lifecycle also SQL) | python-statemachine |
+| LP solver | `highs-js` (WASM) | Pyomo + HiGHS |
+| Frontend | React 18 + Vite + react-router-dom + TanStack Query | React 19 / TanStack Router (old docs) |
 | Local DB | Dexie.js v4 | (same) |
 | Service Worker | Workbox `injectManifest` | (same) |
-| Database | PostgreSQL 16 | (same) |
+| Database | PostgreSQL (Supabase) | (same) |
+| **Runtime enums / money** | **`src/lib/canonical.ts` + `docs/CANONICAL_RUNTIME.md`** | scattered |
 
 ### Module layout
 

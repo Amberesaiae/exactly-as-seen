@@ -407,8 +407,7 @@ export type Database = {
       }
       expenses: {
         Row: {
-          amount: number
-          amount_pesewas: number | null
+          amount_pesewas: number
           batch_id: string | null
           category: string
           created_at: string
@@ -422,8 +421,7 @@ export type Database = {
           source_ref: string | null
         }
         Insert: {
-          amount?: number
-          amount_pesewas?: number | null
+          amount_pesewas?: number
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -437,8 +435,7 @@ export type Database = {
           source_ref?: string | null
         }
         Update: {
-          amount?: number
-          amount_pesewas?: number | null
+          amount_pesewas?: number
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -516,6 +513,39 @@ export type Database = {
           user_id?: string
           water_source_chlorinated?: boolean
           water_rate_per_liter_pesewas?: number | null
+        }
+        Relationships: []
+      }
+      feed_logs: {
+        Row: {
+          id: string
+          farm_id: string
+          batch_id: string
+          date: string
+          quantity_kg: number
+          feed_type: string | null
+          notes: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          farm_id: string
+          batch_id: string
+          date?: string
+          quantity_kg?: number
+          feed_type?: string | null
+          notes?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          farm_id?: string
+          batch_id?: string
+          date?: string
+          quantity_kg?: number
+          feed_type?: string | null
+          notes?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -1116,8 +1146,7 @@ export type Database = {
       }
       revenue: {
         Row: {
-          amount: number
-          amount_pesewas: number | null
+          amount_pesewas: number
           batch_id: string | null
           buyer: string | null
           category: string
@@ -1132,8 +1161,7 @@ export type Database = {
           source_ref: string | null
         }
         Insert: {
-          amount?: number
-          amount_pesewas?: number | null
+          amount_pesewas?: number
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -1148,8 +1176,7 @@ export type Database = {
           source_ref?: string | null
         }
         Update: {
-          amount?: number
-          amount_pesewas?: number | null
+          amount_pesewas?: number
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -1536,7 +1563,71 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      assert_farm_owner: {
+        Args: { p_farm_id: string }
+        Returns: undefined
+      }
+      allocate_fifo_by_quality: {
+        Args: {
+          p_farm_id: string
+          p_stock_item_id: string
+          p_qty_needed: number
+          p_batch_id: string
+          p_reason: string
+          p_source_ref: string
+        }
+        Returns: { allocated_lot_id: string; qty_from_lot: number }[]
+      }
+      get_egg_inventory: {
+        Args: { p_batch_id: string; p_farm_id: string }
+        Returns: number
+      }
+      get_graded_egg_inventory: {
+        Args: { p_batch_id: string; p_farm_id: string; p_size?: string | null }
+        Returns: number
+      }
+      get_farm_financial_stats: {
+        Args: { p_farm_id: string }
+        Returns: Json
+      }
+      get_batch_record_summary: {
+        Args: { p_farm_id: string; p_batch_ids: string[] }
+        Returns: {
+          batch_id: string
+          initial_quantity: number
+          current_population: number
+          total_mortality: number
+          total_feed_kg: number
+          total_eggs: number
+          total_expenses_pesewas: number
+          total_revenue_pesewas: number
+        }[]
+      }
+      get_weekly_health_summary: {
+        Args: { p_batch_id: string; p_week_number: number; p_farm_id: string }
+        Returns: Json
+      }
+      bulk_complete_health_tasks: {
+        Args: {
+          p_batch_id: string
+          p_week_number: number
+          p_farm_id: string
+          p_completed_at?: string
+        }
+        Returns: Json
+      }
+      get_dashboard_overview: {
+        Args: { p_farm_id: string }
+        Returns: Json
+      }
+      cron_advance_batch_weeks: { Args: Record<string, never>; Returns: undefined }
+      cron_check_withdrawal_periods: { Args: Record<string, never>; Returns: undefined }
+      cron_generate_daily_tasks: { Args: Record<string, never>; Returns: undefined }
+      cron_prune_idempotency_keys: { Args: Record<string, never>; Returns: undefined }
+      recompute_batch_phase: {
+        Args: { p_species: string; p_duck_type: string; p_week: number }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never

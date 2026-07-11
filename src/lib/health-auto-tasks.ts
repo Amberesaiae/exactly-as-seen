@@ -100,3 +100,6 @@ export function generateAutoTasks(args: {
 
   return tasks;
 }
+
+/** Alias kept for tests / older call sites */
+export const generateInitialTasks = generateAutoTasks;

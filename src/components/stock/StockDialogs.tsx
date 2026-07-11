@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
+import { DEFAULT_STOCK_QUALITY, STOCK_QUALITY_GRADES } from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type StockItem = Database['public']['Tables']['stock_items']['Row'];
@@ -43,7 +44,9 @@ export function StockDialogs({
 }: StockDialogsProps) {
   const { currency } = useAuth();
   const [newItem, setNewItem] = useState({ name: '', category: 'feed_ingredient', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
-  const [txData, setTxData] = useState({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
+  const [txData, setTxData] = useState({
+    qty: '', price: '', notes: '', qualityGrade: DEFAULT_STOCK_QUALITY as string, expiryDate: '', batchId: 'none',
+  });
 
   const selectedItem = stockItems.find(i => i.id === selectedItemId);
 
@@ -73,7 +76,7 @@ export function StockDialogs({
       batchId: txData.batchId === 'none' ? null : txData.batchId
     });
     setTxDialogOpen(false);
-    setTxData({ qty: '', price: '', notes: '', qualityGrade: 'excellent', expiryDate: '', batchId: 'none' });
+    setTxData({ qty: '', price: '', notes: '', qualityGrade: DEFAULT_STOCK_QUALITY, expiryDate: '', batchId: 'none' });
   };
 
   return (
@@ -170,10 +173,9 @@ export function StockDialogs({
                     <Select value={txData.qualityGrade} onValueChange={v => setTxData({...txData, qualityGrade: v})}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="excellent">Excellent (A+)</SelectItem>
-                        <SelectItem value="good">Good (A)</SelectItem>
-                        <SelectItem value="fair">Fair (B)</SelectItem>
-                        <SelectItem value="poor">Poor (C)</SelectItem>
+                        {STOCK_QUALITY_GRADES.map((g) => (
+                          <SelectItem key={g.value} value={g.value}>{g.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

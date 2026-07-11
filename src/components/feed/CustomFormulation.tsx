@@ -16,6 +16,7 @@ import { useCustomFormulationSolver } from './hooks/useCustomFormulationSolver';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
+import { isIntensiveSystem } from '@/lib/production-system';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { X, Plus, Lightbulb } from 'lucide-react';
@@ -139,13 +140,13 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
         category: s.ingredient.category,
         name: s.ingredient.name,
         quantity_kg: s.quantityKg,
-        unit_price: s.unitPrice,
-        total_cost: s.quantityKg * s.unitPrice,
+        unit_price_pesewas: Math.round(s.unitPrice * 100),
+        total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
         stock_item_id: s.stockItemId || null
       }))
     );
 
-    const isIntensive = batch.production_system === 'intensive';
+    const isIntensive = isIntensiveSystem(batch.production_system);
     if (isIntensive) {
       for (const s of selected) {
         if (s.quantityKg > 0) {

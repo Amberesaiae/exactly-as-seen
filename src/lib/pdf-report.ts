@@ -174,8 +174,8 @@ export async function generateBatchPDF(
       ? ((totalMort / batch.initial_quantity) * 100).toFixed(1) : '0.0';
     // feed_schedules uses total_amount_kg per entry
     const totalFeedKg  = bFeed.reduce((s, f) => s + (f.total_amount_kg ?? 0), 0);
-    const totalExpGHS  = bExp.reduce((s, e) => s + (e.amount ?? 0), 0);
-    const totalRevGHS  = bRev.reduce((s, r) => s + (r.amount ?? 0), 0);
+    const totalExpGHS  = bExp.reduce((s, e) => s + (Number(e.amount_pesewas ?? 0) / 100), 0);
+    const totalRevGHS  = bRev.reduce((s, r) => s + (Number(r.amount_pesewas ?? 0) / 100), 0);
     const netGHS       = totalRevGHS - totalExpGHS;
     const completedTasks = bTask.filter(t => t.completed).length;
 
@@ -297,7 +297,7 @@ export async function generateBatchPDF(
           body: bExp.slice(0, 15).map(e => [
             format(new Date(e.date), 'dd MMM yyyy'),
             e.category ?? '—',
-            (e.amount ?? 0).toFixed(2),
+            (Number(e.amount_pesewas ?? 0) / 100).toFixed(2),
             (e.description ?? '').substring(0, 40),
           ]),
           margin: { left: margin, right: margin },
@@ -318,7 +318,7 @@ export async function generateBatchPDF(
           body: bRev.slice(0, 15).map(r => [
             format(new Date(r.date), 'dd MMM yyyy'),
             r.category ?? '—',
-            (r.amount ?? 0).toFixed(2),
+            (Number(r.amount_pesewas ?? 0) / 100).toFixed(2),
             (r.buyer ?? '—').substring(0, 20),
             r.source ?? '—',
           ]),

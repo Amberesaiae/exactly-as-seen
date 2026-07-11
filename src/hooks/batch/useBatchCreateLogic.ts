@@ -3,6 +3,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { cacheBatches } from '@/lib/sync';
+import { generateAutoTasks } from '@/lib/health-auto-tasks';
+import { getBatchAge } from '@/lib/batch-utils';
 
 export function useBatchCreateLogic(farmId: string | null, userId: string | undefined) {
   const [name, setName] = useState('');
@@ -67,6 +69,8 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
 
     setSubmitting(true);
     const qty = parseInt(initialQuantity);
+    const cycleWeeks = parseInt(cycleLength);
+    const age = getBatchAge(startDate, species);
     const { data: batch, error: batchError } = await supabase.from('batches').insert({
       farm_id: farmId,
       name: name.trim(),
@@ -77,9 +81,11 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       initial_quantity: qty,
       current_population: qty,
       start_date: startDate,
-      cycle_length_weeks: parseInt(cycleLength),
+      cycle_length_weeks: cycleWeeks,
+      current_week: age.week,
+      current_day: age.day,
       status: 'active',
-      phase: 'starter',
+      phase: age.phase,
     }).select().single();
 
     if (batchError) {
@@ -91,8 +97,38 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     // Occupy house
     await supabase.from('houses').update({ occupied_by_batch_id: batch.id }).eq('id', houseId);
 
-    // Initial stock entries if needed (Optional in lean approach)
-    
+    // Seed vaccination / protocol health tasks from templates
+    const autoTasks = generateAutoTasks({
+      batchId: batch.id,
+      farmId,
+      species,
+      startDate,
+      cycleLengthWeeks: cycleWeeks,
+    });
+    if (autoTasks.length > 0) {
+      const { error: taskErr } = await supabase.from('health_tasks').insert(
+        autoTasks.map((t) => ({
+          batch_id: t.batch_id,
+          farm_id: t.farm_id,
+          task_type: t.task_type,
+          product_name: t.product_name,
+          medication_id: t.medication_id,
+          delivery_method: t.delivery_method,
+          scheduled_date: t.scheduled_date,
+          scheduled_week: t.scheduled_week,
+          duration_days: t.duration_days,
+          indication: t.indication,
+          priority: t.priority,
+          withdrawal_meat_days: t.withdrawal_meat_days,
+          withdrawal_egg_days: t.withdrawal_egg_days,
+          completed: false,
+        }))
+      );
+      if (taskErr) {
+        console.error('Auto health tasks seed failed:', taskErr.message);
+      }
+    }
+
     // Log activity
     await supabase.from('activity_log').insert({
       farm_id: farmId,

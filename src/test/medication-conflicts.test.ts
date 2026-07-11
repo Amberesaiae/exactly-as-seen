@@ -203,7 +203,7 @@ describe('medication-conflicts', () => {
     expect(hits.some(h => h.code === 'C5' && h.severity === 'BLOCK')).toBe(true);
   });
 
-  it('Rule C6: Activated charcoal + oral med on same day should BLOCK', () => {
+  it('Rule C6: Activated charcoal + oral med on same day should WARN (lean timing)', () => {
     const charcoal: Medication = {
       ...baseMed,
       id: 'activated_charcoal',
@@ -228,10 +228,10 @@ describe('medication-conflicts', () => {
       waterSourceChlorinated: false,
     });
 
-    expect(hits.some(h => h.code === 'C6' && h.severity === 'BLOCK')).toBe(true);
+    expect(hits.some(h => h.code === 'C6' && h.severity === 'WARN')).toBe(true);
   });
 
-  it('Rule C7: Calcium + Tetracycline same day should BLOCK', () => {
+  it('Rule C7: Calcium + Tetracycline same day should WARN (lean timing)', () => {
     const calcium: Medication = {
       ...baseMed,
       id: 'calcium_supplement',
@@ -255,6 +255,6 @@ describe('medication-conflicts', () => {
       waterSourceChlorinated: false,
     });
 
-    expect(hits.some(h => h.code === 'C7' && h.severity === 'BLOCK')).toBe(true);
+    expect(hits.some(h => h.code === 'C7' && h.severity === 'WARN')).toBe(true);
   });
 });

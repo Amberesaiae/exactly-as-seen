@@ -1,6 +1,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { FeedPhase } from '@/lib/feed-data';
+import { isIntensiveSystem, productionSystemLabel } from '@/lib/production-system';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -13,7 +14,9 @@ interface BatchContextCardProps {
 }
 
 export function BatchContextCard({ batch, phase, week, productionSystem }: BatchContextCardProps) {
-  const system = batch.production_system === 'intensive' ? 'Intensive (Automatic Feed Pattern)' : 'Semi-Intensive (Flexible)';
+  const system = isIntensiveSystem(batch.production_system)
+    ? `${productionSystemLabel(batch.production_system)} (Automatic Feed Pattern)`
+    : `${productionSystemLabel(batch.production_system)} (Flexible)`;
 
   return (
     <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">

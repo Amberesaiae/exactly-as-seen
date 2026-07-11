@@ -8,6 +8,7 @@ import { getExpectedRate } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
 import type { Database } from '@/integrations/supabase/types';
 import { autoCreateRevenue } from '@/lib/synergy';
+import { selectPrimaryFarm, normalizePaymentMethod, toPesewas, LEDGER_SOURCES } from '@/lib/canonical';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
@@ -36,10 +37,7 @@ export function useEggData() {
     const load = async () => {
       setLoading(true);
       const { data: farms } = await supabase.from('farms').select('id, setup_complete, updated_at').eq('user_id', user.id);
-      const farm = farms && farms.length > 0 ? [...farms].sort((a, b) => {
-        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-      })[0] : null;
+      const farm = selectPrimaryFarm(farms);
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
       const { data: b } = await supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active').in('species', ['layer', 'duck', 'turkey']);
@@ -241,21 +239,32 @@ export function useEggData() {
       return;
     }
 
-    // 2. Egg inventory verification (Graded)
-    const { data: inv } = await (supabase as any).rpc('get_graded_egg_inventory', {
+    // 2. Egg inventory verification (graded when available, else total good eggs)
+    let onHand = 0;
+    const graded = await (supabase as any).rpc('get_graded_egg_inventory', {
       p_batch_id: selectedBatch,
       p_farm_id: farmId,
       p_size: sizeCategory
     });
+    if (!graded.error && graded.data != null) {
+      onHand = Number(graded.data) || 0;
+    } else {
+      const fallback = await (supabase as any).rpc('get_egg_inventory', {
+        p_batch_id: selectedBatch,
+        p_farm_id: farmId,
+      });
+      onHand = Number(fallback.data) || 0;
+    }
 
-    if ((inv || 0) < totalEggs) {
-      toast.error(`Insufficient ${sizeCategory} eggs. On hand: ${inv || 0}, requested: ${totalEggs}`);
+    if (onHand < totalEggs) {
+      toast.error(`Insufficient ${sizeCategory} eggs. On hand: ${onHand}, requested: ${totalEggs}`);
       setSaleSubmitting(false);
       return;
     }
 
     const totalAmount = (crates * pricePerCrate) + (looses * pricePerLoose);
-    const totalPesewas = Math.round(totalAmount * 100);
+    const totalPesewas = toPesewas(totalAmount);
+    const normalizedPayment = normalizePaymentMethod(paymentMethod);
 
     const { data: sale, error } = await supabase.from('egg_sales').insert({
       farm_id: farmId,
@@ -264,13 +273,11 @@ export function useEggData() {
       crates_sold: crates,
       looses_sold: looses,
       size_category: sizeCategory,
-      unit_price: pricePerLoose, // average or base
-      price_per_crate_pesewas: Math.round(pricePerCrate * 100),
-      price_per_loose_pesewas: Math.round(pricePerLoose * 100),
-      total_amount: totalAmount,
+      price_per_crate_pesewas: toPesewas(pricePerCrate),
+      price_per_loose_pesewas: toPesewas(pricePerLoose),
       total_revenue_pesewas: totalPesewas,
       buyer: buyer || null,
-      payment_method: paymentMethod,
+      payment_method: normalizedPayment,
       notes: notes || null,
     } as any).select().single();
 
@@ -284,11 +291,11 @@ export function useEggData() {
       description: `Egg sale: ${crates} crates & ${looses} looses (${sizeCategory})`,
       amount: totalAmount,
       buyer: buyer || undefined,
-      paymentMethod,
-      paymentStatus: paymentStatus as any,
-      source: 'auto:eggs',
-      sourceRef: sale.id
-    } as any);
+      paymentMethod: normalizedPayment,
+      paymentStatus: (paymentStatus as 'paid' | 'pending' | 'partial') || 'paid',
+      source: LEDGER_SOURCES.eggs,
+      sourceRef: sale.id,
+    });
 
     await supabase.from('activity_log').insert({
       farm_id: farmId,
