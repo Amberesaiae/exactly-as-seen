@@ -174,6 +174,13 @@ export function useHealthData() {
       await logWater(task.amount, todayTemp, 'Protocol fulfilled via Task Orchestrator');
       toast.success(`Today's hydration confirmed: ${task.amount} ${task.unit}`);
     } else if (task.task_type === 'feeding') {
+      // Canonical day feed: always write feed_logs (done flag). Stock/expense only if intensive.
+      const { isIntensiveSystem } = await import('@/lib/production-system');
+      const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
+      const { LEDGER_SOURCES } = await import('@/lib/canonical');
+      const active = batches.find(b => b.id === selectedBatch);
+      const intensive = isIntensiveSystem(active?.production_system);
+
       const { data: matchedStock } = await supabase
         .from('stock_items')
         .select('*')
@@ -181,37 +188,52 @@ export function useHealthData() {
         .ilike('category', 'feed')
         .limit(1);
 
-      if (matchedStock?.length) {
-        await supabase.from('feed_logs').insert({
-          batch_id: selectedBatch,
-          farm_id: farmId,
-          quantity_kg: task.amount,
-          feed_type: matchedStock[0].name,
-          date: todayStr
-        });
-        
-        const newQty = Math.max(0, Number(matchedStock[0].current_quantity) - task.amount);
-        await supabase.from('stock_items').update({ current_quantity: newQty }).eq('id', matchedStock[0].id);
-        
-        const unitPrice = Number(matchedStock[0].unit_price_pesewas || 0) / 100;
-        await supabase.from('expenses').insert({
-          farm_id: farmId,
-          batch_id: selectedBatch,
-          category: 'feed_and_nutrition',
-          description: `Daily Feeding: ${task.amount}kg ${matchedStock[0].name}`,
-          amount_pesewas: Math.round(task.amount * unitPrice * 100),
-          date: todayStr,
-          source: 'auto:feed',
-          source_ref: `feed:${selectedBatch}:${todayStr}`,
-          payment_method: 'cash',
-          payment_status: 'paid',
-        });
+      const feedName = matchedStock?.[0]?.name ?? `${active?.species ?? 'flock'} feed`;
+      const sourceRef = `day-feed:${selectedBatch}:${todayStr}`;
 
-        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
-        toast.success(`Today's feeding confirmed: ${task.amount}kg deducted from stock`);
-      } else {
-        toast.error('No feed stock found. Please add feed to inventory first.');
+      const { error: logErr } = await supabase.from('feed_logs').insert({
+        batch_id: selectedBatch,
+        farm_id: farmId,
+        quantity_kg: task.amount,
+        feed_type: feedName,
+        date: todayStr,
+      });
+      if (logErr) {
+        toast.error(logErr.message.includes('duplicate') || logErr.code === '23505'
+          ? 'Feed already logged for today'
+          : logErr.message);
+        return;
       }
+
+      if (intensive && matchedStock?.length) {
+        await autoDeductStock({
+          farmId,
+          itemName: matchedStock[0].name,
+          quantity: task.amount,
+          batchId: selectedBatch,
+          reason: `Daily feeding ${task.amount}kg`,
+          sourceRef,
+        });
+        const unitPrice = Number(matchedStock[0].unit_price_pesewas || 0) / 100;
+        if (unitPrice > 0) {
+          await autoCreateExpense({
+            farmId,
+            batchId: selectedBatch,
+            category: 'feed_and_nutrition',
+            description: `Daily Feeding: ${task.amount}kg ${matchedStock[0].name}`,
+            amount: task.amount * unitPrice,
+            source: LEDGER_SOURCES.feed,
+            sourceRef,
+          });
+        }
+        toast.success(`Today's feeding confirmed: ${task.amount}kg deducted from stock`);
+      } else if (intensive && !matchedStock?.length) {
+        toast.warning(`Feed logged (${task.amount}kg) — no feed stock item found for auto-deduct`);
+      } else {
+        toast.success(`Today's feeding logged: ${task.amount}kg (flexible system — no auto stock/expense)`);
+      }
+
+      setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
     }
   };
 

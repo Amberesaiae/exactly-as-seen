@@ -56,6 +56,7 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
 
   const validate = () => {
     if (!name.trim()) return 'Name is required';
+    if (species === 'duck' && !duckType) return 'Select duck type (meat or layer)';
     if (!houseId) return 'House is required';
     if (!initialQuantity || parseInt(initialQuantity) <= 0) return 'Invalid initial quantity';
     if (!cycleLength || parseInt(cycleLength) <= 0) return 'Invalid cycle length';

@@ -119,6 +119,7 @@ export function ledgerDate(d: Date = new Date()): string {
 export {
   isIntensiveSystem,
   isSemiIntensiveSystem,
+  shouldAutoLedger,
   productionSystemLabel,
   type ProductionSystem,
 } from '@/lib/production-system';

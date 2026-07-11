@@ -105,7 +105,13 @@ export default function BatchCreate() {
                 )}
               </div>
 
-              <Button className="w-full rounded-full mt-4" onClick={() => setStep(2)} disabled={!name || !houseId}>Next Step</Button>
+              <Button
+                className="w-full rounded-full mt-4"
+                onClick={() => setStep(2)}
+                disabled={!name || !houseId || (species === 'duck' && !duckType)}
+              >
+                Next Step
+              </Button>
             </div>
           )}
 

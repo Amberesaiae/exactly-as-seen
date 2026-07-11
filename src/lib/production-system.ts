@@ -35,6 +35,15 @@ export function isIntensiveSystem(system: ProductionSystem): boolean {
   return INTENSIVE_SYSTEMS.has(system);
 }
 
+/**
+ * Research dual-pattern gate for operational consumption
+ * (feed confirm, health complete, day feed).
+ * Purchases and sales always ledger regardless of system.
+ */
+export function shouldAutoLedger(system: ProductionSystem): boolean {
+  return isIntensiveSystem(system);
+}
+
 /** True when foraging reductions / flexible feed apply. */
 export function isSemiIntensiveSystem(system: ProductionSystem): boolean {
   if (!system) return false;

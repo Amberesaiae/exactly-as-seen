@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { autoCreateExpense } from '@/lib/synergy';
+import { shouldAutoLedger } from '@/lib/production-system';
+import { LEDGER_SOURCES } from '@/lib/canonical';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { COMMERCIAL_FEED_TYPES } from '@/lib/feed-data';
@@ -84,16 +86,15 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
 
     if (error) { toast.error(error.message); setSaving(false); return; }
 
-    // Auto-create expense
-    if (totalCost > 0) {
-      // Synergy: Auto-Expense Creation
+    // Dual pattern: intensive → auto expense; flexible → formulation only (manual finance later)
+    if (totalCost > 0 && shouldAutoLedger(batch.production_system)) {
       await autoCreateExpense({
         farmId,
         batchId: batch.id,
         category: 'feed_and_nutrition',
         description: `Ready-made feed: ${feedType || 'Commercial'} ${brand ? `(${brand})` : ''} — ${totalKg}kg`,
         amount: totalCost,
-        source: 'auto:feed',
+        source: LEDGER_SOURCES.feed,
         sourceRef: formulation.id,
       });
     }
@@ -105,7 +106,11 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
       description: `Purchased ${bags} bags of ready-made feed (${totalKg}kg) for ${batch.name}`,
     });
 
-    toast.success('Feed purchase recorded!');
+    toast.success(
+      shouldAutoLedger(batch.production_system)
+        ? 'Feed purchase recorded (expense logged)'
+        : 'Formulation saved — record expense manually (flexible system)'
+    );
     setSaving(false);
     onDone();
   };

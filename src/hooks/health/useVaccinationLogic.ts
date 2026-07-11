@@ -52,20 +52,22 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
     
     const vaccine = currentVaccinations.find(v => v.id === vId);
     
-    // Synergy: Record financial expense if cost provided
+    // Dual pattern: intensive auto-expense only (research VACCINATION_COMPLETED)
     if (costPesewas > 0 && farmId && batch) {
-      await supabase.from('expenses').insert({
-        farm_id: farmId,
-        batch_id: batch.id,
-        category: 'health_and_medicine',
-        description: `Vaccination: ${vaccine?.vaccine_name ?? 'Vaccine'} purchase`,
-        amount_pesewas: costPesewas,
-        date: format(new Date(), 'yyyy-MM-dd'),
-        source: 'auto:vaccination',
-        source_ref: vId,
-        payment_method: 'cash',
-        payment_status: 'paid',
-      });
+      const { isIntensiveSystem } = await import('@/lib/production-system');
+      if (isIntensiveSystem(batch.production_system)) {
+        const { autoCreateExpense } = await import('@/lib/synergy');
+        const { LEDGER_SOURCES } = await import('@/lib/canonical');
+        await autoCreateExpense({
+          farmId,
+          batchId: batch.id,
+          category: 'health_and_medicine',
+          description: `Vaccination: ${vaccine?.vaccine_name ?? 'Vaccine'}`,
+          amount: costPesewas / 100,
+          source: LEDGER_SOURCES.vaccination,
+          sourceRef: vId,
+        });
+      }
     }
 
     const updated = currentVaccinations.map(v => v.id === vId ? { ...v, administered: true, administered_at: new Date().toISOString() } : v);

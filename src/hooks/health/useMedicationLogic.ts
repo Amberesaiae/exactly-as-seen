@@ -4,7 +4,8 @@ import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
-import { isIntensiveSystem } from '@/lib/production-system';
+import { shouldAutoLedger } from '@/lib/production-system';
+import { LEDGER_SOURCES } from '@/lib/canonical';
 import type { Database } from '@/integrations/supabase/types';
 
 type Medication = Database['public']['Tables']['medications']['Row'];
@@ -135,9 +136,9 @@ export function useMedicationLogic(
     }
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
-    const isIntensive = isIntensiveSystem(activeBatch?.production_system);
+    const autoLedger = shouldAutoLedger(activeBatch?.production_system);
 
-    if (isIntensive && task.product_name) {
+    if (autoLedger && task.product_name) {
       await autoDeductStock({
         farmId, itemName: task.product_name, 
         quantity: task.computed_dose_amount ? Number(task.computed_dose_amount) : (task.container_count ?? 1),
@@ -148,7 +149,7 @@ export function useMedicationLogic(
       await autoCreateExpense({
         farmId, batchId: batchId, category: 'health_and_medicine',
         description: `${task.product_name} — ${task.duration_days}d course`,
-        amount: costPesewas / 100, source: 'auto:health', sourceRef: taskId,
+        amount: costPesewas / 100, source: LEDGER_SOURCES.health, sourceRef: taskId,
       });
     }
 

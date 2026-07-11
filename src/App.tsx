@@ -114,10 +114,10 @@ function AppInner() {
           <Route path="/login" element={<Login />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/reset-password" element={<ResetPassword />} />
-          <Route path="/farm-setup" element={<ProtectedRoute><FarmSetup /></ProtectedRoute>} />
+          <Route path="/farm-setup" element={<ProtectedRoute requireSetupComplete={false}><FarmSetup /></ProtectedRoute>} />
 
-          {/* App shell routes */}
-          <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
+          {/* App shell routes — require farm setup complete */}
+          <Route element={<ProtectedRoute requireSetupComplete><AppLayout /></ProtectedRoute>}>
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/batches" element={<Batches />} />
             <Route path="/batches/new" element={<BatchCreate />} />

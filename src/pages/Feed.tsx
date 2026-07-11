@@ -20,16 +20,27 @@ export default function Feed() {
     batches, selectedBatch, setSelectedBatch, loading, formulations, schedules, batch, dynamics, phase
   } = useFeedData();
 
-  const { fulfillOperationalTask, dailyOperationalTasks, waterSaving: feedSaving } = useHealthData();
+  const {
+    fulfillOperationalTask,
+    dailyOperationalTasks,
+    feedLogs,
+    waterSaving: feedSaving,
+  } = useHealthData();
 
+  // Single prescription: phase g/bird (same number shown and used after task amount alignment in Health)
   const dailyTotalKg = phase && batch ? (phase.feedPerBirdG * batch.current_population) / 1000 : 0;
   
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const feedTask = useMemo(() => 
-    dailyOperationalTasks.find(t => t.task_type === 'feeding' && t.batch_id === selectedBatch), 
-  [dailyOperationalTasks, selectedBatch]);
+  const feedTask = useMemo(() => {
+    const t = dailyOperationalTasks.find(t => t.task_type === 'feeding' && t.batch_id === selectedBatch);
+    // Prefer phase-based kg when task exists so UI number matches confirm path target
+    if (t && dailyTotalKg > 0) return { ...t, amount: dailyTotalKg };
+    return t;
+  }, [dailyOperationalTasks, selectedBatch, dailyTotalKg]);
 
-  const isTodayCompleted = schedules.some(s => s.date === todayStr);
+  // Canonical done: feed_logs unique (batch, date) — not feed_schedules
+  const isTodayCompleted = (feedLogs?.some((l: { date?: string }) => l.date === todayStr) ?? false)
+    || schedules.some((s: { date?: string }) => s.date === todayStr);
 
   if (loading) return <div className="p-4 md:p-6 space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 rounded-xl" /></div>;
 

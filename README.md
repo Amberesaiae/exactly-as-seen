@@ -25,20 +25,29 @@ A **premium PWA** for small and medium-scale poultry farmers â€” full offli
 ## Quick Start
 
 ```bash
-# 1. Clone
+# 1. Clone (on Windows, prefer a real path on C: if agents cannot write D:\ junctions)
 git clone https://github.com/your-org/exactly-as-seen
 cd exactly-as-seen
+# Recommended agent workspace: C:\src\exactly-as-seen
 
 # 2. Install
 npm install
 
-# 3. Environment
-cp .env.example .env.local
-# Edit .env.local â€” add your Supabase URL and anon key
+# 3. Local backend (Docker Desktop must be Running — normal user, not admin shell)
+#    .\scripts\dev-backend.ps1
+#    then: npx supabase db reset
+# Or point env at a hosted Supabase project.
 
-# 4. Run
+# 4. Environment
+cp .env.example .env.local
+# Set VITE_SUPABASE_URL + VITE_SUPABASE_ANON_KEY (or VITE_SUPABASE_PUBLISHABLE_KEY)
+
+# 5. Run frontend
 npm run dev
+# or: .\scripts\dev-frontend.ps1
 ```
+
+See **[docs/BACKEND_LOCAL.md](docs/BACKEND_LOCAL.md)** for Docker/Supabase without daily admin PowerShell.
 
 ---
 
