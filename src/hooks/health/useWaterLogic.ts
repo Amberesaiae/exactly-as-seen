@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense } from '@/lib/synergy';
+import { shouldExpenseConsumption } from '@/lib/ledger-policy';
+import { LEDGER_SOURCES } from '@/lib/canonical';
 
 export function useWaterLogic(farmId: string | null, selectedBatch: string, waterRatePesewas?: number | null) {
   const [waterSaving, setWaterSaving] = useState(false);
@@ -20,22 +22,30 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     }).select().single();
 
     if (error) { toast.error(error.message); setWaterSaving(false); return; }
-    
-    // Auto-calculate cost and create synergy expense if rate exists
-    if (waterRatePesewas && waterRatePesewas > 0) {
-      const liters = gallons * 3.785;
-      const costPesewas = Math.round(liters * waterRatePesewas);
-      const amount = costPesewas / 100;
 
-      await autoCreateExpense({
-        farmId,
-        batchId: selectedBatch,
-        category: 'utilities_and_services',
-        description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
-        amount,
-        source: 'auto:water',
-        sourceRef: `water:${data.id}`
-      });
+    // Dual pattern: water utility expense only for intensive consumption
+    if (waterRatePesewas && waterRatePesewas > 0) {
+      const { data: batch } = await supabase
+        .from('batches')
+        .select('production_system')
+        .eq('id', selectedBatch)
+        .maybeSingle();
+
+      if (shouldExpenseConsumption(batch?.production_system)) {
+        const liters = gallons * 3.785;
+        const costPesewas = Math.round(liters * waterRatePesewas);
+        const amount = costPesewas / 100;
+
+        await autoCreateExpense({
+          farmId,
+          batchId: selectedBatch,
+          category: 'utilities_and_services',
+          description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
+          amount,
+          source: LEDGER_SOURCES.water,
+          sourceRef: `water:${data.id}`,
+        });
+      }
     }
 
     setWaterRecords(prev => [data, ...prev.slice(0, 13)]);

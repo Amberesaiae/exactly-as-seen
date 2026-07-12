@@ -1,25 +1,26 @@
-# Local backend (Supabase) — no daily admin PowerShell
+# Local backend (Supabase) — zero Windows admin daily
 
 **Canonical backend for LampFarms:** Supabase (Postgres + Auth + RLS + RPCs + Edge Functions).  
 There is no separate Express/Python API on `main`.
 
-## Why not admin PowerShell every time
+**Read first:** `docs/NO_ADMIN_STACK.md` — how we avoid UAC / elevation walls.
 
-| Do | Don't |
+## Docker model (canonical for this repo)
+
+| Layer | What we use |
 |---|---|
-| Run Docker Desktop as a normal user app | Elevate every terminal “as Administrator” |
-| Use `npx supabase` or project-local CLI | Require global install under Program Files |
-| Add Docker to **user** PATH once | Re-run installers daily |
-| Work on a **real writable path** | Use a junction into a drive the agent sandbox blocks |
+| **Engine** | Docker Engine inside **WSL2 Ubuntu** (`dockerd`) as **WSL root** |
+| **CLI** | Supabase CLI **inside WSL** (`/opt/supabase-cli`) |
+| **Windows app** | Bun + Vite; API URL = `http://<WSL_IP>:54321` (not localhost) |
+| **Not required** | Docker Desktop, Admin PowerShell, `netsh portproxy` |
 
-**One-time UAC** may appear when installing Docker Desktop or enabling WSL. Daily `dev` must not require elevation.
+`wsl -u root` is **not** Windows Administrator and does **not** show UAC.
 
 ## Prerequisites
 
-1. **Docker Desktop** installed and **Running** (whale icon idle).
-2. **WSL2** available (`wsl -l -v` shows Ubuntu or similar).
-3. **Node 20+** (`node -v`).
-4. **Writable repo path** (see below).
+1. **WSL2 + Ubuntu** (`wsl -l -v`).
+2. **Bun** (`bun -v`) on Windows.
+3. Writable repo path `C:\src\exactly-as-seen`.
 
 ### Writable path (Windows + Grok)
 
@@ -33,33 +34,21 @@ C:\src\exactly-as-seen     ← preferred working copy (writable)
 
 Original may live under `D:\Projects\...` via junction; push/pull via git remotes as usual.
 
-## Quick start
+## Quick start (no Admin PowerShell)
 
 ```powershell
-# 1) Ensure Docker engine is up (normal PowerShell)
-docker info
-# If it fails: open "Docker Desktop" and wait until Running
-
-# 2) Repo
 cd C:\src\exactly-as-seen
-
-# 3) Start Supabase stack (first run pulls images — slow)
-.\scripts\dev-backend.ps1
-# or: npx supabase start
-
-# 4) Copy keys into .env.local (script prints them)
-# VITE_SUPABASE_URL=http://127.0.0.1:54321
-# VITE_SUPABASE_ANON_KEY=<anon key from status>
-
-# 5) Apply schema (local)
-npx supabase db reset
-# applies all migrations under supabase/migrations/
-
-# 6) Frontend
-.\scripts\dev-frontend.ps1
-# or: npm install; npm run dev
+bun install
+bun run stack:up      # WSL root: containerd + dockerd + supabase
+bun run stack:env     # .env.local with WSL IP + keys
+bun run db:reset      # migrations (first time / schema change)
+bun run frontend
 ```
 
+Optional after reboot (WSL IP may change): `bun run stack:env` again.
+
+Package manager: **Bun**.  
+Scripts: `stack-up.ps1` → `wsl-stack-up.sh` (all no Windows UAC).
 ## Env vars
 
 | Variable | Required | Notes |
@@ -91,13 +80,47 @@ Cron wrappers: `advance-batch-weeks`, `generate-daily-tasks`, `check-withdrawal-
 
 ## Troubleshooting
 
+### “Error getting docker binary key” / backend binary path
+
+**Exact log** (`%LOCALAPPDATA%\Docker\log\host\Docker Desktop.exe.log`):
+
+```text
+getting backend binary path: cannot find registry key
+"SOFTWARE\\Docker Inc.\\Docker Desktop"
+```
+
+**Cause:** Docker Desktop install was interrupted during Phase “Components”.  
+Files exist under `C:\Program Files\Docker\Docker` but **HKLM registry was never written**. Starting Desktop from the Start menu fails forever; **no amount of non-admin restarts fixes it**.
+
+**ONE-TIME fix** (single UAC — not daily):
+
+```powershell
+bun run docker:fix
+# or: powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\fix-docker-desktop-once.ps1
+```
+
+Click **Yes** on UAC. Wait for installer to finish. Then daily:
+
+```powershell
+bun run backend    # no admin
+bun run stack:env
+bun run db:reset
+bun run frontend
+```
+
+Also check: you are in the `docker-users` group (you already are if listed under Local Users).
+
+### Other symptoms
+
 | Symptom | Fix |
 |---|---|
-| `docker_engine` pipe missing | Open Docker Desktop; wait; reboot once if first install |
+| `docker_engine` pipe missing (after registry OK) | Open Docker Desktop UI; wait until Running; `wsl --shutdown` then reopen Desktop |
+| Installer interrupted mid-Components | `bun run docker:fix` or reinstall via winget with elevation |
 | Access denied writing repo | Work under `C:\src\...` not `D:\Projects` junction |
-| Port 54321 in use | `npx supabase stop` then start; or free the port |
-| RLS / RPC missing | `npx supabase db reset` |
-| Admin prompt loops | Don’t run PowerShell as admin for npm/supabase; fix PATH instead |
+| Port 54321 in use | `bunx supabase stop` then start; or free the port |
+| RLS / RPC missing | `bun run db:reset` |
+| Admin prompt every day | Stop “Run as administrator” for terminals; only `docker:fix` needs one UAC |
+| WSL `sudo: timed out` | WSL Docker Engine path needs passwordless sudo or one interactive password — prefer fixed Desktop |
 
 ## Hosted Supabase alternative
 

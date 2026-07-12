@@ -1,147 +1,146 @@
 import { Link } from 'react-router-dom';
-import { motion, type Variants } from 'framer-motion';
-import { ArrowUpRight, Bird, FlaskConical, HeartPulse, LineChart, Egg, Boxes } from 'lucide-react';
-import { Eyebrow } from '@/components/landing/LandingLayout';
+import { PageHero } from '@/components/landing/PageHero';
+import { CloseCta } from '@/components/landing/CloseCta';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
-};
-
-const MODULES = [
-  { icon: Bird, eyebrow: 'Flock Intelligence', title: 'Batch lifecycle, end to end.',
-    body: 'Every batch — broiler, layer, duck or turkey — owns a dedicated record: overview, feed, care, mortality, and settings. A synergy engine blocks impossible transitions (no sales during a withdrawal period).',
-    bullets: [
-      'Reference curves: Broiler, Layer, Duck, Turkey',
-      'Daily counts, mortality with 9-cause tagging',
-      'Performance tracking from day-0 to harvest',
-      'Production system toggles (Intensive vs Semi-Intensive)',
+const modules = [
+  {
+    id: 'batches',
+    label: 'Batches',
+    title: 'Flock lifecycle',
+    path: '/batches',
+    body: 'Placement to terminate. Population, phase, week, house occupation, mortality and bird sale — with withdrawal gates.',
+    points: [
+      'Species + duck type at create',
+      'Protocol tasks seeded on confirm',
+      'One active flock per house',
     ],
-    image: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1400&q=80&auto=format&fit=crop',
-    species: 'Broilers · Layers · Ducks · Turkeys',
-    to: '/batches' },
-
-  { icon: FlaskConical, eyebrow: 'Feed Lab', title: 'Three methods, one optimiser.',
-    body: 'Ready-made for quick recording, concentrate-mix for standard users, custom LP for full-control formulators. All three paths land in the same ledger and deduct from the same stock.',
-    bullets: [
-      'HiGHS WASM LP solver — 48+ local ingredients',
-      'Intelligent safety preprocessor & aflatoxin caps',
-      'Calcium/Phosphorus ratios & Niacin floors (Ducks)',
-      'Infeasibility analysis with actionable advice',
+  },
+  {
+    id: 'feed',
+    label: 'Feed',
+    title: 'Plan · formulate · log',
+    path: '/feed',
+    body: 'Ready-made, concentrate, or custom mix. Day feed log is the operational done flag — not a second silent purchase.',
+    points: [
+      'Local ingredients and safety bounds',
+      'On-device LP when you need it',
+      'Dual pattern on consumption',
     ],
-    image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?w=1400&q=80&auto=format&fit=crop',
-    species: 'Maize · Soya · Cassava (HQCP) · BSF Larvae',
-    to: '/feed' },
-
-  { icon: HeartPulse, eyebrow: 'Care & Water', title: 'Vaccinations never late.',
-    body: 'Species- and age-aware protocols (Newcastle, IBD, Marek, IB) auto-schedule on batch creation. Water-intake logs flag dehydration days before mortality spikes. Withdrawal alerts block egg and meat sales while treatment is active.',
-    bullets: [
-      'Auto-generated calendars per breed and placement date',
-      'Daily water intake vs. expected — anomaly alerts',
-      'Withdrawal-period engine (7, 14, 21-day enforcement)',
-      'Treatment cost auto-posted to the batch ledger',
+  },
+  {
+    id: 'health',
+    label: 'Health',
+    title: 'Care you can finish',
+    path: '/health',
+    body: 'Scheduled meds and vaccines, container dosing, conflict checks. Completion can book stock and expense when intensive.',
+    points: [
+      'C1–C8 matrix (block vs warn)',
+      'Withdrawal on flock header',
+      'Duck niacin as water care',
     ],
-    image: 'https://images.unsplash.com/photo-1605883705077-8d3d3cebe78c?w=1400&q=80&auto=format&fit=crop',
-    species: 'Day-old chicks · Growers · Adult flocks',
-    to: '/health' },
-
-  { icon: Egg, eyebrow: 'Egg Harvest', title: 'Size-graded daily, sold smart.',
-    body: 'Record by grade (small, medium, large, jumbo, cracked), watch hen-day rate against the breed curve, and reconcile sales by channel — wholesaler, hatchery, retail, self-consumption.',
-    bullets: [
-      'Per-grade daily entry on one screen',
-      'Hen-day rate vs. flock-age reference curve',
-      'Sales channel breakdown & margin per channel',
-      'Withdrawal block prevents tainted-egg sales',
+  },
+  {
+    id: 'eggs',
+    label: 'Eggs',
+    title: 'Collect and sell cleanly',
+    path: '/eggs',
+    body: 'Layer week 19+, duck-layer week 20+. Graded inventory and sales blocked while egg withdrawal is active.',
+    points: [
+      'Collection vs sale split',
+      'Inventory RPCs when available',
+      'Revenue as egg_sales',
     ],
-    image: 'https://images.unsplash.com/photo-1569288063643-5d29ad6ad7a5?w=1400&q=80&auto=format&fit=crop',
-    species: 'Layer farms · Mixed flocks',
-    to: '/eggs' },
-
-  { icon: LineChart, eyebrow: 'Ledger', title: 'Honest margin, every time.',
-    body: 'Expenses, revenues and harvest reconcile into real cost per egg, per bird, per crate. Compare cycles, periods and houses. Toggle privacy mask when the device is shared with workers.',
-    bullets: [
-      'Period filter — day, week, cycle, custom range',
-      'Category breakdown: feed, vet, labour, utilities, fixed',
-      'Cost-privacy masking (one-tap)',
-      'Per-batch profit reconciliation on closure',
+  },
+  {
+    id: 'stock',
+    label: 'Stock',
+    title: 'Lots and FIFO',
+    path: '/stock',
+    body: 'Purchases open lots with quality grade. Usage and auto-allocation follow FIFO + quality — damaged stays manual.',
+    points: [
+      'Purchase always expenses',
+      'Quality A–C / damaged',
+      'Reorder thresholds',
     ],
-    image: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1400&q=80&auto=format&fit=crop',
-    species: 'All operations',
-    to: '/finance' },
-
-  { icon: Boxes, eyebrow: 'Inventory', title: 'No more silent stockouts.',
-    body: 'Feed, vaccines, drugs, equipment and packaging — tracked with reorder thresholds. Usage auto-deducts when the Feed Lab mixes a ration or the Care module administers a dose.',
-    bullets: [
-      'Low-stock alerts with reorder-point calculation',
-      'Purchase history with unit-cost trend',
-      'Auto-deduction from Feed Lab & Care & Water',
-      'Category tabs: feed, health, packaging, capex',
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    title: 'Ledger with privacy',
+    path: '/finance',
+    body: 'Nine expense categories, five revenue types. Auto rows are idempotent. Mask money on shared devices.',
+    points: [
+      'amount_pesewas only',
+      'auto:* sources',
+      'Cost privacy toggle',
     ],
-    image: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=1400&q=80&auto=format&fit=crop',
-    species: 'Feed · Vet supplies · Equipment',
-    to: '/stock' },
+  },
 ];
 
 export default function Solutions() {
   return (
     <div className="bg-background text-foreground">
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
-        <Eyebrow>Solutions</Eyebrow>
-        <h1 className="mt-8 max-w-5xl text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
-          Six modules. One <br />
-          <span className="italic font-serif font-normal text-primary">quiet</span> rhythm.
-        </h1>
-        <p className="mt-10 max-w-2xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
-          Each module solves a real daily pain — and each one is dovetailed, so logging once updates feed stock, the ledger, and the performance curve at the same time.
-        </p>
-      </section>
+      <PageHero
+        eyebrow="Solutions"
+        title={
+          <>
+            Modules that share
+            <br />
+            one flock truth.
+          </>
+        }
+        lead="Six workspaces, one farm. Open a module only when you need it — the batch record stays continuous."
+        ctas={[
+          { label: 'Create account', to: '/register' },
+          { label: 'Platform layers', to: '/platform', variant: 'outline' },
+        ]}
+        meta={['Batches', 'Feed', 'Health', 'Eggs', 'Stock', 'Finance']}
+      />
 
-      <section className="bg-secondary/20 py-20 lg:py-28">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10 space-y-20">
-          {MODULES.map((m, idx) => (
-            <motion.div key={m.title} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                        className={`grid gap-10 lg:grid-cols-12 items-center ${idx % 2 === 1 ? 'lg:[&>*:first-child]:order-2' : ''}`}>
-              <div className="lg:col-span-6">
-                <div className="aspect-[16/10] overflow-hidden rounded-[28px]">
-                  <img src={m.image} alt={m.eyebrow} loading="lazy" className="h-full w-full object-cover" />
+      <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6 sm:py-16">
+        <div className="space-y-0">
+          {modules.map((m, i) => (
+            <article key={m.id}>
+              <div className="grid gap-6 py-10 sm:grid-cols-12 sm:gap-8">
+                <div className="sm:col-span-4">
+                  <Badge variant="outline" className="font-normal">
+                    {m.label}
+                  </Badge>
+                  <h2 className="mt-3 text-xl font-semibold tracking-tight">{m.title}</h2>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{m.body}</p>
+                  <Button className="mt-4" variant="secondary" size="sm" asChild>
+                    <Link to="/register">Use after sign-in · {m.path}</Link>
+                  </Button>
                 </div>
+                <Card className="border-border/80 shadow-none sm:col-span-8">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      What you get
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pb-5">
+                    <ul className="space-y-3">
+                      {m.points.map((p) => (
+                        <li key={p} className="flex gap-3 text-sm">
+                          <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-primary" aria-hidden />
+                          <span>{p}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
               </div>
-              <div className="lg:col-span-6 lg:px-6">
-                <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.22em] text-primary">
-                  <m.icon className="h-5 w-5" /> {m.eyebrow}
-                </div>
-                <h2 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.02]">{m.title}</h2>
-                <p className="mt-5 text-muted-foreground leading-relaxed">{m.body}</p>
-                <ul className="mt-6 grid sm:grid-cols-2 gap-y-2 gap-x-6">
-                  {m.bullets.map(b => (
-                    <li key={b} className="flex items-start gap-2 text-sm">
-                      <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-primary shrink-0" /> {b}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-6 text-[11px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
-                  Built for: <span className="text-foreground">{m.species}</span>
-                </div>
-                <Link to={m.to} className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold underline underline-offset-4">
-                  Explore {m.eyebrow} <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </motion.div>
+              {i < modules.length - 1 && <Separator />}
+            </article>
           ))}
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24">
-        <div className="rounded-[32px] bg-foreground text-background px-8 py-16 lg:px-16 lg:py-20">
-          <Eyebrow><span className="text-background/70">Ready when you are</span></Eyebrow>
-          <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
-            Start with one module. Add the rest when it feels right.
-          </h2>
-          <Link to="/register" className="mt-8 inline-flex items-center gap-2 rounded-full bg-background px-6 py-3.5 text-sm font-semibold text-foreground">
-            Create free farm <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+      <CloseCta />
     </div>
   );
 }

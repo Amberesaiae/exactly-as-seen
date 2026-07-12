@@ -1,175 +1,162 @@
 import { Link } from 'react-router-dom';
-import { motion, type Variants } from 'framer-motion';
-import { ArrowUpRight, Wifi, Database, Shield, Globe2, Cpu, BarChart3 } from 'lucide-react';
-import { Eyebrow } from '@/components/landing/LandingLayout';
+import { PageHero } from '@/components/landing/PageHero';
+import { CloseCta } from '@/components/landing/CloseCta';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 
-const IMG = {
-  // Vertical portrait of brown laying hens — apt for "behind every flock"
-  portrait: 'https://images.unsplash.com/photo-1612170153139-6f881ff067e0?w=1200&q=80&auto=format&fit=crop',
-  field: 'https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=1800&q=80&auto=format&fit=crop',
-  // Species line-up
-  broiler: 'https://images.unsplash.com/photo-1569288063643-5d29ad6ad7a5?w=900&q=80&auto=format&fit=crop',
-  layer: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?w=900&q=80&auto=format&fit=crop',
-  chick: 'https://images.unsplash.com/photo-1444465693019-aa0b6392460d?w=900&q=80&auto=format&fit=crop',
-  breeder: 'https://images.unsplash.com/photo-1556386734-04d24c5708d4?w=900&q=80&auto=format&fit=crop',
-};
-
-const fadeUp: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.7, ease: [0.22, 1, 0.36, 1] } },
-};
-
-const PILLARS = [
-  { icon: Wifi, title: 'Offline-first by design',
-    body: 'A local IndexedDB cache backs every screen. Workers log feed, mortality and eggs from inside the house; the queued events sync the moment a 2G signal returns — no double entry, no overwritten records.' },
-  { icon: Cpu, title: 'WASM LP feed optimiser',
-    body: 'A high-performance linear-programming solver (HiGHS) computes least-cost rations under 10+ nutrient parameters, aflatoxin caps, and per-species safety floors. Solves a 48-ingredient diet in milliseconds.' },
-  { icon: Database, title: 'Dovetail Synergy ledger',
-    body: 'Feed mixed, vaccine drawn, birds sold, mortality logged — each event reconciles into a single batch ledger. Cost per bird and revenue per cycle are computed automatically, not estimated.' },
-  { icon: Shield, title: 'Role-aware privacy',
-    body: 'Owner, manager and field-worker roles. A privacy mask hides all monetary values on shared house tablets while still allowing operational logging. Persistent across devices.' },
-  { icon: Globe2, title: 'Built for West Africa',
-    body: 'Cedi-based ledger with regional temperature fallbacks for water planning. Ghana-validated ingredient libraries (HQCP Cassava, BSF Larvae). Twi interface support for field workers.' },
-  { icon: BarChart3, title: 'Precision Protocols',
-    body: '72+ pre-loaded medication and vaccination protocols for Broiler, Layer, Duck and Turkey. Automated withdrawal periods ensure food safety and regulatory compliance.' },
+const layers = [
+  {
+    n: '01',
+    title: 'Capture',
+    body: 'Tap forms for counts, bags, water, mortality. IndexedDB holds the queue when the house has no bars.',
+  },
+  {
+    n: '02',
+    title: 'Optimise',
+    body: 'On-device feed LP, conflict matrix C1–C8, withdrawal clocks. Advice stays local until you choose to sync.',
+  },
+  {
+    n: '03',
+    title: 'Ledger',
+    body: 'Intensive consumption can auto-book stock and expense. Flexible systems log work without silent charges. Purchases and sales always book.',
+  },
+  {
+    n: '04',
+    title: 'Insight',
+    body: 'Week progress, task lists, cost privacy, cycle comparisons — numbers from your logs, not a vanity dashboard.',
+  },
 ];
 
-const STACK = [
-  ['01', 'Capture layer',
-   'Tap-optimised forms tuned for the field — counts, feed bags, water logs, mortality with cause tags. Designed for dusty environments and 2G connectivity.'],
-  ['02', 'Optimisation layer',
-   'HiGHS WASM solver for feed, withdrawal-period engine for health, species-aware safety bands. Recommendations provide actionable infeasibility advice.'],
-  ['03', 'Ledger layer',
-   'Every expense, sale, and mortality reconciles into a per-batch ledger. Centralized synergy service ensures data integrity across finance and operations.'],
-  ['04', 'Insight layer',
-   'Protocol trend adherence, heat-stress anomaly alerts, and lean guidance tips. Decisions surface as suggestions before issues compound.'],
+const pillars = [
+  {
+    title: 'Offline-first',
+    body: 'Workers log inside the house. Sync runs when 2G returns. No double entry if the same day is open twice.',
+  },
+  {
+    title: 'Dual production pattern',
+    body: 'Deep litter and cage can auto-ledger. Semi-intensive, free range, and pasture stay manual on consumption.',
+  },
+  {
+    title: 'Species protocols',
+    body: 'Broiler, layer, duck (meat/layer), turkey — vaccines, niacin, blackhead windows seeded at batch create.',
+  },
+  {
+    title: 'West Africa context',
+    body: 'GHS/NGN money as integer minor units, container dosing, market ingredients, farm timezone Africa/Accra default.',
+  },
+  {
+    title: 'Cost privacy',
+    body: 'Mask amounts on a shared tablet. Operational logging stays available; money is owner-controlled.',
+  },
+  {
+    title: 'Safety gates',
+    body: 'Withdrawal blocks bird sale and normal terminate. Live vaccine and antibiotic windows refuse bad combos.',
+  },
 ];
 
-const SPECIES = [
-  { img: IMG.broiler, name: 'Broilers',
-    body: 'Day-0 to slaughter, optimised for West African commercial cycles. Growth-curve tracking and FCR benchmarks included.',
-    spec: 'FCR · ADG · liveweight' },
-  { img: IMG.layer, name: 'Layers',
-    body: '68-week production cycle. Comprehensive health protocols including Fowl Pox and monthly deworming. Per-grade daily egg tracking.',
-    spec: 'Hen-day · withdrawal · calcium' },
-  { img: IMG.breeder, name: 'Ducks',
-    body: 'Meat and Egg varieties. Specialized Niacin requirement alerts and Viral Hepatitis / Duck Plague vaccination protocols.',
-    spec: 'Niacin · water · meat/egg' },
-  { img: IMG.chick, name: 'Turkeys',
-    body: '16-week cycle with Blackhead disease prevention alerts. Higher water-intake logic and intensive vaccination schedules.',
-    spec: 'Blackhead · heat-stress · water' },
+const species = [
+  { name: 'Broiler', cycle: '6–8 weeks default', focus: 'FCR · mortality · 5-vax seed' },
+  { name: 'Layer', cycle: '72–78 weeks', focus: 'Eggs Wk 19+ · calcium · long care' },
+  { name: 'Duck', cycle: 'Meat 8–10 · Layer 72+', focus: 'Niacin · DVH · dual type' },
+  { name: 'Turkey', cycle: '12–20 weeks', focus: 'Blackhead · heat · water' },
 ];
 
 export default function Platform() {
   return (
     <div className="bg-background text-foreground">
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 pt-32 pb-20 lg:pt-48 lg:pb-32">
-        <div className="grid lg:grid-cols-12 gap-16 lg:gap-10 items-center">
-          <motion.div initial="hidden" animate="show" variants={fadeUp} className="lg:col-span-7">
-            <Eyebrow>The platform</Eyebrow>
-            <h1 className="mt-8 text-5xl sm:text-7xl lg:text-[100px] font-black leading-[0.9] tracking-tighter">
-              A quiet system <br />
-              <span className="italic font-serif font-normal text-primary">behind</span> every flock.
-            </h1>
-            <p className="mt-10 max-w-xl text-lg sm:text-xl text-muted-foreground leading-relaxed">
-              LampFarms is built on four layers — capture, optimise, ledger, insight — engineered to run on 2G phones inside warm, dusty houses. No spreadsheets. No guesswork.
-            </p>
-            <div className="mt-12 flex flex-wrap gap-4">
-              <Link to="/register" className="inline-flex items-center gap-2 rounded-full bg-foreground px-8 py-4.5 text-sm font-bold text-background hover:bg-foreground/90 transition shadow-2xl shadow-foreground/10">
-                Try the platform <ArrowUpRight className="h-4 w-4" />
-              </Link>
-              <Link to="/solutions" className="inline-flex items-center gap-2 rounded-full border border-foreground/10 px-8 py-4.5 text-sm font-bold hover:bg-foreground/5 transition">
-                See the modules
-              </Link>
-            </div>
-          </motion.div>
-          <motion.div initial="hidden" animate="show" variants={fadeUp} transition={{ delay: 0.15 }} className="lg:col-span-5">
-            <div className="aspect-[4/5] overflow-hidden rounded-[40px] bg-secondary shadow-2xl">
-              <img src={IMG.portrait} alt="Brown laying hens in a ventilated poultry house" className="h-full w-full object-cover grayscale-[10%] hover:grayscale-0 transition-all duration-1000" loading="eager" />
-            </div>
-          </motion.div>
-        </div>
-      </section>
+      <PageHero
+        eyebrow="Platform"
+        title={
+          <>
+            Four layers.
+            <br />
+            One flock record.
+          </>
+        }
+        lead="Capture, optimise, ledger, insight — engineered for dusty houses and weak signal, not for a demo stage."
+        ctas={[
+          { label: 'Open free farm', to: '/register' },
+          { label: 'See modules', to: '/solutions', variant: 'outline' },
+        ]}
+        meta={['No spreadsheets', 'Local-first writes', 'Sync when ready']}
+      />
 
-      <section className="border-y border-foreground/10 bg-secondary/20 py-24 lg:py-32">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
-          <div className="grid lg:grid-cols-12 gap-12">
-            <div className="lg:col-span-4">
-              <Eyebrow>Pillars</Eyebrow>
-              <h2 className="mt-5 text-4xl sm:text-5xl font-black tracking-tight leading-[1.02]">Six pillars. One outcome.</h2>
-              <p className="mt-5 text-muted-foreground max-w-sm">Each pillar maps to a real failure mode farmers face — connectivity loss, feed-price shocks, withdrawal mistakes, opaque margins, theft on shared devices.</p>
-            </div>
-            <div className="lg:col-span-8 grid gap-6 sm:grid-cols-2">
-              {PILLARS.map(p => (
-                <motion.div key={p.title} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                            className="rounded-[24px] bg-background p-7">
-                  <p.icon className="h-6 w-6 text-primary" />
-                  <h3 className="mt-5 text-xl font-black tracking-tight">{p.title}</h3>
-                  <p className="mt-3 text-sm text-muted-foreground leading-relaxed">{p.body}</p>
-                </motion.div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 py-24 lg:py-32">
-        <Eyebrow>The stack</Eyebrow>
-        <h2 className="mt-5 max-w-3xl text-4xl sm:text-5xl lg:text-6xl font-black tracking-tight leading-[1.02]">
-          Four layers, dovetailed.
-        </h2>
-        <p className="mt-5 max-w-2xl text-muted-foreground leading-relaxed">
-          Most farm software stops at capture. We close the loop — every data point you enter is consumed by the optimiser, the ledger, or the insight engine on the same screen, in the same second.
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Architecture
         </p>
-        <div className="mt-16 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
-          {STACK.map(([n, t, b]) => (
-            <motion.div key={n} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                        className="border-t border-foreground/15 pt-6">
-              <div className="text-sm font-bold tracking-[0.2em] text-primary">{n}</div>
-              <h3 className="mt-4 text-2xl font-black tracking-tight">{t}</h3>
-              <p className="mt-3 text-muted-foreground leading-relaxed">{b}</p>
-            </motion.div>
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+          How the system is stacked
+        </h2>
+        <ol className="mt-10">
+          {layers.map((l, i) => (
+            <li key={l.n}>
+              <div className="grid gap-3 py-7 sm:grid-cols-12 sm:gap-6">
+                <div className="font-mono text-sm text-primary sm:col-span-2">{l.n}</div>
+                <div className="text-base font-semibold sm:col-span-3">{l.title}</div>
+                <p className="text-sm leading-relaxed text-muted-foreground sm:col-span-7">
+                  {l.body}
+                </p>
+              </div>
+              {i < layers.length - 1 && <Separator />}
+            </li>
           ))}
-        </div>
+        </ol>
       </section>
 
-      {/* SPECIES SUPPORTED */}
-      <section className="border-y border-foreground/10 bg-secondary/20 py-24 lg:py-28">
-        <div className="mx-auto max-w-[1400px] px-6 lg:px-10">
-          <div className="flex items-end justify-between flex-wrap gap-6 mb-12">
-            <div className="max-w-xl">
-              <Eyebrow>Species coverage</Eyebrow>
-              <h2 className="mt-5 text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-[1.02]">
-                Tuned to the bird, not the textbook.
-              </h2>
-            </div>
-            <p className="text-muted-foreground max-w-sm">
-              Reference curves, nutrient floors and vaccination windows shift with species and breed. LampFarms ships with country-validated tables for what West African farmers actually rear.
-            </p>
-          </div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {SPECIES.map(s => (
-              <motion.div key={s.name} initial="hidden" whileInView="show" viewport={{ once: true }} variants={fadeUp}
-                          className="rounded-[24px] overflow-hidden bg-background">
-                <div className="aspect-[4/5] overflow-hidden">
-                  <img src={s.img} alt={s.name} loading="lazy" className="h-full w-full object-cover" />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-xl font-black tracking-tight">{s.name}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground leading-relaxed">{s.body}</p>
-                  <div className="mt-4 text-[11px] font-bold uppercase tracking-[0.2em] text-primary">{s.spec}</div>
-                </div>
-              </motion.div>
+      <section className="border-y border-border bg-muted/25">
+        <div className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Design constraints
+          </p>
+          <h2 className="mt-2 max-w-lg text-2xl font-semibold tracking-tight sm:text-3xl">
+            What we refuse to paper over
+          </h2>
+          <div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-3">
+            {pillars.map((p) => (
+              <Card key={p.title} className="rounded-none border-0 shadow-none">
+                <CardContent className="h-full bg-card p-5 sm:p-6">
+                  <h3 className="text-sm font-semibold tracking-tight">{p.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{p.body}</p>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-[1400px] px-6 lg:px-10 py-16">
-        <div className="overflow-hidden rounded-[32px]">
-          <img src={IMG.field} alt="Farmland panorama at sunrise" className="h-[40vh] sm:h-[55vh] w-full object-cover" loading="lazy" />
+      <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              Species
+            </p>
+            <h2 className="mt-2 text-2xl font-semibold tracking-tight sm:text-3xl">
+              Supported birds
+            </h2>
+          </div>
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/solutions">Open module map</Link>
+          </Button>
+        </div>
+        <div className="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {species.map((s) => (
+            <Card key={s.name} className="border-border/80 shadow-none">
+              <CardContent className="p-5">
+                <Badge variant="outline" className="font-normal">
+                  {s.name}
+                </Badge>
+                <p className="mt-3 text-sm font-medium">{s.cycle}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{s.focus}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </section>
+
+      <CloseCta />
     </div>
   );
 }

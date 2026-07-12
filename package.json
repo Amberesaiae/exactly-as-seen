@@ -10,8 +10,20 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "backend": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/stack-up.ps1",
+    "frontend": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/dev-frontend.ps1",
+    "db:reset": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/db-reset-wsl.ps1",
+    "db:status": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/db-status-wsl.ps1",
+    "stack:up": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/stack-up.ps1",
+    "stack:down": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/stack-down.ps1",
+    "stack:env": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/stack-env.ps1",
+    "docker:engine": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/ensure-docker-wsl.ps1",
+    "docker:wsl": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/ensure-docker-wsl.ps1",
+    "docker:fix": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/fix-docker-desktop-once.ps1",
+    "setup": "bun install && bun run stack:up && bun run stack:env"
   },
+  "packageManager": "bun@1.3.14",
   "dependencies": {
     "@fontsource/manrope": "^5.2.8",
     "@hookform/resolvers": "^3.10.0",
