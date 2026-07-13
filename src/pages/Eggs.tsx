@@ -15,6 +15,7 @@ import { SalesTab } from '@/components/eggs/SalesTab';
 import { EggCollectionDialog } from '@/components/eggs/EggCollectionDialog';
 import { EggSaleDialog } from '@/components/eggs/EggSaleDialog';
 import { LAYER_EGG_START_WEEK, DUCK_EGG_START_WEEK } from '@/lib/canonical';
+import { canCollectEggs, canSellEggs } from '@/lib/safety-gates';
 import { toast } from 'sonner';
 
 export default function Eggs() {
@@ -29,14 +30,14 @@ export default function Eggs() {
   const [showSale, setShowSale] = useState(false);
 
   const week = batchAge?.week ?? batch?.current_week ?? 0;
-  const collectionAllowed = (() => {
-    if (!batch) return false;
-    if (batch.species === 'layer') return week >= LAYER_EGG_START_WEEK;
-    if (batch.species === 'duck' && batch.duck_type === 'layer') return week >= DUCK_EGG_START_WEEK;
-    // other egg-capable batches: allow if week gate not applicable
-    if (batch.species === 'duck' && batch.duck_type !== 'layer') return false;
-    return week >= LAYER_EGG_START_WEEK;
-  })();
+  const collectionAllowed = canCollectEggs({
+    species: batch?.species,
+    duckType: batch?.duck_type,
+    week,
+    layerStartWeek: LAYER_EGG_START_WEEK,
+    duckLayerStartWeek: DUCK_EGG_START_WEEK,
+  });
+  const saleAllowed = canSellEggs(batch);
 
   const openCollect = () => {
     if (!collectionAllowed) {
@@ -54,7 +55,7 @@ export default function Eggs() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Harvest</h1>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5 rounded-full" onClick={() => setShowSale(true)} disabled={batches.length === 0 || !!batch?.has_active_withdrawal} title={batch?.has_active_withdrawal ? 'Egg withdrawal active' : undefined}><ShoppingCart className="h-4 w-4" /> Sale</Button>
+          <Button variant="outline" className="gap-1.5 rounded-full" onClick={() => setShowSale(true)} disabled={batches.length === 0 || !saleAllowed} title={!saleAllowed ? 'Egg withdrawal active' : undefined}><ShoppingCart className="h-4 w-4" /> Sale</Button>
           <Button className="gap-1.5 rounded-full" onClick={openCollect} disabled={!selectedBatch || !collectionAllowed} title={!collectionAllowed ? `Eligible from week ${batch?.species === 'duck' ? DUCK_EGG_START_WEEK : LAYER_EGG_START_WEEK}` : undefined}><Plus className="h-4 w-4" /> Collect</Button>
         </div>
       </div>

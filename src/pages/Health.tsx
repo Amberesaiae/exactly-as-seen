@@ -18,6 +18,7 @@ import { HealthAlertBanner } from '@/components/health/HealthAlertBanner';
 import { VaccinationTab } from '@/components/health/VaccinationTab';
 import { MedicationTab } from '@/components/health/MedicationTab';
 import { WaterTab } from '@/components/health/WaterTab';
+import { CompleteCareTaskModal } from '@/components/health/CompleteCareTaskModal';
 
 export default function Health() {
   const { costPrivacyEnabled } = useAppStore();
@@ -58,9 +59,17 @@ export default function Health() {
     weeklyLoading,
     batchTasks,
     bulkCompleteWeekTasks,
+    waterRatePesewas,
+    updateWaterRate,
+    fulfillOperationalTask,
+    totalWaterCostPesewas,
+    pendingWaterMeds,
+    dailyOperationalTasks,
   } = useHealthData();
 
   const [showMedModal, setShowMedModal] = useState(false);
+  const [completeTask, setCompleteTask] = useState<{ id: string; product_name: string; task_type: string } | null>(null);
+  const [completeSubmitting, setCompleteSubmitting] = useState(false);
 
   const currentWeekTasks = useMemo(() => {
     if (!batch || !batchAge || !healthTasks.length) return [];
@@ -287,7 +296,11 @@ export default function Health() {
                                 <Button 
                                   size="sm" 
                                   className="rounded-full bg-amber-600 hover:bg-amber-700 text-white h-7 text-xs px-2.5"
-                                  onClick={() => markTaskComplete(task.id)}
+                                  onClick={() => setCompleteTask({
+                                    id: task.id,
+                                    product_name: task.product_name || 'Care Task',
+                                    task_type: task.task_type || 'care',
+                                  })}
                                 >
                                   Complete
                                 </Button>
@@ -391,6 +404,24 @@ export default function Health() {
           </Tabs>
         </>
       )}
+
+      <CompleteCareTaskModal
+        open={!!completeTask}
+        onOpenChange={(open) => { if (!open) setCompleteTask(null); }}
+        productName={completeTask?.product_name || ''}
+        taskType={completeTask?.task_type}
+        submitting={completeSubmitting}
+        onConfirm={async (costPesewas) => {
+          if (!completeTask) return;
+          setCompleteSubmitting(true);
+          try {
+            await markTaskComplete(completeTask.id, costPesewas);
+          } finally {
+            setCompleteSubmitting(false);
+            setCompleteTask(null);
+          }
+        }}
+      />
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { autoCreateRevenue } from '@/lib/synergy';
 import { cleanupBatchCompletion } from '@/lib/batch-utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
+import { canTerminateNormal } from '@/lib/safety-gates';
 
 interface TerminationDialogProps {
   open: boolean;
@@ -28,7 +29,7 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
   const terminateBatch = async () => {
     if (!batch) return;
     
-    if (terminationMode === 'normal' && batch.has_active_withdrawal) {
+    if (!canTerminateNormal(batch, terminationMode)) {
       toast.error('Cannot terminate normally during withdrawal');
       return;
     }

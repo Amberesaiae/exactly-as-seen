@@ -240,7 +240,8 @@ export function useEggData() {
     setSaleSubmitting(true);
 
     // 1. Withdrawal period check
-    if (batch?.has_active_withdrawal) {
+    const { canSellEggs } = await import('@/lib/safety-gates');
+    if (!canSellEggs(batch)) {
       toast.error('Cannot record egg sale during active medication withdrawal period');
       setSaleSubmitting(false);
       return;
