@@ -38,8 +38,10 @@ export function HealthTasksList({ tasks }: HealthTasksListProps) {
               const isHydration = task.task_type === 'hydration';
               const isFeeding = task.task_type === 'feeding';
               const isVaccine = label === 'Vaccine';
+              // Stable key: virtual ops use type:batch:date; care uses uuid
+              const rowKey = task.id || `${task.task_type}:${task.batch_id}:${task.scheduled_date || task.title}`;
               return (
-              <div key={task.id} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-all border border-transparent hover:border-muted group">
+              <div key={rowKey} className="flex items-center justify-between gap-3 p-2.5 rounded-xl hover:bg-muted/50 transition-colors duration-200 border border-transparent hover:border-muted group">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${
                     isHydration ? 'bg-blue-50 text-blue-500' :

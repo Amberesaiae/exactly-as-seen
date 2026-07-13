@@ -77,10 +77,22 @@ export default function Health() {
     const startDate = new Date(batch.start_date);
     const weekStart = addDays(startDate, (batchAge.week - 1) * 7);
     const weekEnd = addDays(weekStart, 7);
-    return healthTasks.filter(t => {
-      const d = new Date(t.scheduled_date);
-      return (d >= weekStart && d < weekEnd);
-    }).sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
+    const weekStartMs = weekStart.getTime();
+    const weekEndMs = weekEnd.getTime();
+    return healthTasks
+      .filter((t) => {
+        if (!t.scheduled_date) return false;
+        // Parse as local noon to avoid TZ day-shift flicker
+        const d = new Date(`${t.scheduled_date}T12:00:00`).getTime();
+        return d >= weekStartMs && d < weekEndMs;
+      })
+      .slice()
+      .sort((a, b) => {
+        const da = a.scheduled_date.localeCompare(b.scheduled_date);
+        if (da !== 0) return da;
+        // Stable secondary keys so cards do not re-order when sibling fields update
+        return (a.id || '').localeCompare(b.id || '');
+      });
   }, [healthTasks, batch, batchAge]);
 
   if (loading) {
@@ -228,9 +240,9 @@ export default function Health() {
                     )}
                   </div>
 
-                  {/* Daily Farm Operations */}
+                  {/* Daily Farm Operations — stable keys + min-height to avoid layout thrash */}
                   {batchTasks.length > 0 && (
-                    <div className="space-y-3">
+                    <div className="space-y-3 min-h-[4.5rem]">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Daily Farm Operations</h3>
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {batchTasks.map(task => {
@@ -244,8 +256,10 @@ export default function Health() {
                             water_log: 'Log Water',
                             egg_collection: 'Collect Eggs'
                           };
+                          // Prefer composite key: id can be temp after ensure; type+date is stable for daily ops
+                          const stableKey = task.id || `${task.task_type}:${task.due_date}:${task.batch_id}`;
                           return (
-                            <Card key={task.id} className={task.completed ? 'bg-muted/30 border-none' : 'border-primary/20'}>
+                            <Card key={stableKey} className={`transition-colors duration-200 ${task.completed ? 'bg-muted/30 border-none' : 'border-primary/20'}`}>
                               <CardContent className="p-3.5 flex items-center justify-between gap-2">
                                 <div className="min-w-0">
                                   <h4 className="font-semibold text-xs capitalize truncate">{task.title || task.task_type.replace('_', ' ')}</h4>

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,14 +23,16 @@ export function useFeedData() {
   const [recipes, setRecipes] = useState<any[]>([]);
   const [feedLogs, setFeedLogs] = useState<any[]>([]);
   const [feedSaving, setFeedSaving] = useState(false);
+  const hasLoadedRef = useRef(false);
 
-  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  // Stable calendar day for session (avoid effect thrash from new Date() each render)
+  const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     const load = async () => {
-      setLoading(true);
+      if (!hasLoadedRef.current) setLoading(true);
       const { data: farm } = await supabase
         .from('farms')
         .select('id')
@@ -58,9 +60,10 @@ export function useFeedData() {
         if (prev && batchList.some(b => b.id === prev)) return prev;
         return batchList[0]?.id ?? '';
       });
+      hasLoadedRef.current = true;
       setLoading(false);
     };
-    load();
+    void load();
     return () => { cancelled = true; };
   }, [user]);
 
@@ -75,25 +78,31 @@ export function useFeedData() {
   }, []);
 
   useEffect(() => {
-    if (!selectedBatch || !farmId) {
-      setSchedules([]);
-      setFeedLogs([]);
-      return;
-    }
+    if (!selectedBatch || !farmId) return;
     let cancelled = false;
     const load = async () => {
-      await fetchSchedules(selectedBatch);
-      const { data } = await supabase
-        .from('feed_logs')
-        .select('*')
-        .eq('batch_id', selectedBatch)
-        .eq('date', todayStr)
-        .limit(5);
-      if (!cancelled) setFeedLogs(data ?? []);
+      // Soft: keep previous schedules/logs until new batch data arrives
+      const [schedRes, logRes] = await Promise.all([
+        supabase
+          .from('feed_schedules')
+          .select('*')
+          .eq('batch_id', selectedBatch)
+          .order('day', { ascending: false })
+          .limit(14),
+        supabase
+          .from('feed_logs')
+          .select('*')
+          .eq('batch_id', selectedBatch)
+          .eq('date', todayStr)
+          .limit(5),
+      ]);
+      if (cancelled) return;
+      setSchedules(schedRes.data ?? []);
+      setFeedLogs(logRes.data ?? []);
     };
-    load();
+    void load();
     return () => { cancelled = true; };
-  }, [selectedBatch, farmId, fetchSchedules, todayStr]);
+  }, [selectedBatch, farmId, todayStr]);
 
   const batch = useMemo(() => batches.find(b => b.id === selectedBatch), [batches, selectedBatch]);
   const dynamics = useMemo(
@@ -234,9 +243,9 @@ export function useFeedData() {
 
       setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty, batch_id: selectedBatch }, ...prev.filter(f => f.date !== todayStr)]);
 
-      // T6: sync batch_tasks daily feed row
-      const { ensureDailyBatchTasks, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
-      await ensureDailyBatchTasks({ farmId, batches: [batch], todayStr });
+      // T6: sync batch_tasks daily feed row (background-friendly, once-ensured)
+      const { ensureDailyBatchTasksOnce, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await ensureDailyBatchTasksOnce({ farmId, batches: [batch], todayStr });
       await markBatchTaskComplete({ farmId, batchId: selectedBatch, taskType: 'feed_log', date: todayStr });
 
       if (deductStock && feedStock) {

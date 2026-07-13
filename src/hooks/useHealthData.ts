@@ -102,90 +102,115 @@ export function useHealthData() {
     dailyOperationalTasks,
   } = useHealthBatchStatus(batch, batchAge, healthTasks, waterRecords, farmRegion, waterRatePesewas, feedLogs);
 
-  // Load batch-specific data — only when batch/farm changes (stable deps → no reload thrash)
+  // Load batch-specific data — paint first, ensure/reconcile in background (no list thrash)
   useEffect(() => {
     if (!selectedBatch || !farmId) {
-      setVaccinations([]);
-      setHealthTasks([]);
-      setWaterRecords([]);
-      setBatchTasks([]);
-      setFeedLogs([]);
+      // Only clear when truly unselected — not during batch switch mid-flight
       return;
     }
 
     let cancelled = false;
 
     const loadBatchData = async () => {
-      const { data: activeBatch } = await supabase
-        .from('batches')
-        .select('*')
-        .eq('id', selectedBatch)
-        .maybeSingle();
-      if (!activeBatch || cancelled) return;
-
-      const age = getBatchAge(activeBatch.start_date, activeBatch.species);
-      const startDate = new Date(activeBatch.start_date);
-      const weekStart = addDays(startDate, (age.week - 1) * 7);
-      const weekEnd = addDays(weekStart, 7);
-      const weekStartStr = format(weekStart, 'yyyy-MM-dd');
-      const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
-
       const todayStrLocal = format(new Date(), 'yyyy-MM-dd');
 
-      // T6: ensure DB batch_tasks exist so This Week daily ops matches virtual CTAs
-      const { ensureDailyBatchTasks } = await import('@/lib/ensure-daily-tasks');
-      await ensureDailyBatchTasks({
-        farmId,
-        batches: [activeBatch],
-        todayStr: todayStrLocal,
-      });
-
-      const [vResult, hResult, wResult, flResult] = await Promise.all([
+      // 1) Fetch everything in parallel first (do NOT block on ensure)
+      const [activeBatchRes, vResult, hResult, wResult, flResult, btResult] = await Promise.all([
+        supabase.from('batches').select('*').eq('id', selectedBatch).maybeSingle(),
         supabase.from('vaccination_schedule').select('*').eq('batch_id', selectedBatch).order('scheduled_date'),
-        supabase.from('health_tasks').select('*').eq('batch_id', selectedBatch).order('scheduled_date', { ascending: false }),
+        supabase.from('health_tasks').select('*').eq('batch_id', selectedBatch).order('scheduled_date', { ascending: true }),
         supabase.from('water_records').select('*').eq('batch_id', selectedBatch).order('date', { ascending: false }).limit(14),
         supabase.from('feed_logs').select('*').eq('batch_id', selectedBatch).eq('date', todayStrLocal).limit(1),
+        supabase
+          .from('batch_tasks')
+          .select('*')
+          .eq('batch_id', selectedBatch)
+          .eq('farm_id', farmId)
+          .order('due_date', { ascending: true }),
       ]);
 
       if (cancelled) return;
 
-      // T6 reconcile: if ops already logged, flip matching batch_tasks to completed
-      const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      const activeBatch = activeBatchRes.data;
+      if (!activeBatch) return;
+
+      const age = getBatchAge(activeBatch.start_date, activeBatch.species);
       const waterDone = (wResult.data ?? []).some((w: { date?: string }) => w.date === todayStrLocal);
       const feedDone = (flResult.data ?? []).length > 0;
-      if (waterDone) {
-        await markBatchTaskComplete({
-          farmId, batchId: selectedBatch, taskType: 'water_log', date: todayStrLocal,
-        });
-      }
-      if (feedDone) {
-        await markBatchTaskComplete({
-          farmId, batchId: selectedBatch, taskType: 'feed_log', date: todayStrLocal,
-        });
-      }
 
-      const { data: btData } = await supabase
-        .from('batch_tasks')
-        .select('*')
-        .eq('batch_id', selectedBatch)
-        .eq('farm_id', farmId)
-        .gte('due_date', weekStartStr)
-        .lt('due_date', weekEndStr);
+      const {
+        reconcileBatchTasksWithOps,
+        sortBatchTasksForDisplay,
+      } = await import('@/lib/ensure-daily-tasks');
 
-      if (cancelled) return;
+      // Client-side complete flags so UI does not wait on write + re-fetch
+      const reconciled = sortBatchTasksForDisplay(
+        reconcileBatchTasksWithOps(btResult.data ?? [], {
+          todayStr: todayStrLocal,
+          waterDone,
+          feedDone,
+        })
+      );
 
+      // Single paint — never clear-then-fill (that caused flicker)
       setVaccinations(vResult.data ?? []);
       setHealthTasks(hResult.data ?? []);
       setWaterRecords(wResult.data ?? []);
-      setBatchTasks(btData ?? []);
+      setBatchTasks(reconciled as BatchTask[]);
       setFeedLogs(flResult.data ?? []);
-      // Do not await — avoids blocking UI; weeklyLoading already handles skeleton
       void fetchWeeklySummary(selectedBatch, age.week);
+
+      // 2) Background: ensure rows exist + persist complete flags (no intermediate blank)
+      void (async () => {
+        const {
+          ensureDailyBatchTasksOnce,
+          markBatchTaskComplete,
+        } = await import('@/lib/ensure-daily-tasks');
+
+        await ensureDailyBatchTasksOnce({
+          farmId,
+          batches: [activeBatch],
+          todayStr: todayStrLocal,
+        });
+        if (cancelled) return;
+
+        if (waterDone) {
+          await markBatchTaskComplete({
+            farmId, batchId: selectedBatch, taskType: 'water_log', date: todayStrLocal,
+          });
+        }
+        if (feedDone) {
+          await markBatchTaskComplete({
+            farmId, batchId: selectedBatch, taskType: 'feed_log', date: todayStrLocal,
+          });
+        }
+        if (cancelled) return;
+
+        // Soft merge: only re-read if we had zero daily rows (ensure created them)
+        const hasToday = reconciled.some((t) => t.due_date === todayStrLocal);
+        if (!hasToday) {
+          const { data: btData } = await supabase
+            .from('batch_tasks')
+            .select('*')
+            .eq('batch_id', selectedBatch)
+            .eq('farm_id', farmId)
+            .order('due_date', { ascending: true });
+          if (cancelled || !btData) return;
+          setBatchTasks(
+            sortBatchTasksForDisplay(
+              reconcileBatchTasksWithOps(btData, {
+                todayStr: todayStrLocal,
+                waterDone,
+                feedDone,
+              })
+            ) as BatchTask[]
+          );
+        }
+      })();
     };
 
-    loadBatchData();
+    void loadBatchData();
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setVaccinations/setWaterRecords are stable setters
   }, [selectedBatch, farmId, fetchWeeklySummary]);
 
   const addMedication = async (params: any) => {

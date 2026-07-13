@@ -103,10 +103,10 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       return [data, ...rest.slice(0, 13)];
     });
 
-    // T6: sync batch_tasks daily water row
+    // T6: sync batch_tasks daily water row (background, once-ensured)
     try {
-      const { ensureDailyBatchTasks, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
-      await ensureDailyBatchTasks({
+      const { ensureDailyBatchTasksOnce, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await ensureDailyBatchTasksOnce({
         farmId,
         batches: [{ id: selectedBatch, name: 'flock' }],
         todayStr,

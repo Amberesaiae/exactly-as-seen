@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { syncScheduleForCompletedVaccinationTasks } from '@/lib/care-completion';
@@ -16,23 +16,35 @@ export type WeeklySummary = {
 export function useWeeklyHealthSummary(farmId: string | null) {
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
+  const lastKeyRef = useRef<string | null>(null);
+  const hasSummaryRef = useRef(false);
+  const genRef = useRef(0);
 
-  // Stable identity — unstable deps here caused Health.tsx max update depth
+  // Stable identity — must NOT depend on weeklySummary (avoids Health load thrash)
   const fetchWeeklySummary = useCallback(async (batchId: string, weekNumber: number) => {
     if (!farmId) return;
-    setWeeklyLoading(true);
+    const key = `${batchId}:${weekNumber}`;
+    const gen = ++genRef.current;
+
+    // Soft: only skeleton when empty or batch/week changed
+    const hardLoad = !hasSummaryRef.current || lastKeyRef.current !== key;
+    if (hardLoad) setWeeklyLoading(true);
+
     try {
       const { data, error } = await supabase.rpc('get_weekly_health_summary', {
         p_batch_id: batchId,
         p_week_number: weekNumber,
-        p_farm_id: farmId
+        p_farm_id: farmId,
       });
       if (error) throw error;
+      if (gen !== genRef.current) return;
       setWeeklySummary(data as WeeklySummary);
+      lastKeyRef.current = key;
+      hasSummaryRef.current = true;
     } catch (err: any) {
       console.error('Error fetching weekly summary:', err);
     } finally {
-      setWeeklyLoading(false);
+      if (gen === genRef.current) setWeeklyLoading(false);
     }
   }, [farmId]);
 
@@ -43,14 +55,15 @@ export function useWeeklyHealthSummary(farmId: string | null) {
         p_batch_id: batchId,
         p_week_number: weekNumber,
         p_farm_id: farmId,
-        p_completed_at: new Date().toISOString()
+        p_completed_at: new Date().toISOString(),
       });
       if (error) throw error;
 
-      // Dual writer: bulk only touches health_tasks — sync vaccination_schedule
       await syncScheduleForCompletedVaccinationTasks(batchId);
 
       toast.success('Successfully completed all pending weekly health tasks');
+      lastKeyRef.current = null;
+      hasSummaryRef.current = false;
       await fetchWeeklySummary(batchId, weekNumber);
       return true;
     } catch (err: any) {

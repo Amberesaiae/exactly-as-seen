@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   buildDailyTaskRows,
   virtualTaskTypeToBatchTaskType,
+  reconcileBatchTasksWithOps,
+  sortBatchTasksForDisplay,
 } from '@/lib/ensure-daily-tasks';
 import { buildVaccinationSeedRows, countVaccinationTemplates } from '@/lib/vaccination-seed';
 
@@ -44,6 +46,31 @@ describe('ensure-daily-tasks (T6)', () => {
     expect(virtualTaskTypeToBatchTaskType('hydration')).toBe('water_log');
     expect(virtualTaskTypeToBatchTaskType('egg_collection')).toBe('egg_collection');
     expect(virtualTaskTypeToBatchTaskType('medication')).toBeNull();
+  });
+
+  it('reconciles completed flags from ops logs without network', () => {
+    const tasks = [
+      { id: '1', task_type: 'feed_log', due_date: '2026-07-13', completed: false },
+      { id: '2', task_type: 'water_log', due_date: '2026-07-13', completed: false },
+      { id: '3', task_type: 'water_log', due_date: '2026-07-12', completed: false },
+    ];
+    const next = reconcileBatchTasksWithOps(tasks, {
+      todayStr: '2026-07-13',
+      waterDone: true,
+      feedDone: false,
+    });
+    expect(next[0].completed).toBe(false);
+    expect(next[1].completed).toBe(true);
+    expect(next[2].completed).toBe(false); // different day
+  });
+
+  it('sorts daily tasks feed → water → egg', () => {
+    const sorted = sortBatchTasksForDisplay([
+      { id: 'e', task_type: 'egg_collection', due_date: '2026-07-13', title: 'eggs' },
+      { id: 'w', task_type: 'water_log', due_date: '2026-07-13', title: 'water' },
+      { id: 'f', task_type: 'feed_log', due_date: '2026-07-13', title: 'feed' },
+    ]);
+    expect(sorted.map((t) => t.task_type)).toEqual(['feed_log', 'water_log', 'egg_collection']);
   });
 });
 
