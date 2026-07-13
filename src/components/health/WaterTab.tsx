@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Droplets, Loader2, ThermometerSun, CheckCircle2, Info } from 'lucide-react';
+import { Droplets, Loader2, ThermometerSun, CheckCircle2, Info, Pill } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { useMemo } from 'react';
@@ -143,11 +143,31 @@ export function WaterTab({
             </div>
             <div>
               <p className="text-sm font-bold text-green-900">Protocol Fulfilled</p>
-              <p className="text-xs text-green-800/70">Today's water requirements have been provided and ledgered.</p>
+              <p className="text-xs text-green-800/70">Today&apos;s water requirements have been provided and ledgered.</p>
             </div>
           </CardContent>
         </Card>
-      ) : null}
+      ) : (
+        <Card className="border-dashed">
+          <CardContent className="p-4 space-y-3">
+            <p className="text-sm text-muted-foreground">
+              No prescription yet (select an active batch with population). You can still log water manually.
+            </p>
+            <Button
+              variant="outline"
+              className="w-full rounded-full"
+              disabled={waterSaving || !batch}
+              onClick={() => onFulfillTask({
+                task_type: 'hydration',
+                amount: waterPrescription?.gallons ?? 10,
+                unit: 'gal',
+              })}
+            >
+              {waterSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Log water (fallback)'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {/* 3. Synergy Section (Active Treatments) */}
       {pendingWaterMeds.length > 0 && !isTodayCompleted && (
@@ -176,18 +196,22 @@ export function WaterTab({
           <CardHeader><CardTitle className="text-base">Operational History</CardTitle></CardHeader>
           <CardContent>
             <div className="space-y-1.5">
-              {waterRecords.map(w => {
+              {waterRecords.map((w, idx) => {
                 const isHighTemp = w.temperature_c && Number(w.temperature_c) > 32;
+                let dateLabel = '—';
+                try {
+                  if (w.date) dateLabel = format(new Date(`${w.date}T12:00:00`), 'MMM d');
+                } catch { /* ignore bad dates */ }
                 return (
-                  <div key={w.id} className={`flex items-center justify-between text-sm border-b pb-1.5 last:border-0 ${isHighTemp ? 'bg-orange-50 rounded px-1' : ''}`}>
+                  <div key={w.id || `water-${idx}`} className={`flex items-center justify-between text-sm border-b pb-1.5 last:border-0 ${isHighTemp ? 'bg-orange-50 rounded px-1' : ''}`}>
                     <div className="flex items-center gap-2">
                       <Droplets className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-                      <span>{format(new Date(w.date), 'MMM d')}</span>
+                      <span>{dateLabel}</span>
                       {w.notes && <span className="text-[10px] text-muted-foreground truncate max-w-[150px]">— {w.notes}</span>}
                     </div>
                     <div className="flex items-center gap-3 text-xs font-bold text-muted-foreground">
                       <span>{w.gallons_consumed} gal</span>
-                      {w.temperature_c && <span>{w.temperature_c}°C</span>}
+                      {w.temperature_c != null && <span>{w.temperature_c}°C</span>}
                     </div>
                   </div>
                 );

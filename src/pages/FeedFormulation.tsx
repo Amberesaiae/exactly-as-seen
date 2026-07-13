@@ -31,7 +31,7 @@ export default function FeedFormulation() {
 
   // Planning step state
   const [targetKg, setTargetKg] = useState<number | undefined>(undefined);
-  const [durationValue, setDurationValue] = useState(2);
+  const [durationValue, setDurationValue] = useState('2');
   const [durationUnit, setDurationUnit] = useState<'weeks' | 'days'>('weeks');
 
   useEffect(() => {
@@ -45,7 +45,8 @@ export default function FeedFormulation() {
   const phase = batch && dynamics ? getCurrentPhase(batch.species, dynamics.week) : undefined;
 
   // Planning computation
-  const durationDays = durationUnit === 'weeks' ? durationValue * 7 : durationValue;
+  const durationNum = Math.max(1, parseInt(durationValue, 10) || 1);
+  const durationDays = durationUnit === 'weeks' ? durationNum * 7 : durationNum;
   const isSemiIntensive = batch?.production_system === 'semi_intensive' || batch?.production_system === 'free_range' || batch?.production_system === 'pasture';
   const foragingModifier = (isSemiIntensive && batch) ? (FORAGING_MODIFIERS[batch.species] || 0) : 0;
   
@@ -157,8 +158,12 @@ export default function FeedFormulation() {
               <Input
                 type="number"
                 min={1}
+                inputMode="numeric"
                 value={durationValue}
-                onChange={e => setDurationValue(Math.max(1, parseInt(e.target.value) || 1))}
+                onChange={e => setDurationValue(e.target.value)}
+                onBlur={() => {
+                  if (!durationValue || parseInt(durationValue, 10) < 1) setDurationValue('1');
+                }}
                 className="w-20"
               />
               <Select value={durationUnit} onValueChange={v => setDurationUnit(v as 'weeks' | 'days')}>

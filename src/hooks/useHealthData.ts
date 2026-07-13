@@ -102,7 +102,7 @@ export function useHealthData() {
     dailyOperationalTasks,
   } = useHealthBatchStatus(batch, batchAge, healthTasks, waterRecords, farmRegion, waterRatePesewas, feedLogs);
 
-  // Load batch-specific data — only re-run when selection/farm changes (not every batches identity)
+  // Load batch-specific data — only when batch/farm changes (stable deps → no reload thrash)
   useEffect(() => {
     if (!selectedBatch || !farmId) {
       setVaccinations([]);
@@ -146,12 +146,14 @@ export function useHealthData() {
       setWaterRecords(wResult.data ?? []);
       setBatchTasks(btResult.data ?? []);
       setFeedLogs(flResult.data ?? []);
-      fetchWeeklySummary(selectedBatch, age.week);
+      // Do not await — avoids blocking UI; weeklyLoading already handles skeleton
+      void fetchWeeklySummary(selectedBatch, age.week);
     };
 
     loadBatchData();
     return () => { cancelled = true; };
-  }, [selectedBatch, farmId, fetchWeeklySummary, setVaccinations, setWaterRecords]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- setVaccinations/setWaterRecords are stable setters
+  }, [selectedBatch, farmId, fetchWeeklySummary]);
 
   const addMedication = async (params: any) => {
     const task = await baseAddMedication(params);
@@ -200,8 +202,8 @@ export function useHealthData() {
     if (!farmId || !selectedBatch) return;
 
     if (task.task_type === 'hydration') {
+      // logWater already toasts success — avoid double toast flicker
       await logWater(task.amount, todayTemp, 'Protocol fulfilled via Task Orchestrator');
-      toast.success(`Today's hydration confirmed: ${task.amount} ${task.unit}`);
     } else if (task.task_type === 'feeding') {
       const {
         shouldDeductStockOnConsumption,
@@ -317,7 +319,7 @@ export function useHealthData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  await supabase.rpc('confirm_day_feed' as any, {
+                  const { error: bookErr } = await supabase.rpc('confirm_day_feed' as any, {
                     p_farm_id: farmId,
                     p_batch_id: selectedBatch,
                     p_quantity_kg: task.amount,
@@ -327,13 +329,14 @@ export function useHealthData() {
                     p_stock_item_id: feedStock?.id ?? null,
                     p_unit_price_pesewas: unitPricePesewas,
                     p_skip_expense: false,
-                  }).catch(async () => {
+                  });
+                  if (bookErr) {
                     await autoCreateExpense({
                       farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
                       description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
                       amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
                     });
-                  });
+                  }
                   toast.success('Feed expense booked');
                 },
               }
@@ -346,7 +349,10 @@ export function useHealthData() {
         toast.success(`Today's feeding logged: ${task.amount}kg`);
       }
 
-      setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
+      setFeedLogs(prev => {
+        const rest = prev.filter(f => f.date !== todayStr);
+        return [{ id: 'temp', date: todayStr, quantity_kg: task.amount, batch_id: selectedBatch } as any, ...rest];
+      });
     }
   };
 

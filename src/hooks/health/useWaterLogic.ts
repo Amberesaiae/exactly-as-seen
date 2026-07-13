@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense } from '@/lib/synergy';
@@ -13,20 +14,25 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     if (!farmId || !selectedBatch) return;
     setWaterSaving(true);
 
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       const { queueWrite } = await import('@/lib/sync');
       const id = crypto.randomUUID();
-      await queueWrite('water_records', 'insert', id, {
+      const offlineRow = {
         id,
         batch_id: selectedBatch,
         farm_id: farmId,
+        date: todayStr,
         gallons_consumed: gallons,
         temperature_c: temp ?? null,
         notes: notes || null,
-      });
+      };
+      await queueWrite('water_records', 'insert', id, offlineRow);
+      setWaterRecords(prev => [offlineRow, ...prev.slice(0, 13)]);
       toast.warning('Offline — water log queued; will sync when online');
       setWaterSaving(false);
-      return { id, batch_id: selectedBatch, farm_id: farmId, gallons_consumed: gallons } as any;
+      return offlineRow as any;
     }
 
     const { data: batch } = await supabase
@@ -41,14 +47,13 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     const system = batch?.production_system as any;
     const ledger = hasRate && shouldExpenseConsumption(system);
 
-    // Atomic RPC preferred
     const { data: rpcData, error: rpcError } = await supabase.rpc('log_day_water' as any, {
       p_farm_id: farmId,
       p_batch_id: selectedBatch,
       p_gallons: gallons,
       p_temperature_c: temp ?? null,
       p_notes: notes || null,
-      p_date: new Date().toISOString().slice(0, 10),
+      p_date: todayStr,
       p_ledger: ledger,
       p_rate_per_liter_pesewas: hasRate ? waterRatePesewas : 0,
     });
@@ -59,6 +64,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       const { data: inserted, error } = await supabase.from('water_records').insert({
         batch_id: selectedBatch,
         farm_id: farmId,
+        date: todayStr,
         gallons_consumed: gallons,
         temperature_c: temp,
         notes: notes || null,
@@ -79,21 +85,27 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
         });
       }
     } else {
+      // Must include date — WaterTab + daily tasks gate on w.date === today
       data = {
         id: (rpcData as any)?.water_record_id,
         batch_id: selectedBatch,
         farm_id: farmId,
+        date: todayStr,
         gallons_consumed: gallons,
-        temperature_c: temp,
+        temperature_c: temp ?? null,
         notes: notes || null,
       };
     }
 
-    setWaterRecords(prev => [data, ...prev.slice(0, 13)]);
+    setWaterRecords(prev => {
+      // Dedupe same day rows so UI does not flicker dual state
+      const rest = prev.filter(w => w.date !== todayStr);
+      return [data, ...rest.slice(0, 13)];
+    });
     setWaterSaving(false);
 
     if (temp && temp > 32) {
-      toast.warning('⚠️ High temperature detected! Consider adding electrolytes to water and increasing ventilation.', { duration: 6000 });
+      toast.warning('High temperature detected — consider electrolytes and ventilation.', { duration: 6000 });
     }
 
     if (hasRate && shouldOfferBookNow(system) && amount > 0) {

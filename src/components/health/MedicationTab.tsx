@@ -38,9 +38,13 @@ export function MedicationTab({
   waterRatePesewas,
   onUpdateWaterRate,
 }: MedicationTabProps) {
+  const medTasks = healthTasks.filter(
+    task => task.task_type === 'medication' || task.task_type === 'supplement'
+  );
+
   return (
     <div className="space-y-4 mt-4">
-      {healthTasks.length === 0 ? (
+      {medTasks.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="py-8 text-center">
             <Pill className="h-10 w-10 text-muted-foreground/40 mx-auto mb-3" />
@@ -52,7 +56,7 @@ export function MedicationTab({
         </Card>
       ) : (
         <div className="space-y-3">
-          {healthTasks.map(task => (
+          {medTasks.map(task => (
             <MedicationCard
               key={task.id}
               task={task}

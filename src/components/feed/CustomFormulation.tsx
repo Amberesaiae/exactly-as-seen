@@ -1,8 +1,12 @@
 import { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
-import { Check, Loader2, Sparkles } from 'lucide-react';
+import { Check, Loader2, Sparkles, X, Plus, Lightbulb, AlertTriangle, Info } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { AlertTriangle, Info } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog';
 import { WeightCard } from './formulation/WeightCard';
 import { SolverAdviceCard } from './formulation/SolverAdviceCard';
 import { SafetyAlertsCard } from './formulation/SafetyAlertsCard';
@@ -11,7 +15,7 @@ import { CostAnalysisCard } from './formulation/CostAnalysisCard';
 import { BatchContextCard } from './BatchContextCard';
 import { IngredientPicker } from './IngredientPicker';
 import { BatchLeanTips } from './formulation/BatchLeanTips';
-import { type FeedPhase } from '@/lib/feed-data';
+import { type FeedPhase, normalizeIngredient } from '@/lib/feed-data';
 import { useCustomFormulationSolver } from './hooks/useCustomFormulationSolver';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -19,7 +23,6 @@ import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { isIntensiveSystem } from '@/lib/production-system';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-import { X, Plus, Lightbulb } from 'lucide-react';
 import { PrivacyMask } from '@/components/ui/PrivacyMask';
 
 interface CustomFormulationProps {
@@ -93,9 +96,23 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
     setSelected(prev => prev.filter(s => s.ingredient.name !== name));
   };
 
-  const updateIngredient = (name: string, field: 'quantityKg' | 'unitPrice', value: number) => {
-    setSelected(prev => prev.map(s => s.ingredient.name === name ? { ...s, [field]: value } : s));
+  /** Keep number fields editable — parse safely so intermediate typing works. */
+  const updateIngredient = (name: string, field: 'quantityKg' | 'unitPrice', raw: string) => {
+    const trimmed = raw.trim();
+    // Allow empty while typing; treat as 0 for calc until a valid number is entered
+    let n = 0;
+    if (trimmed !== '' && trimmed !== '.' && trimmed !== '-') {
+      const parsed = Number(trimmed);
+      if (Number.isNaN(parsed)) return; // ignore invalid keystrokes (e, ++, etc.)
+      n = parsed;
+    }
+    setSelected(prev => prev.map(s => (s.ingredient.name === name ? { ...s, [field]: n } : s)));
+    // Reset optimized lock when user edits so inputs stay visible/editable
+    if (optimized) setOptimized(false);
   };
+
+  const qtyDisplay = (n: number) => (n === 0 ? '' : String(n));
+  const priceDisplay = (n: number) => (n === 0 ? '' : String(n));
 
   const addSuggestedIngredient = (suggestId: string) => {
     const ing = dbIngredients.find(i => i.id === suggestId);
@@ -142,8 +159,8 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
         quantity_kg: s.quantityKg,
         unit_price_pesewas: Math.round(s.unitPrice * 100),
         total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
-        stock_item_id: s.stockItemId || null
-      }))
+        ...(s.stockItemId ? { stock_item_id: s.stockItemId } : {}),
+      })) as any
     );
 
     const isIntensive = isIntensiveSystem(batch.production_system);
@@ -260,26 +277,41 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
-                    {approach !== 'quick' || !optimized ? (
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="space-y-0.5">
-                          <Label className="text-[10px]">Quantity (kg)</Label>
-                          <Input type="number" min="0" step="0.1" value={item.quantityKg || ''} onChange={e => updateIngredient(item.ingredient.name, 'quantityKg', parseFloat(e.target.value) || 0)} className="h-8 text-sm" disabled={approach === 'quick'} />
-                        </div>
-                        <div className="space-y-0.5">
-                          <Label className="text-[10px]">Price per kg (GH₵)</Label>
-                          <Input type="number" min="0" step="0.1" value={item.unitPrice || ''} onChange={updateIngredient.bind(null, item.ingredient.name, 'unitPrice')} className="h-8 text-sm" />
-                        </div>
-                        <div className="space-y-0.5">
-                          <Label className="text-[10px]">Subtotal</Label>
-                          <p className="h-8 flex items-center text-sm font-semibold">GH₵ <PrivacyMask value={(item.quantityKg * item.unitPrice).toFixed(2)} /></p>
-                        </div>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px]">Quantity (kg)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={qtyDisplay(item.quantityKg)}
+                          onChange={e => updateIngredient(item.ingredient.name, 'quantityKg', e.target.value)}
+                          className="h-8 text-sm"
+                          title={approach === 'quick' && !optimized ? 'Optional before Optimize — LP will fill recommended kg' : undefined}
+                        />
                       </div>
-                    ) : (
-                      <div className="flex items-center justify-between text-sm">
-                        <span>{item.quantityKg.toFixed(1)} kg ({totalKg > 0 ? ((item.quantityKg / totalKg) * 100).toFixed(1) : 0}%)</span>
-                        <span className="font-semibold">GH₵ <PrivacyMask value={(item.quantityKg * item.unitPrice).toFixed(2)} /></span>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px]">Price per kg (GH₵)</Label>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.1"
+                          inputMode="decimal"
+                          value={priceDisplay(item.unitPrice)}
+                          onChange={e => updateIngredient(item.ingredient.name, 'unitPrice', e.target.value)}
+                          className="h-8 text-sm"
+                        />
                       </div>
+                      <div className="space-y-0.5">
+                        <Label className="text-[10px]">Subtotal</Label>
+                        <p className="h-8 flex items-center text-sm font-semibold">GH₵ <PrivacyMask value={(item.quantityKg * item.unitPrice).toFixed(2)} /></p>
+                      </div>
+                    </div>
+                    {approach === 'quick' && optimized && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Optimized — edit qty/price freely, or re-run Optimize.
+                      </p>
                     )}
                   </div>
                 ))}
@@ -330,14 +362,7 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
           category={pickerCategory} species={batch.species}
           alreadySelected={selected.map(s => s.ingredient.name)}
           onSelect={handleAddIngredient}
-          ingredients={dbIngredients.map(i => ({
-            id: i.id, name: i.name, category: i.category,
-            proteinPct: Number(i.protein_pct), energyKcal: Number(i.energy_kcal_per_kg),
-            calciumPct: Number(i.calcium_pct), phosphorusPct: Number(i.phosphorus_pct),
-            lysinePct: Number(i.lysine_pct), methioninePct: Number(i.methionine_pct),
-            containsGossypol: i.contains_gossypol, containsAflatoxinRisk: i.contains_aflatoxin_risk,
-            maxSharePct: Number(i.max_share_pct), defaultPricePerKg: Number(i.price_per_kg || 0)
-          }))}
+          ingredients={dbIngredients.map((i) => normalizeIngredient(i))}
           stockItems={stockItems}
         />
       )}

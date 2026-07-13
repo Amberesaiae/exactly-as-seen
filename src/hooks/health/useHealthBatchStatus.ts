@@ -24,10 +24,15 @@ export function useHealthBatchStatus(
   waterRatePesewas: number | null = null,
   feedLogs: FeedLog[] = []
 ) {
-  const today = new Date();
-  const todayStr = format(today, 'yyyy-MM-dd');
+  // Stable day key — never put `new Date()` object in useMemo deps (causes thrash)
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-  const latestTemp = waterRecords.length > 0 ? waterRecords[0].temperature_c : null;
+  const latestTemp = useMemo(() => {
+    if (!waterRecords.length) return null;
+    // Prefer today's log temp, else most recent
+    const todayRec = waterRecords.find(w => w.date === todayStr);
+    return (todayRec ?? waterRecords[0])?.temperature_c ?? null;
+  }, [waterRecords, todayStr]);
 
   // 1. Water Cost Synergy
   const totalWaterCostPesewas = useMemo(() => {
@@ -40,19 +45,21 @@ export function useHealthBatchStatus(
 
   // 2. Withdrawal Period Verification
   const activeWithdrawals = useMemo(() => {
-    return healthTasks.filter(t => 
-      t.completed && 
-      ((t.withdrawal_meat_until && isAfter(new Date(t.withdrawal_meat_until), today)) ||
-       (t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), today)))
+    const now = new Date();
+    return healthTasks.filter(t =>
+      t.completed &&
+      ((t.withdrawal_meat_until && isAfter(new Date(t.withdrawal_meat_until), now)) ||
+       (t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), now)))
     );
-  }, [healthTasks, today]);
+  }, [healthTasks, todayStr]);
 
   const eggDiscardInfo = useMemo(() => {
-    const active = activeWithdrawals.filter(t => t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), today));
+    const now = new Date();
+    const active = activeWithdrawals.filter(t => t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), now));
     if (!active.length) return null;
     const furthestDate = new Date(Math.max(...active.map(t => new Date(t.withdrawal_eggs_until!).getTime())));
     return { count: active.length, until: format(furthestDate, 'MMM d, yyyy') };
-  }, [activeWithdrawals, today]);
+  }, [activeWithdrawals, todayStr]);
 
   // 3. Species-Specific Projections (Tool Effect)
   const todayTemp = useMemo(() => {
@@ -160,11 +167,14 @@ export function useHealthBatchStatus(
       const gallons = Number(w.gallons_consumed);
       const liters = gallons * 3.785;
       const cost = waterRatePesewas ? (Math.round(liters * waterRatePesewas) / 100) : null;
-      
+      let dateLabel = '—';
+      try {
+        if (w.date) dateLabel = format(new Date(`${w.date}T12:00:00`), 'MMM d');
+      } catch { /* ignore */ }
       return {
-        date: format(new Date(w.date), 'MMM d'),
+        date: dateLabel,
         gallons,
-        temp: w.temperature_c ? Number(w.temperature_c) : null,
+        temp: w.temperature_c != null ? Number(w.temperature_c) : null,
         cost,
       };
     });

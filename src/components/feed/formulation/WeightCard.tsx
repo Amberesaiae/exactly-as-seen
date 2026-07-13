@@ -32,16 +32,36 @@ export function WeightCard({
       <CardContent className="space-y-3">
         <div className="grid grid-cols-3 gap-3">
           <div className="space-y-1">
-            <Label className="text-xs">Number of Bags</Label>
-            <Input type="number" min="1" value={bagsCount} onChange={e => setBagsCount(e.target.value)} />
+            <Label className="text-xs" htmlFor="feed-bags-count">Number of Bags</Label>
+            <Input
+              id="feed-bags-count"
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              value={bagsCount}
+              onChange={e => setBagsCount(e.target.value)}
+              autoComplete="off"
+            />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Bag Size (kg)</Label>
-            <Input type="number" min="1" value={bagSize} onChange={e => setBagSize(e.target.value)} />
+            <Label className="text-xs" htmlFor="feed-bag-size">Bag Size (kg)</Label>
+            <Input
+              id="feed-bag-size"
+              type="number"
+              min="1"
+              step="1"
+              inputMode="numeric"
+              value={bagSize}
+              onChange={e => setBagSize(e.target.value)}
+              autoComplete="off"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Total Weight</Label>
-            <Input value={`${totalKg} kg`} readOnly className="bg-muted text-muted-foreground" />
+            <div className="flex h-10 w-full items-center rounded-md border border-input bg-muted px-3 py-2 text-sm text-muted-foreground">
+              {totalKg || 0} kg
+            </div>
           </div>
         </div>
         <div className="space-y-1.5">

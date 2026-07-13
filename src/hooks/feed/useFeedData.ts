@@ -1,9 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBatchAge } from '@/lib/batch-utils';
 import { getCurrentPhase } from '@/lib/feed-data';
+import { getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
+import { isSemiIntensiveSystem } from '@/lib/production-system';
+import { toast } from 'sonner';
 
+/**
+ * Feed Lab data + today's confirm path.
+ * Does NOT mount useHealthData (avoids dual selectedBatch + flicker).
+ */
 export function useFeedData() {
   const { user } = useAuth();
   const [farmId, setFarmId] = useState<string | null>(null);
@@ -13,12 +21,25 @@ export function useFeedData() {
   const [formulations, setFormulations] = useState<any[]>([]);
   const [schedules, setSchedules] = useState<any[]>([]);
   const [recipes, setRecipes] = useState<any[]>([]);
+  const [feedLogs, setFeedLogs] = useState<any[]>([]);
+  const [feedSaving, setFeedSaving] = useState(false);
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const { data: farm } = await supabase.from('farms').select('id').eq('user_id', user.id).order('setup_complete', { ascending: false }).order('updated_at', { ascending: false }).limit(1).maybeSingle();
+      const { data: farm } = await supabase
+        .from('farms')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('setup_complete', { ascending: false })
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
@@ -28,16 +49,22 @@ export function useFeedData() {
         supabase.from('feed_recipes').select('*').eq('farm_id', farm.id).order('name'),
       ]);
 
-      setBatches(batchResult.data ?? []);
+      if (cancelled) return;
+      const batchList = batchResult.data ?? [];
+      setBatches(batchList);
       setFormulations(formulationResult.data ?? []);
       setRecipes(recipeResult.data ?? []);
-      if (batchResult.data?.length) setSelectedBatch(batchResult.data[0].id);
+      setSelectedBatch(prev => {
+        if (prev && batchList.some(b => b.id === prev)) return prev;
+        return batchList[0]?.id ?? '';
+      });
       setLoading(false);
     };
     load();
+    return () => { cancelled = true; };
   }, [user]);
 
-  const fetchSchedules = async (batchId: string) => {
+  const fetchSchedules = useCallback(async (batchId: string) => {
     const { data } = await supabase
       .from('feed_schedules')
       .select('*')
@@ -45,15 +72,203 @@ export function useFeedData() {
       .order('day', { ascending: false })
       .limit(14);
     setSchedules(data ?? []);
-  };
+  }, []);
 
   useEffect(() => {
-    if (selectedBatch && farmId) fetchSchedules(selectedBatch);
-  }, [selectedBatch, farmId]);
+    if (!selectedBatch || !farmId) {
+      setSchedules([]);
+      setFeedLogs([]);
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      await fetchSchedules(selectedBatch);
+      const { data } = await supabase
+        .from('feed_logs')
+        .select('*')
+        .eq('batch_id', selectedBatch)
+        .eq('date', todayStr)
+        .limit(5);
+      if (!cancelled) setFeedLogs(data ?? []);
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [selectedBatch, farmId, fetchSchedules, todayStr]);
 
-  const batch = batches.find(b => b.id === selectedBatch);
-  const dynamics = batch ? getBatchAge(batch.start_date, batch.species) : null;
-  const phase = batch && dynamics ? getCurrentPhase(batch.species, dynamics.week) : null;
+  const batch = useMemo(() => batches.find(b => b.id === selectedBatch), [batches, selectedBatch]);
+  const dynamics = useMemo(
+    () => (batch ? getBatchAge(batch.start_date, batch.species) : null),
+    [batch]
+  );
+  const phase = useMemo(
+    () => (batch && dynamics ? getCurrentPhase(batch.species, dynamics.week) : null),
+    [batch, dynamics]
+  );
+
+  const isTodayCompleted = feedLogs.some(f => f.date === todayStr);
+
+  const dailyTotalKg = useMemo(() => {
+    if (!batch || !dynamics) return 0;
+    let kgPerBird = getPrescriptiveFeedIntake(batch.species, dynamics.week);
+    const foragingMod = getForagingModifier(batch.species, dynamics.week);
+    if (isSemiIntensiveSystem(batch.production_system) && foragingMod > 0) {
+      kgPerBird = kgPerBird * (1 - foragingMod);
+    }
+    return batch.current_population * kgPerBird;
+  }, [batch, dynamics]);
+
+  const feedTask = useMemo(() => {
+    if (!batch || isTodayCompleted || dailyTotalKg <= 0) return null;
+    return {
+      id: `feed:${batch.id}:${todayStr}`,
+      batch_id: batch.id,
+      task_type: 'feeding' as const,
+      amount: dailyTotalKg,
+      unit: 'kg',
+      batch_name: batch.name,
+    };
+  }, [batch, isTodayCompleted, dailyTotalKg, todayStr]);
+
+  const confirmDayFeed = useCallback(async () => {
+    if (!farmId || !selectedBatch || !batch || !feedTask) return;
+    setFeedSaving(true);
+    try {
+      const {
+        shouldDeductStockOnConsumption,
+        shouldExpenseConsumption,
+        shouldOfferBookNow,
+        shouldSkipDayFeedExpense,
+      } = await import('@/lib/ledger-policy');
+      const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
+      const { LEDGER_SOURCES } = await import('@/lib/canonical');
+      const { pickPreferredFeedStock } = await import('@/lib/stock-match');
+
+      const system = batch.production_system as any;
+      const deductStock = shouldDeductStockOnConsumption(system);
+      const expenseConsumption = shouldExpenseConsumption(system);
+      const qty = feedTask.amount;
+
+      const { data: allStock } = await supabase.from('stock_items').select('*').eq('farm_id', farmId);
+      const feedStock = pickPreferredFeedStock(allStock ?? []);
+      const feedName = feedStock?.name ?? `${batch.species} feed`;
+      const sourceRef = `day-feed:${selectedBatch}:${todayStr}`;
+      const unitPricePesewas = feedStock ? Number(feedStock.unit_price_pesewas || 0) : 0;
+      const unitPrice = unitPricePesewas / 100;
+      const bookAmount = unitPrice > 0 ? qty * unitPrice : 0;
+
+      let stockPurchasedSameDay = false;
+      if (feedStock) {
+        const { data: txs } = await supabase
+          .from('stock_transactions')
+          .select('id')
+          .eq('farm_id', farmId)
+          .eq('stock_item_id', feedStock.id)
+          .eq('transaction_type', 'purchase')
+          .gte('date', todayStr)
+          .limit(1);
+        stockPurchasedSameDay = (txs?.length ?? 0) > 0;
+      }
+      const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const { queueWrite } = await import('@/lib/sync');
+        await queueWrite('feed_logs', 'insert', crypto.randomUUID(), {
+          farm_id: farmId,
+          batch_id: selectedBatch,
+          quantity_kg: qty,
+          feed_type: feedName,
+          date: todayStr,
+        });
+        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev.filter(f => f.date !== todayStr)]);
+        toast.warning('Offline — feed queued; will sync when online');
+        return;
+      }
+
+      const ledger = deductStock && !!feedStock;
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed' as any, {
+        p_farm_id: farmId,
+        p_batch_id: selectedBatch,
+        p_quantity_kg: qty,
+        p_feed_type: feedName,
+        p_date: todayStr,
+        p_ledger: ledger && expenseConsumption,
+        p_stock_item_id: feedStock?.id ?? null,
+        p_unit_price_pesewas: unitPricePesewas,
+        p_skip_expense: skipExpense || !expenseConsumption,
+      });
+
+      if (rpcErr) {
+        const { error: logErr } = await supabase.from('feed_logs').insert({
+          batch_id: selectedBatch,
+          farm_id: farmId,
+          quantity_kg: qty,
+          feed_type: feedName,
+          date: todayStr,
+        });
+        if (logErr) {
+          toast.error(
+            logErr.message.includes('duplicate') || logErr.code === '23505'
+              ? 'Feed already logged for today'
+              : logErr.message
+          );
+          return;
+        }
+        if (deductStock && feedStock) {
+          await autoDeductStock({
+            farmId, itemName: feedStock.name, quantity: qty,
+            batchId: selectedBatch, reason: `Daily feeding ${qty}kg`, sourceRef,
+          });
+          if (expenseConsumption && !skipExpense && unitPrice > 0) {
+            await autoCreateExpense({
+              farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+              description: `Daily Feeding: ${qty}kg ${feedStock.name}`,
+              amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
+            });
+          }
+        }
+      } else if ((rpcData as any)?.already_logged) {
+        toast.error('Feed already logged for today');
+        setFeedLogs(prev => (prev.some(f => f.date === todayStr) ? prev : [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev]));
+        return;
+      }
+
+      setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty, batch_id: selectedBatch }, ...prev.filter(f => f.date !== todayStr)]);
+
+      if (deductStock && feedStock) {
+        toast.success(
+          skipExpense
+            ? `Today's feeding confirmed: ${qty.toFixed(1)}kg (stock out; expense skipped — purchased today)`
+            : `Today's feeding confirmed: ${qty.toFixed(1)}kg deducted from stock`
+        );
+      } else if (deductStock && !feedStock) {
+        toast.warning(`Feed logged (${qty.toFixed(1)}kg) — no feed stock item found for auto-deduct`);
+      } else if (shouldOfferBookNow(system)) {
+        toast.message(`Today's feeding logged: ${qty.toFixed(1)}kg (flexible — not auto-ledgered)`, {
+          duration: 8000,
+          action: bookAmount > 0
+            ? {
+                label: 'Book now',
+                onClick: async () => {
+                  await autoCreateExpense({
+                    farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                    description: `Daily Feeding (booked): ${qty}kg ${feedName}`,
+                    amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
+                  });
+                  toast.success('Feed expense booked');
+                },
+              }
+            : {
+                label: 'Open Ledger',
+                onClick: () => { window.location.href = '/finance'; },
+              },
+        });
+      } else {
+        toast.success(`Today's feeding logged: ${qty.toFixed(1)}kg`);
+      }
+    } finally {
+      setFeedSaving(false);
+    }
+  }, [farmId, selectedBatch, batch, feedTask, todayStr]);
 
   return {
     farmId,
@@ -68,6 +283,12 @@ export function useFeedData() {
     batch,
     dynamics,
     phase,
-    refreshSchedules: () => selectedBatch && fetchSchedules(selectedBatch)
+    feedLogs,
+    feedTask,
+    dailyTotalKg,
+    isTodayCompleted,
+    feedSaving,
+    confirmDayFeed,
+    refreshSchedules: () => selectedBatch && fetchSchedules(selectedBatch),
   };
 }

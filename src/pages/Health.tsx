@@ -22,6 +22,7 @@ import { CompleteCareTaskModal } from '@/components/health/CompleteCareTaskModal
 
 export default function Health() {
   const { costPrivacyEnabled } = useAppStore();
+  const [activeTab, setActiveTab] = useState('this_week');
   const {
     batches,
     selectedBatch,
@@ -130,7 +131,7 @@ export default function Health() {
             waterPrescription={waterPrescription}
           />
 
-          <Tabs defaultValue="this_week" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="w-full grid grid-cols-4">
               <TabsTrigger value="this_week" className="gap-1">
                 <ListChecks className="h-3.5 w-3.5" /> This Week
@@ -158,7 +159,8 @@ export default function Health() {
             </TabsList>
 
             <TabsContent value="this_week" className="mt-4 space-y-4">
-              {weeklyLoading ? (
+              {/* Keep last summary visible while refreshing — skeleton only on first load */}
+              {weeklyLoading && !weeklySummary ? (
                 <div className="space-y-3">
                   <Skeleton className="h-20 w-full" />
                   <Skeleton className="h-40 w-full" />
