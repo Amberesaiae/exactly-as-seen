@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { addDays, format, parseISO } from 'date-fns';
+import { format } from 'date-fns';
 import { cacheBatches } from '@/lib/sync';
 import { generateAutoTasks } from '@/lib/health-auto-tasks';
-import { VACCINATION_TEMPLATES } from '@/lib/health-data';
+import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 import { getBatchAge } from '@/lib/batch-utils';
 
 export function useBatchCreateLogic(farmId: string | null, userId: string | undefined) {
@@ -94,18 +94,12 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       notes: t.notes ?? t.indication ?? null,
     }));
 
-    const vaxTemplates = VACCINATION_TEMPLATES.filter(
-      (t) => t.species.includes(species) && t.scheduledWeek <= cycleWeeks
-    );
-    const start = parseISO(startDate);
-    const vaccinationsJson = vaxTemplates.map((t) => ({
-      vaccine_name: t.name,
-      scheduled_week: t.scheduledWeek,
-      scheduled_date: format(
-        addDays(start, (t.scheduledDay ?? t.scheduledWeek * 7) - 1),
-        'yyyy-MM-dd'
-      ),
-    }));
+    // H4: same seed builder as Health Generate Schedule
+    const vaccinationsJson = buildVaccinationSeedRows({
+      species,
+      startDate,
+      cycleLengthWeeks: cycleWeeks,
+    });
 
     // W6: atomic batch + house + seed + activity
     const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch' as any, {
@@ -209,17 +203,14 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       }
     }
 
-    if (vaxTemplates.length > 0) {
+    if (vaccinationsJson.length > 0) {
       const { error: vaxErr } = await supabase.from('vaccination_schedule').insert(
-        vaxTemplates.map((t) => ({
+        vaccinationsJson.map((t) => ({
           batch_id: batch.id,
           farm_id: farmId,
-          vaccine_name: t.name,
-          scheduled_week: t.scheduledWeek,
-          scheduled_date: format(
-            addDays(start, (t.scheduledDay ?? t.scheduledWeek * 7) - 1),
-            'yyyy-MM-dd'
-          ),
+          vaccine_name: t.vaccine_name,
+          scheduled_week: t.scheduled_week,
+          scheduled_date: t.scheduled_date,
         }))
       );
       if (vaxErr) {

@@ -234,6 +234,11 @@ export function useFeedData() {
 
       setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty, batch_id: selectedBatch }, ...prev.filter(f => f.date !== todayStr)]);
 
+      // T6: sync batch_tasks daily feed row
+      const { ensureDailyBatchTasks, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await ensureDailyBatchTasks({ farmId, batches: [batch], todayStr });
+      await markBatchTaskComplete({ farmId, batchId: selectedBatch, taskType: 'feed_log', date: todayStr });
+
       if (deductStock && feedStock) {
         toast.success(
           skipExpense

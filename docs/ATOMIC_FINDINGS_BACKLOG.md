@@ -50,7 +50,7 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 | T3 | Dual vax sync | DONE |
 | T4 | Bulk complete skips schedule + synergy | **DONE** bulk RPC: vax sync + withdrawal flag + intensive expenses when `cost_pesewas` set |
 | T5 | Full protocol courses seed | DONE tables (new flocks only) |
-| T6 | Virtual vs batch_tasks dual source | PARTIAL ensureDailyBatchTasks |
+| T6 | Virtual vs batch_tasks dual source | **DONE** ensure on Health/Dashboard; mark complete after feed/water/egg CTAs |
 | T7 | Health max update depth | DONE |
 
 ## D. Safety gates
@@ -69,7 +69,7 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 | H1 | MarketTrends fake prices | DONE |
 | H2 | todayTemp 28 always | **DONE** `resolveAmbientTempC` regional climatology + measured prefer |
 | H3 | FE MEDICATION_TEMPLATES vs DB | **DONE** add-med is DB-only; FE templates deprecated unused |
-| H4 | VACCINATION_TEMPLATES vs schedule | PARTIAL single seed path via create_batch |
+| H4 | VACCINATION_TEMPLATES vs schedule | **DONE** `buildVaccinationSeedRows` shared create + generate |
 | H5 | batch-fsm unused in UI | **DONE** `getAllowedBatchActions` / phase badge on OverviewTab |
 
 ## F. Seeds / research counts
@@ -84,8 +84,8 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 
 | ID | Finding | Status |
 |----|---------|--------|
-| Q1 | Hosted cron proof | OPEN |
-| Q2 | E2E CI A–K | OPEN |
+| Q1 | Hosted cron proof | **PARTIAL** checklist `docs/CRON_PROOF.md` (human dashboard still required) |
+| Q2 | E2E CI A–K | **DONE** contract tests + Playwright smoke + `.github/workflows/ci.yml` |
 | Q3 | Live re-smoke new flock courses | OPEN ops |
 
 ---
@@ -97,8 +97,8 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 | Atomic intent writers W1–W8 | **~100% code** | Hosted RPC live; client fallbacks remain for offline/old clients |
 | Dual ledger L1–L4 | **~100%** | |
 | Safety gates S1–S4 | **~100%** | |
-| Research protocol depth | **~85%** | H3 dual catalogues; T6 batch_tasks dual; N3 full offline product |
-| Ops / E2E proof | **~40%** | Q1–Q3 not closed |
+| Research protocol depth | **~95%** | Q3 live re-smoke still ops |
+| Ops / E2E proof | **~70%** | Q2 CI done; Q1 human cron checklist; Q3 live re-smoke open |
 
 **Do not claim Production 100% until Q2 live smoke + Q1 cron dashboard proof.**  
 **Do not claim Research 100% until H3 catalogue single-source and full offline outbox for all writers.**

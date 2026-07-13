@@ -102,6 +102,25 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       const rest = prev.filter(w => w.date !== todayStr);
       return [data, ...rest.slice(0, 13)];
     });
+
+    // T6: sync batch_tasks daily water row
+    try {
+      const { ensureDailyBatchTasks, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await ensureDailyBatchTasks({
+        farmId,
+        batches: [{ id: selectedBatch, name: 'flock' }],
+        todayStr,
+      });
+      await markBatchTaskComplete({
+        farmId,
+        batchId: selectedBatch,
+        taskType: 'water_log',
+        date: todayStr,
+      });
+    } catch (e) {
+      console.warn('batch_tasks water sync:', e);
+    }
+
     setWaterSaving(false);
 
     if (temp && temp > 32) {

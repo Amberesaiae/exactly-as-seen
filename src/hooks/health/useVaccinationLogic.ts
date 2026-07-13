@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, addDays } from 'date-fns';
-import { VACCINATION_TEMPLATES } from '@/lib/health-data';
 import {
   seedPostVaccinationSupplements,
   syncHealthTaskFromSchedule,
 } from '@/lib/care-completion';
+import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 
 export function useVaccinationLogic(farmId: string | null, batch: any) {
   const [generatingVaccines, setGeneratingVaccines] = useState(false);
@@ -15,15 +14,25 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
   const generateVaccinationSchedule = async () => {
     if (!farmId || !batch) return;
     setGeneratingVaccines(true);
-    const templates = VACCINATION_TEMPLATES.filter(t => t.species.includes(batch.species));
-    const startDate = new Date(batch.start_date);
-    const records = templates.map(t => ({
+    // H4: same seed builder as create_batch
+    const seeds = buildVaccinationSeedRows({
+      species: batch.species,
+      startDate: batch.start_date,
+      cycleLengthWeeks: batch.cycle_length_weeks ?? 99,
+    });
+    const records = seeds.map((s) => ({
       batch_id: batch.id,
       farm_id: farmId,
-      vaccine_name: t.name,
-      scheduled_week: t.scheduledWeek,
-      scheduled_date: format(addDays(startDate, t.scheduledWeek * 7), 'yyyy-MM-dd'),
+      vaccine_name: s.vaccine_name,
+      scheduled_week: s.scheduled_week,
+      scheduled_date: s.scheduled_date,
     }));
+
+    if (records.length === 0) {
+      toast.error('No vaccination templates for this species/cycle');
+      setGeneratingVaccines(false);
+      return;
+    }
 
     const { data, error } = await supabase.from('vaccination_schedule').insert(records).select();
     if (error) {

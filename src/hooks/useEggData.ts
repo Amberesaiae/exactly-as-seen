@@ -158,6 +158,7 @@ export function useEggData() {
     if (!farmId || !selectedBatch) return;
     if (total <= 0) { toast.error('Enter a valid egg count'); return; }
     setEggSubmitting(true);
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     if (!batch) {
       toast.error('Selected batch not found');
@@ -213,6 +214,22 @@ export function useEggData() {
       event_type: 'egg_collection',
       description: `Collected ${total} eggs (${good} good, ${broken} broken, ${dirty} dirty) — ${SIZE_LABELS[sizeCategory] || sizeCategory}`,
     });
+
+    // T6: sync daily batch_tasks egg row
+    try {
+      const { ensureDailyBatchTasks, markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      if (batch) {
+        await ensureDailyBatchTasks({ farmId, batches: [batch], todayStr });
+      }
+      await markBatchTaskComplete({
+        farmId,
+        batchId: selectedBatch,
+        taskType: 'egg_collection',
+        date: todayStr,
+      });
+    } catch (e) {
+      console.warn('batch_tasks egg sync:', e);
+    }
 
     setRecords(prev => [data, ...prev.slice(0, 29)]);
     setEggSubmitting(false);

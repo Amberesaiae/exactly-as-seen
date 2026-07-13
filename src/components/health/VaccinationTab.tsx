@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Syringe, Check, Zap, Loader2 } from 'lucide-react';
 import { format, isBefore, isToday, isAfter, differenceInDays } from 'date-fns';
-import { VACCINATION_TEMPLATES, getVaccineRoute } from '@/lib/health-data';
+import { getVaccineRoute } from '@/lib/health-data';
+import { countVaccinationTemplates } from '@/lib/vaccination-seed';
 import { useState } from 'react';
 import { VaccinationFulfillmentModal } from './VaccinationFulfillmentModal';
 
@@ -54,7 +55,7 @@ export function VaccinationTab({
           )}
           {batch && (
             <p className="text-xs text-muted-foreground mt-2">
-              Auto-generates {VACCINATION_TEMPLATES.filter(t => t.species.includes(batch.species)).length} vaccines for {batch.species} based on start date
+              Auto-generates {countVaccinationTemplates(batch.species, batch.cycle_length_weeks ?? 99)} vaccines for {batch.species} based on start date
             </p>
           )}
         </CardContent>

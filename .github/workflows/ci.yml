@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master, 'feat/**']
+  pull_request:
+
+jobs:
+  unit:
+    name: Unit (journeys A–K contract + vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install --frozen-lockfile || bun install
+      - name: Unit tests
+        run: bun run test
+      - name: Typecheck
+        run: bunx tsc --noEmit -p tsconfig.app.json
+
+  e2e-smoke:
+    name: E2E smoke (public shells)
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+      - name: Install
+        run: bun install --frozen-lockfile || bun install
+      - name: Install Playwright Chromium
+        run: bunx playwright install --with-deps chromium
+      - name: Build + smoke
+        run: bun run test:e2e
+        env:
+          CI: true

@@ -131,6 +131,15 @@ export function useHealthData() {
       const weekEndStr = format(weekEnd, 'yyyy-MM-dd');
 
       const todayStrLocal = format(new Date(), 'yyyy-MM-dd');
+
+      // T6: ensure DB batch_tasks exist so This Week daily ops matches virtual CTAs
+      const { ensureDailyBatchTasks } = await import('@/lib/ensure-daily-tasks');
+      await ensureDailyBatchTasks({
+        farmId,
+        batches: [activeBatch],
+        todayStr: todayStrLocal,
+      });
+
       const [vResult, hResult, wResult, btResult, flResult] = await Promise.all([
         supabase.from('vaccination_schedule').select('*').eq('batch_id', selectedBatch).order('scheduled_date'),
         supabase.from('health_tasks').select('*').eq('batch_id', selectedBatch).order('scheduled_date', { ascending: false }),
@@ -204,6 +213,20 @@ export function useHealthData() {
     if (task.task_type === 'hydration') {
       // logWater already toasts success — avoid double toast flicker
       await logWater(task.amount, todayTemp, 'Protocol fulfilled via Task Orchestrator');
+      const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await markBatchTaskComplete({
+        farmId,
+        batchId: selectedBatch,
+        taskType: 'water_log',
+        date: todayStr,
+      });
+      setBatchTasks(prev =>
+        prev.map(t =>
+          t.task_type === 'water_log' && t.due_date === todayStr
+            ? { ...t, completed: true, completed_at: new Date().toISOString() }
+            : t
+        )
+      );
     } else if (task.task_type === 'feeding') {
       const {
         shouldDeductStockOnConsumption,
@@ -353,6 +376,20 @@ export function useHealthData() {
         const rest = prev.filter(f => f.date !== todayStr);
         return [{ id: 'temp', date: todayStr, quantity_kg: task.amount, batch_id: selectedBatch } as any, ...rest];
       });
+      const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      await markBatchTaskComplete({
+        farmId,
+        batchId: selectedBatch,
+        taskType: 'feed_log',
+        date: todayStr,
+      });
+      setBatchTasks(prev =>
+        prev.map(t =>
+          t.task_type === 'feed_log' && t.due_date === todayStr
+            ? { ...t, completed: true, completed_at: new Date().toISOString() }
+            : t
+        )
+      );
     }
   };
 
