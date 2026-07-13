@@ -54,6 +54,11 @@ export const VACCINATION_TEMPLATES: VaccineTemplate[] = [
   { name: 'Newcastle Booster', species: ['turkey'], scheduledWeek: 16, scheduledDay: 112, route: 'Drinking water' },
 ];
 
+/**
+ * @deprecated FE catalogue — DO NOT use for add-medication UI.
+ * Runtime source of truth is `medications` table (AddMedicationModal).
+ * Kept only for offline reference / migration docs; prefer DB seeds.
+ */
 export interface MedicationTemplate {
   name: string;
   activeIngredient: string;
@@ -66,6 +71,7 @@ export interface MedicationTemplate {
   speciesRestrictions?: string[];
 }
 
+/** @deprecated Use medications table via Supabase. Not wired into add-med UI. */
 export const MEDICATION_TEMPLATES: MedicationTemplate[] = [
   // Coccidiostats (4)
   { name: 'CORID', activeIngredient: 'Amprolium', taskType: 'medication', dosePerGallon: '1-2 tsp', durationDays: 7, withdrawalMeatDays: 0, withdrawalEggDays: 0, indication: 'Coccidiosis treatment' },

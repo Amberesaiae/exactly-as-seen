@@ -274,8 +274,8 @@ export function useEggData() {
     const totalPesewas = toPesewas(totalAmount);
     const normalizedPayment = normalizePaymentMethod(paymentMethod);
 
-    // W5: atomic sale + revenue (withdrawal + inventory checked server-side)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale' as any, {
+    const saleDate = new Date().toISOString().slice(0, 10);
+    const eggSaleArgs = {
       p_farm_id: farmId,
       p_batch_id: selectedBatch,
       p_quantity: totalEggs,
@@ -289,8 +289,32 @@ export function useEggData() {
       p_payment_method: normalizedPayment,
       p_payment_status: (paymentStatus as 'paid' | 'pending' | 'partial') || 'paid',
       p_notes: notes || null,
-      p_date: new Date().toISOString().slice(0, 10),
-    });
+      p_date: saleDate,
+    };
+
+    // Offline: queue atomic sale (client already checked inventory/withdrawal)
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const { queueRpc } = await import('@/lib/sync');
+      const tempId = crypto.randomUUID();
+      await queueRpc('record_egg_sale', eggSaleArgs, tempId);
+      setSales(prev => [{
+        id: tempId,
+        farm_id: farmId,
+        batch_id: selectedBatch,
+        quantity: totalEggs,
+        crates_sold: crates,
+        looses_sold: looses,
+        size_category: sizeCategory,
+        total_revenue_pesewas: totalPesewas,
+        buyer: buyer || null,
+      } as any, ...prev.slice(0, 29)]);
+      setSaleSubmitting(false);
+      toast.warning('Offline — egg sale queued; will sync when online');
+      return;
+    }
+
+    // W5: atomic sale + revenue (withdrawal + inventory checked server-side)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale' as any, eggSaleArgs);
 
     if (!rpcError && rpcData && (rpcData as any).ok) {
       const sale = {

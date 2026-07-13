@@ -54,6 +54,11 @@ export async function getCachedActivities(farmId: string) {
   return db.activity_log.where('farm_id').equals(farmId).toArray();
 }
 
+/** True when browser reports offline (SSR-safe). */
+export function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
 // Queue a write operation for later sync
 export async function queueWrite(
   table: string,
@@ -71,28 +76,54 @@ export async function queueWrite(
   await db.sync_outbox.add(entry);
 }
 
+/**
+ * Queue a SECURITY DEFINER RPC for later flush (offline intent writers).
+ * Stored as table `rpc:<function_name>` with args as data.
+ */
+export async function queueRpc(
+  functionName: string,
+  args: Record<string, unknown>,
+  recordId?: string
+) {
+  await queueWrite(
+    `rpc:${functionName}`,
+    'insert',
+    recordId || crypto.randomUUID(),
+    args
+  );
+}
+
 // Flush all queued writes to Supabase
 export async function flushOutbox() {
   if (flushing) return;
   flushing = true;
-  
+
   try {
     const pending = await db.sync_outbox.toArray();
     if (pending.length === 0) return;
 
     for (const item of pending) {
       try {
-        if (item.operation === 'insert') {
+        if (item.table.startsWith('rpc:')) {
+          const fn = item.table.slice(4);
+          const { error } = await (supabase as any).rpc(fn, item.data);
+          if (error) throw error;
+        } else if (item.operation === 'insert') {
           const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
           if (error) throw error;
         } else if (item.operation === 'update') {
-          const { error } = await supabase.from(item.table as 'farms').update(item.data as never).eq('id', item.record_id);
+          const { error } = await supabase
+            .from(item.table as 'farms')
+            .update(item.data as never)
+            .eq('id', item.record_id);
           if (error) throw error;
         } else if (item.operation === 'delete') {
-          const { error } = await supabase.from(item.table as 'farms').delete().eq('id', item.record_id);
+          const { error } = await supabase
+            .from(item.table as 'farms')
+            .delete()
+            .eq('id', item.record_id);
           if (error) throw error;
         }
-        // Remove from outbox on success
         if (item.id) await db.sync_outbox.delete(item.id);
       } catch (err) {
         console.error(`Sync failed for ${item.table}/${item.record_id}:`, err);
@@ -106,7 +137,8 @@ export async function flushOutbox() {
 
 // Auto-flush when coming back online
 export function setupOnlineListener() {
+  if (typeof window === 'undefined') return;
   window.addEventListener('online', () => {
-    flushOutbox();
+    void flushOutbox();
   });
 }

@@ -1,8 +1,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Activity, AlertTriangle, Info, Egg, ThermometerSun, Droplets } from 'lucide-react';
 import { format } from 'date-fns';
-import { MEDICATION_TEMPLATES } from '@/lib/health-data';
 
 interface HealthAlertBannerProps {
   batch: any;
@@ -123,8 +123,13 @@ export function HealthAlertBanner({
           <Egg className="h-4 w-4 text-orange-600" />
           <AlertTitle className="text-sm">Egg Discard Required</AlertTitle>
           <AlertDescription className="text-xs">
-            Due to {eggDiscardInfo.products.join(', ')} — discard all eggs until{' '}
-            <strong>{format(eggDiscardInfo.safeDate, 'MMM d, yyyy')}</strong> ({eggDiscardInfo.daysLeft} days remaining).
+            Due to {(eggDiscardInfo.products ?? ['medication']).join(', ')} — discard all eggs until{' '}
+            <strong>
+              {eggDiscardInfo.safeDate
+                ? format(eggDiscardInfo.safeDate, 'MMM d, yyyy')
+                : eggDiscardInfo.until}
+            </strong>
+            {eggDiscardInfo.daysLeft != null ? ` (${eggDiscardInfo.daysLeft} days remaining)` : ''}.
             {eggDiscardInfo.estimatedEggs > 0 && (
               <> Estimated <strong>~{eggDiscardInfo.estimatedEggs} eggs</strong> affected.</>
             )}

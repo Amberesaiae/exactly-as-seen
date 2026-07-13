@@ -68,7 +68,7 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 |----|---------|--------|
 | H1 | MarketTrends fake prices | DONE |
 | H2 | todayTemp 28 always | **DONE** `resolveAmbientTempC` regional climatology + measured prefer |
-| H3 | FE MEDICATION_TEMPLATES vs DB | OPEN (DB used for add med; templates still dual source) |
+| H3 | FE MEDICATION_TEMPLATES vs DB | **DONE** add-med is DB-only; FE templates deprecated unused |
 | H4 | VACCINATION_TEMPLATES vs schedule | PARTIAL single seed path via create_batch |
 | H5 | batch-fsm unused in UI | **DONE** `getAllowedBatchActions` / phase badge on OverviewTab |
 
@@ -78,7 +78,7 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 |----|---------|--------|
 | N1 | 41 ingredients (had ~25) | **DONE** gap-fill in `20260713030000` |
 | N2 | 52 meds | DONE if prior migration applied |
-| N3 | Offline day write outbox | **DONE** feed + water `queueWrite` (full offline product still PARTIAL) |
+| N3 | Offline day write outbox | **DONE** feed/water table + stock/egg/mortality/terminate via `queueRpc` |
 
 ## G. Ops / QA
 

@@ -110,7 +110,7 @@ export function useStockData() {
     // W4: atomic purchase path (tx + lot + qty + expense)
     if (type === 'purchase') {
       const unitPricePesewas = price != null && price > 0 ? Math.round(price * 100) : 0;
-      const { data: rpcData, error: rpcError } = await supabase.rpc('stock_purchase' as any, {
+      const purchaseArgs = {
         p_farm_id: farmId,
         p_stock_item_id: itemId,
         p_qty: qty,
@@ -120,7 +120,22 @@ export function useStockData() {
         p_expiry_date: expiryDate || null,
         p_batch_id: batchId || null,
         p_expense_category: expenseCategoryForStockItem(item.category),
-      });
+      };
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const { queueRpc } = await import('@/lib/sync');
+        await queueRpc('stock_purchase', purchaseArgs, `stock-purchase:${itemId}:${Date.now()}`);
+        setStockItems(prev => prev.map(i => i.id === itemId ? {
+          ...i,
+          current_quantity: newQty,
+          ...(unitPricePesewas > 0 ? { unit_price_pesewas: unitPricePesewas } : {}),
+        } : i));
+        setSubmitting(false);
+        toast.warning('Offline — stock purchase queued; will sync when online');
+        return;
+      }
+
+      const { data: rpcData, error: rpcError } = await supabase.rpc('stock_purchase' as any, purchaseArgs);
 
       if (!rpcError && rpcData && (rpcData as any).ok) {
         const computedNew = Number((rpcData as any).new_quantity);

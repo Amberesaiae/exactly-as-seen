@@ -55,11 +55,36 @@ export function useHealthBatchStatus(
 
   const eggDiscardInfo = useMemo(() => {
     const now = new Date();
-    const active = activeWithdrawals.filter(t => t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), now));
+    const active = activeWithdrawals.filter(
+      t => t.withdrawal_eggs_until && isAfter(new Date(t.withdrawal_eggs_until), now)
+    );
     if (!active.length) return null;
-    const furthestDate = new Date(Math.max(...active.map(t => new Date(t.withdrawal_eggs_until!).getTime())));
-    return { count: active.length, until: format(furthestDate, 'MMM d, yyyy') };
-  }, [activeWithdrawals, todayStr]);
+    const furthestDate = new Date(
+      Math.max(...active.map(t => new Date(t.withdrawal_eggs_until!).getTime()))
+    );
+    const products = active
+      .map(t => t.product_name)
+      .filter((n): n is string => !!n && n.trim().length > 0);
+    const uniqueProducts = Array.from(new Set(products));
+    const daysLeft = Math.max(
+      0,
+      Math.ceil((furthestDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    );
+    // Rough estimate: layers ~0.8 egg/bird/day when production; 0 if unknown pop
+    const pop = batch?.current_population ?? 0;
+    const estimatedEggs =
+      batch?.species === 'layer' || (batch?.species === 'duck' && batch?.duck_type === 'layer')
+        ? Math.round(pop * 0.8 * daysLeft)
+        : 0;
+    return {
+      count: active.length,
+      until: format(furthestDate, 'MMM d, yyyy'),
+      products: uniqueProducts.length ? uniqueProducts : ['recent medication'],
+      safeDate: furthestDate,
+      daysLeft,
+      estimatedEggs,
+    };
+  }, [activeWithdrawals, todayStr, batch]);
 
   // 3. Species-Specific Projections (Tool Effect)
   const todayTemp = useMemo(() => {

@@ -39,14 +39,26 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
     const revenueCategory = batch.species === 'broiler' ? 'meat_sales' : 'bird_sales';
     const revenuePesewas = Math.round(revenueAmt * 100);
 
-    // Prefer atomic RPC (status + house release + revenue + cleanup)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('terminate_batch' as any, {
+    const terminateArgs = {
       p_farm_id: batch.farm_id,
       p_batch_id: batch.id,
       p_mode: terminationMode,
       p_revenue_pesewas: revenuePesewas,
       p_revenue_category: revenueCategory,
-    });
+    };
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const { queueRpc } = await import('@/lib/sync');
+      await queueRpc('terminate_batch', terminateArgs, `terminate:${batch.id}`);
+      toast.warning('Offline — termination queued; will sync when online');
+      onSuccess({ ...batch, status: 'completed', phase: 'terminated', termination_reason: terminationMode });
+      setCompleting(false);
+      onOpenChange(false);
+      return;
+    }
+
+    // Prefer atomic RPC (status + house release + revenue + cleanup)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('terminate_batch' as any, terminateArgs);
 
     if (rpcError) {
       console.warn('terminate_batch RPC failed, client fallback:', rpcError.message);

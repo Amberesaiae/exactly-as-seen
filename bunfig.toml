@@ -1,0 +1,4 @@
+# When someone runs `bun test` instead of `bun run test` (vitest),
+# provide a DOM so React/Supabase unit tests do not crash.
+[test]
+preload = ["./src/test/bun-preload.ts"]

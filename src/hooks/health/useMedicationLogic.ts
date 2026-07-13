@@ -116,6 +116,28 @@ export function useMedicationLogic(
     const source = isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health;
     const description = `${task.product_name} — ${task.duration_days}d course`;
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const { queueRpc } = await import('@/lib/sync');
+      await queueRpc('complete_health_task', {
+        p_farm_id: farmId,
+        p_task_id: taskId,
+        p_cost_pesewas: costPesewas || 0,
+        p_completed_at: completedAtISO,
+      }, taskId);
+      toast.warning('Offline — care complete queued; will sync when online');
+      return {
+        withdrawalMeatUntil: task.withdrawal_meat_days
+          ? format(addDays(completedAt, task.withdrawal_meat_days), 'yyyy-MM-dd')
+          : null,
+        withdrawalEggsUntil: task.withdrawal_egg_days
+          ? format(addDays(completedAt, task.withdrawal_egg_days), 'yyyy-MM-dd')
+          : null,
+        hasWithdrawal: !!(task.withdrawal_meat_days || task.withdrawal_egg_days),
+        isVaccination: isVaccinationHealthTask(task),
+        offline: true,
+      };
+    }
+
     // Prefer atomic RPC (health_tasks + vaccination_schedule + intensive expense)
     const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_health_task' as any, {
       p_farm_id: farmId,

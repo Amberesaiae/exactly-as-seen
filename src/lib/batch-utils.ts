@@ -74,6 +74,21 @@ export async function recordMortality(params: {
 }): Promise<number | null> {
   const { batchId, farmId, batchName, currentPopulation, count, cause, notes } = params;
 
+  if (count <= 0 || count > currentPopulation) return null;
+
+  // Offline: queue atomic RPC for flush when online
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    const { queueRpc } = await import('@/lib/sync');
+    await queueRpc('record_mortality', {
+      p_farm_id: farmId,
+      p_batch_id: batchId,
+      p_count: count,
+      p_cause: cause || null,
+      p_notes: notes || null,
+    }, `mortality:${batchId}:${Date.now()}`);
+    return Math.max(0, currentPopulation - count);
+  }
+
   // Prefer atomic RPC (mortality + population + activity)
   const { data: rpcData, error: rpcError } = await supabase.rpc('record_mortality' as any, {
     p_farm_id: farmId,

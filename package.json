@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:bun": "vitest run",
     "setup": "bun install",
     "db:push": "supabase db push --linked --yes",
     "db:status": "supabase migration list --linked",

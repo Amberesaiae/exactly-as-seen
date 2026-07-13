@@ -5,7 +5,7 @@
  * @see docs/AUDIT_WITHOUT_BACKEND.md
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { selectPrimaryFarm } from '@/lib/canonical';
 import { isPasswordStrong, validatePassword } from '@/lib/password-validation';
@@ -34,7 +34,7 @@ vi.mock('@/contexts/AuthContext', () => ({
 
 function GateHarness({ requireSetupComplete = true }: { requireSetupComplete?: boolean }) {
   return (
-    <MemoryRouter initialEntries={['/dashboard']}>
+    <MemoryRouter initialEntries={['/dashboard']} future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <Routes>
         <Route path="/welcome" element={<div data-testid="page">welcome</div>} />
         <Route path="/farm-setup" element={<div data-testid="page">farm-setup</div>} />
@@ -104,7 +104,9 @@ describe('Flow A — ProtectedRoute gate order', () => {
     await act(async () => {
       render(<GateHarness requireSetupComplete />);
     });
-    expect(screen.getByTestId('page').textContent).toBe('farm-setup');
+    await waitFor(() => {
+      expect(screen.getByTestId('page').textContent).toBe('farm-setup');
+    });
   });
 
   it('authenticated + setup complete → children (dashboard)', async () => {
@@ -113,7 +115,9 @@ describe('Flow A — ProtectedRoute gate order', () => {
     await act(async () => {
       render(<GateHarness requireSetupComplete />);
     });
-    expect(screen.getByTestId('page').textContent).toBe('dashboard');
+    await waitFor(() => {
+      expect(screen.getByTestId('page').textContent).toBe('dashboard');
+    });
   });
 
   it('shows loader while farmReady is unknown on app shell', async () => {
@@ -123,7 +127,9 @@ describe('Flow A — ProtectedRoute gate order', () => {
       render(<GateHarness requireSetupComplete />);
     });
     // Loader has no data-testid page — spinner only
-    expect(screen.queryByTestId('page')).toBeNull();
+    await waitFor(() => {
+      expect(screen.queryByTestId('page')).toBeNull();
+    });
   });
 });
 
