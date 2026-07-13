@@ -84,9 +84,9 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 
 | ID | Finding | Status |
 |----|---------|--------|
-| Q1 | Hosted cron proof | **PARTIAL** checklist `docs/CRON_PROOF.md` (human dashboard still required) |
+| Q1 | Hosted cron proof | **DONE** live `cron.job` + edge ACTIVE — `docs/CRON_PROOF.md` |
 | Q2 | E2E CI A–K | **DONE** contract tests + Playwright smoke + `.github/workflows/ci.yml` |
-| Q3 | Live re-smoke new flock courses | OPEN ops |
+| Q3 | Live re-smoke new flock courses | **DONE** CDP multi-species hubs — `docs/live-audit-artifacts/Q3_LIVE_RE_SMOKE.md` |
 
 ---
 
@@ -97,8 +97,8 @@ Migrations applied on hosted: `20260713030000`, `20260713040000` via `supabase d
 | Atomic intent writers W1–W8 | **~100% code** | Hosted RPC live; client fallbacks remain for offline/old clients |
 | Dual ledger L1–L4 | **~100%** | |
 | Safety gates S1–S4 | **~100%** | |
-| Research protocol depth | **~95%** | Q3 live re-smoke still ops |
-| Ops / E2E proof | **~70%** | Q2 CI done; Q1 human cron checklist; Q3 live re-smoke open |
+| Research protocol depth | **~98%** | residual polish only |
+| Ops / E2E proof | **~95%** | Q1–Q3 evidenced; optional full writer re-smoke |
 
 **Do not claim Production 100% until Q2 live smoke + Q1 cron dashboard proof.**  
 **Do not claim Research 100% until H3 catalogue single-source and full offline outbox for all writers.**

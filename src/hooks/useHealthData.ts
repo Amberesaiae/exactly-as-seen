@@ -140,20 +140,44 @@ export function useHealthData() {
         todayStr: todayStrLocal,
       });
 
-      const [vResult, hResult, wResult, btResult, flResult] = await Promise.all([
+      const [vResult, hResult, wResult, flResult] = await Promise.all([
         supabase.from('vaccination_schedule').select('*').eq('batch_id', selectedBatch).order('scheduled_date'),
         supabase.from('health_tasks').select('*').eq('batch_id', selectedBatch).order('scheduled_date', { ascending: false }),
         supabase.from('water_records').select('*').eq('batch_id', selectedBatch).order('date', { ascending: false }).limit(14),
-        supabase.from('batch_tasks').select('*').eq('batch_id', selectedBatch).eq('farm_id', farmId).gte('due_date', weekStartStr).lt('due_date', weekEndStr),
         supabase.from('feed_logs').select('*').eq('batch_id', selectedBatch).eq('date', todayStrLocal).limit(1),
       ]);
+
+      if (cancelled) return;
+
+      // T6 reconcile: if ops already logged, flip matching batch_tasks to completed
+      const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
+      const waterDone = (wResult.data ?? []).some((w: { date?: string }) => w.date === todayStrLocal);
+      const feedDone = (flResult.data ?? []).length > 0;
+      if (waterDone) {
+        await markBatchTaskComplete({
+          farmId, batchId: selectedBatch, taskType: 'water_log', date: todayStrLocal,
+        });
+      }
+      if (feedDone) {
+        await markBatchTaskComplete({
+          farmId, batchId: selectedBatch, taskType: 'feed_log', date: todayStrLocal,
+        });
+      }
+
+      const { data: btData } = await supabase
+        .from('batch_tasks')
+        .select('*')
+        .eq('batch_id', selectedBatch)
+        .eq('farm_id', farmId)
+        .gte('due_date', weekStartStr)
+        .lt('due_date', weekEndStr);
 
       if (cancelled) return;
 
       setVaccinations(vResult.data ?? []);
       setHealthTasks(hResult.data ?? []);
       setWaterRecords(wResult.data ?? []);
-      setBatchTasks(btResult.data ?? []);
+      setBatchTasks(btData ?? []);
       setFeedLogs(flResult.data ?? []);
       // Do not await — avoids blocking UI; weeklyLoading already handles skeleton
       void fetchWeeklySummary(selectedBatch, age.week);

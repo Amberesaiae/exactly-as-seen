@@ -18,6 +18,14 @@ describe('today-tasks', () => {
     expect(due[0].product_name).toBe('Gumboro');
   });
 
+  it('formatTaskTypeLabel keeps vaccines distinct from medication', async () => {
+    const { formatTaskTypeLabel } = await import('@/lib/today-tasks');
+    expect(formatTaskTypeLabel({ task_type: 'vaccination', product_name: 'HB1' })).toBe('Vaccine');
+    expect(formatTaskTypeLabel({ task_type: 'medication', product_name: 'Gumboro (IBD)' })).toBe('Vaccine');
+    expect(formatTaskTypeLabel({ task_type: 'medication', product_name: 'Amprolium' })).toBe('Medication');
+    expect(formatTaskTypeLabel({ task_type: 'feeding' })).toBe('Feeding');
+  });
+
   it('does not relabel vaccinations as medication', () => {
     const list = buildTodayChecklist({
       todayStr: today,

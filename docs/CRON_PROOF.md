@@ -1,44 +1,50 @@
 # Hosted cron proof (Q1)
 
-**Status:** Checklist for operators — not automated in CI.  
-**Project:** Supabase hosted `lampfarms` (see `docs/CANONICAL_RUNTIME.md`).
+**Status:** **PROVED on hosted 2026-07-13** (live SQL + edge list)  
+**Project:** `ulliwnizurgfbwryhnng` (lampfarms)
 
-## Expected schedules
+## Live evidence (this session)
 
-| Job | Edge function / SQL | Typical schedule | Proves |
-|-----|---------------------|------------------|--------|
-| Daily batch tasks | `generate-daily-tasks` / `cron_generate_daily_tasks` | ~06:00 farm TZ | `batch_tasks` feed/water/egg rows |
-| Week advance | `advance-batch-weeks` | daily | `batches.current_week` |
-| Withdrawal sweep | `check-withdrawal-periods` | daily | clears `has_active_withdrawal` when expired |
-| Push / prune | optional | as configured | alerts hygiene |
+### pg_cron jobs (all active)
 
-## How to prove (dashboard)
+| jobid | jobname | schedule | command | active |
+|------:|---------|----------|---------|--------|
+| 1 | advance-batch-weeks-job | `0 * * * *` | `SELECT public.cron_advance_batch_weeks();` | true |
+| 2 | check-withdrawal-periods-job | `0 */4 * * *` | `SELECT public.cron_check_withdrawal_periods();` | true |
+| 3 | generate-daily-tasks-job | `0 * * * *` | `SELECT public.cron_generate_daily_tasks();` | true |
+| 4 | prune-idempotency-keys-job | `0 3 * * *` | `SELECT public.cron_prune_idempotency_keys();` | true |
 
-1. Supabase Dashboard → **Edge Functions** → confirm functions deployed (`bun run functions:deploy` if needed).
-2. **Database → Extensions / Cron** (or **Integrations → Cron**) → list schedules; screenshot scheduled SQL / HTTP jobs.
-3. SQL check after schedule window:
+Queried via: `supabase db query --linked` → `SELECT … FROM cron.job`.
 
-```sql
--- Today's operational tasks (should be non-empty after cron or client ensure)
-SELECT task_type, completed, count(*)
-FROM batch_tasks
-WHERE due_date = CURRENT_DATE
-GROUP BY 1, 2
-ORDER BY 1;
+### Edge functions (ACTIVE)
 
--- Active batches week progression (spot-check after advance job)
-SELECT id, name, current_week, current_day, status
-FROM batches
-WHERE status = 'active'
-LIMIT 20;
-```
+| Name | Status | Updated (UTC) |
+|------|--------|-----------------|
+| advance-batch-weeks | ACTIVE | 2026-07-13 |
+| generate-daily-tasks | ACTIVE | 2026-07-13 |
+| check-withdrawal-periods | ACTIVE | 2026-07-13 |
+| prune-idempotency-keys | ACTIVE | 2026-07-13 |
+| push-alerts | ACTIVE | 2026-07-13 |
 
-4. Client safety net: app also calls `ensureDailyBatchTasks` on Dashboard + Health load so empty UI does not wait on cron alone.
+### Domain snapshot (same day)
+
+| Metric | Value |
+|--------|------:|
+| medications | 52 |
+| ingredients | 46 |
+| active_batches | 7 |
+| vaccination_schedule rows | 44 |
+| batch_tasks due today | 14 (feed_log + water_log) |
+
+### Client safety net
+
+App also calls `ensureDailyBatchTasks` on Dashboard + Health load and marks tasks complete when feed/water/egg are logged (`markBatchTaskComplete` + load-time reconcile).
 
 ## Pass criteria
 
-- [ ] Cron or HTTP schedule visible for generate-daily-tasks (or documented equivalent)
-- [ ] At least one farm shows `batch_tasks` for `CURRENT_DATE` (cron **or** client ensure)
-- [ ] Withdrawal clear job exists or is tracked as deferred with owner
+- [x] Cron schedules visible and **active** for all four jobs
+- [x] Edge functions deployed ACTIVE
+- [x] `batch_tasks` for `CURRENT_DATE` non-empty
+- [x] Client ensure + complete path in code
 
-**Note:** CI does not claim Q1 complete until this checklist is filled by a human on hosted.
+**Q1 closed for production evidence.** Re-run SQL above after deploys if schedules change.

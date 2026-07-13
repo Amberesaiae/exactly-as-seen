@@ -62,3 +62,27 @@ export function buildTodayChecklist(args: {
   }
   return combined;
 }
+
+/**
+ * Farmer-facing type label for dashboard checklist.
+ * Never show raw "medication" for vaccine product names (T1).
+ */
+export function formatTaskTypeLabel(task: {
+  task_type?: string | null;
+  product_name?: string | null;
+  title?: string | null;
+}): string {
+  const raw = (task.task_type || 'care').toLowerCase();
+  if (raw === 'hydration') return 'Hydration';
+  if (raw === 'feeding') return 'Feeding';
+  if (raw === 'vaccination') return 'Vaccine';
+  if (raw === 'supplement') return 'Supplement';
+  if (raw === 'medication') {
+    const name = `${task.product_name || ''} ${task.title || ''}`.toLowerCase();
+    if (/gumboro|newcastle|lasota|hb1|fowl pox|duck plague|hepatitis|ibd|\bib\b/.test(name)) {
+      return 'Vaccine';
+    }
+    return 'Medication';
+  }
+  return raw.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
