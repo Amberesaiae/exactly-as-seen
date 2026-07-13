@@ -14,6 +14,8 @@ import { GradingTab } from '@/components/eggs/GradingTab';
 import { SalesTab } from '@/components/eggs/SalesTab';
 import { EggCollectionDialog } from '@/components/eggs/EggCollectionDialog';
 import { EggSaleDialog } from '@/components/eggs/EggSaleDialog';
+import { LAYER_EGG_START_WEEK, DUCK_EGG_START_WEEK } from '@/lib/canonical';
+import { toast } from 'sonner';
 
 export default function Eggs() {
   const {
@@ -26,6 +28,25 @@ export default function Eggs() {
   const [showCollect, setShowCollect] = useState(false);
   const [showSale, setShowSale] = useState(false);
 
+  const week = batchAge?.week ?? batch?.current_week ?? 0;
+  const collectionAllowed = (() => {
+    if (!batch) return false;
+    if (batch.species === 'layer') return week >= LAYER_EGG_START_WEEK;
+    if (batch.species === 'duck' && batch.duck_type === 'layer') return week >= DUCK_EGG_START_WEEK;
+    // other egg-capable batches: allow if week gate not applicable
+    if (batch.species === 'duck' && batch.duck_type !== 'layer') return false;
+    return week >= LAYER_EGG_START_WEEK;
+  })();
+
+  const openCollect = () => {
+    if (!collectionAllowed) {
+      const need = batch?.species === 'duck' ? DUCK_EGG_START_WEEK : LAYER_EGG_START_WEEK;
+      toast.error(`Collection opens at week ${need} (currently week ${week})`);
+      return;
+    }
+    setShowCollect(true);
+  };
+
   if (loading) return <div className="p-4 md:p-6 space-y-4"><Skeleton className="h-8 w-48" /><Skeleton className="h-64 rounded-xl" /></div>;
 
   return (
@@ -33,8 +54,8 @@ export default function Eggs() {
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-foreground">Harvest</h1>
         <div className="flex gap-2">
-          <Button variant="outline" className="gap-1.5 rounded-full" onClick={() => setShowSale(true)} disabled={batches.length === 0}><ShoppingCart className="h-4 w-4" /> Sale</Button>
-          <Button className="gap-1.5 rounded-full" onClick={() => setShowCollect(true)} disabled={!selectedBatch}><Plus className="h-4 w-4" /> Collect</Button>
+          <Button variant="outline" className="gap-1.5 rounded-full" onClick={() => setShowSale(true)} disabled={batches.length === 0 || !!batch?.has_active_withdrawal} title={batch?.has_active_withdrawal ? 'Egg withdrawal active' : undefined}><ShoppingCart className="h-4 w-4" /> Sale</Button>
+          <Button className="gap-1.5 rounded-full" onClick={openCollect} disabled={!selectedBatch || !collectionAllowed} title={!collectionAllowed ? `Eligible from week ${batch?.species === 'duck' ? DUCK_EGG_START_WEEK : LAYER_EGG_START_WEEK}` : undefined}><Plus className="h-4 w-4" /> Collect</Button>
         </div>
       </div>
 
@@ -69,7 +90,7 @@ export default function Eggs() {
               <TabsTrigger value="sales" className="gap-1"><ShoppingCart className="h-3.5 w-3.5" /> Sales</TabsTrigger>
             </TabsList>
             <TabsContent value="production" className="mt-4">
-              <ProductionTab chartData={chartData} records={records} batch={batch} todayStr={todayStr} expectedRate={expectedRate} onShowCollect={() => setShowCollect(true)} />
+              <ProductionTab chartData={chartData} records={records} batch={batch} todayStr={todayStr} expectedRate={expectedRate} onShowCollect={openCollect} />
             </TabsContent>
             <TabsContent value="grading" className="mt-4"><GradingTab qualityBreakdown={qualityBreakdown} sizeDistribution={sizeDistribution} /></TabsContent>
             <TabsContent value="sales" className="mt-4"><SalesTab salesSummary={salesSummary} sales={sales} costPrivacyEnabled={costPrivacyEnabled} onShowSale={() => setShowSale(true)} /></TabsContent>

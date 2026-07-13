@@ -2,7 +2,7 @@ import { addDays, format, parseISO } from 'date-fns';
 import { VACCINATION_TEMPLATES } from './health-data';
 import {
   courseScheduledWeek,
-  getProtocolCourses,
+  getProtocolCoursesForCycle,
 } from './species-protocol-courses';
 
 export interface AutoTaskInsert {
@@ -37,7 +37,6 @@ export function generateAutoTasks(args: {
 }): AutoTaskInsert[] {
   const tasks: AutoTaskInsert[] = [];
   const start = parseISO(args.startDate);
-  const maxDay = args.cycleLengthWeeks * 7;
 
   // 1. Vaccination milestones
   VACCINATION_TEMPLATES.filter((t) => t.species.includes(args.species)).forEach((vax) => {
@@ -63,9 +62,8 @@ export function generateAutoTasks(args: {
     });
   });
 
-  // 2. Research care courses (arrival, cocci, multi, deworm, blackhead W2, etc.)
-  getProtocolCourses(args.species).forEach((course) => {
-    if (course.startDay > maxDay) return;
+  // 2. Research care courses (arrival, cocci, multi, deworm, blackhead W2, production monthly…)
+  getProtocolCoursesForCycle(args.species, args.cycleLengthWeeks).forEach((course) => {
     const week = courseScheduledWeek(course.startDay);
     if (week > args.cycleLengthWeeks) return;
 

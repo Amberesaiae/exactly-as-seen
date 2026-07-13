@@ -34,11 +34,16 @@ export function useDashboardLogic() {
 
     const activeBatches = batchesRes.data ?? [];
     setBatches(activeBatches);
-    
-    // Generate Virtual Operational Tasks for Dashboard
-    const opTasks: any[] = [];
+
     const todayWaterRecords = waterRes.data ?? [];
     const todayFeedLogs = await supabase.from('feed_logs').select('batch_id').eq('farm_id', farmId).eq('date', todayStr);
+
+    // Ensure DB batch_tasks for Health "Daily Farm Operations" without waiting on cron
+    const { ensureDailyBatchTasks } = await import('@/lib/ensure-daily-tasks');
+    await ensureDailyBatchTasks({ farmId, batches: activeBatches, todayStr });
+
+    // Generate Virtual Operational Tasks for Dashboard
+    const opTasks: any[] = [];
     const farmRegion = farmRes.data?.location_region ?? null;
     const waterRate = farmRes.data?.water_rate_per_liter_pesewas;
     const ambientTemp = getRegionalTemperature(farmRegion);

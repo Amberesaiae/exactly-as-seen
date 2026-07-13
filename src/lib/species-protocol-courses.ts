@@ -1,7 +1,7 @@
 /**
- * Research-aligned care courses from deprecated specs/03-SPECIES-PROTOCOLS.
- * These are day-range courses (not vaccine milestones — those live in health-data VACCINATION_TEMPLATES).
- * Seeded on batch create via generateAutoTasks.
+ * Full research-aligned care courses from 03-SPECIES-PROTOCOLS.
+ * Vaccination milestones remain in health-data VACCINATION_TEMPLATES.
+ * Seeded on batch create via generateAutoTasks (filtered by cycle length).
  */
 
 export type ProtocolCourse = {
@@ -19,37 +19,159 @@ export type ProtocolCourse = {
   withdrawal_egg_days?: number;
 };
 
-/** Shared day-1 arrival block — all commercial species */
-const ARRIVAL: Omit<ProtocolCourse, 'species'> = {
-  product_name: 'Anti-Stress + Glucose',
-  task_type: 'supplement',
-  startDay: 1,
-  durationDays: 3,
-  delivery_method: 'drinking_water',
-  indication: 'Day-old arrival stress / energy',
-  priority: 'critical',
-  doseHint: '2 tbsp anti-stress + glucose per gallon (scale to flock water)',
-  withdrawal_meat_days: 0,
-  withdrawal_egg_days: 0,
-};
+function c(
+  species: string,
+  partial: Omit<ProtocolCourse, 'species'>
+): ProtocolCourse {
+  return { species, withdrawal_meat_days: 0, withdrawal_egg_days: 0, ...partial };
+}
+
+/** Arrival D1–3 for all species */
+function arrival(species: string, doseHint: string): ProtocolCourse {
+  return c(species, {
+    product_name: 'Anti-Stress + Glucose',
+    task_type: 'supplement',
+    startDay: 1,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Day-old arrival stress / energy',
+    priority: 'critical',
+    doseHint,
+  });
+}
+
+// ─── BROILER (research BROILER.md weeks 1–6) ────────────────────────────────
 
 const BROILER_COURSES: ProtocolCourse[] = [
-  { ...ARRIVAL, species: 'broiler' },
-  {
-    species: 'broiler',
+  arrival('broiler', '2 tbsp anti-stress + glucose per gallon'),
+  c('broiler', {
     product_name: 'Coccidiostat (Prevention)',
     task_type: 'medication',
     startDay: 4,
     durationDays: 3,
     delivery_method: 'drinking_water',
-    indication: 'Week 1 coccidiosis prevention',
+    indication: 'Week 1 coccidiosis prevention (D4–6)',
     priority: 'high',
     doseHint: '1.5 tbsp per gallon',
-    withdrawal_meat_days: 0,
-    withdrawal_egg_days: 0,
-  },
-  {
-    species: 'broiler',
+  }),
+  c('broiler', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 8,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Post-Gumboro support (D8–10)',
+    priority: 'high',
+    doseHint: '1.5 tbsp per gallon',
+  }),
+  c('broiler', {
+    product_name: 'Coccidiostat (Prevention)',
+    task_type: 'medication',
+    startDay: 11,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 2 prevention (D11–13)',
+    priority: 'high',
+    doseHint: '1.5 tbsp per gallon',
+  }),
+  // Week 3: cocci Mon/Wed/Fri as three 1-day tasks
+  ...[15, 17, 19].map((d) =>
+    c('broiler', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 3 M/W/F prevention',
+      priority: 'high',
+      doseHint: '1.5 tbsp per gallon',
+    })
+  ),
+  c('broiler', {
+    product_name: 'Anti-Stress',
+    task_type: 'supplement',
+    startDay: 22,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Pre-Lasota prep (D22–24)',
+    priority: 'high',
+    doseHint: '1.5 tbsp per gallon',
+  }),
+  c('broiler', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 25,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 4 support (D25–27)',
+    priority: 'medium',
+    doseHint: '1.5 tbsp per gallon',
+  }),
+  c('broiler', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 29,
+    durationDays: 2,
+    delivery_method: 'drinking_water',
+    indication: 'Post-Lasota (D29–30)',
+    priority: 'high',
+  }),
+  ...[31, 33].map((d) =>
+    c('broiler', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 5 prevention',
+      priority: 'high',
+    })
+  ),
+  c('broiler', {
+    product_name: 'Fenbendazole Deworming',
+    task_type: 'medication',
+    startDay: 36,
+    durationDays: 1,
+    delivery_method: 'drinking_water',
+    indication: 'Week 6 deworm (research D36) — 6th protocol',
+    priority: 'critical',
+    doseHint: 'Per label (0-day withdrawal typical)',
+  }),
+  c('broiler', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 37,
+    durationDays: 2,
+    delivery_method: 'drinking_water',
+    indication: 'Post-deworm support (D37–38)',
+    priority: 'high',
+  }),
+  c('broiler', {
+    product_name: 'PLAIN WATER ONLY (Pre-sale)',
+    task_type: 'checkpoint',
+    startDay: 39,
+    durationDays: 4,
+    delivery_method: 'drinking_water',
+    indication: 'No medications — sale compliance (D39–42)',
+    priority: 'critical',
+  }),
+];
+
+// ─── LAYER (rearing + pre-lay courses; production monthly generated separately) ─
+
+const LAYER_COURSES: ProtocolCourse[] = [
+  arrival('layer', '2 tbsp anti-stress + glucose per gallon'),
+  c('layer', {
+    product_name: 'Coccidiostat (Prevention)',
+    task_type: 'medication',
+    startDay: 4,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 1 prevention',
+    priority: 'high',
+    doseHint: '1.5 tbsp per gallon',
+  }),
+  c('layer', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 8,
@@ -57,10 +179,8 @@ const BROILER_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Post-Gumboro support',
     priority: 'high',
-    doseHint: '1.5 tbsp per gallon',
-  },
-  {
-    species: 'broiler',
+  }),
+  c('layer', {
     product_name: 'Coccidiostat (Prevention)',
     task_type: 'medication',
     startDay: 11,
@@ -68,123 +188,135 @@ const BROILER_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Week 2 prevention',
     priority: 'high',
-    doseHint: '1.5 tbsp per gallon',
-  },
-  {
-    species: 'broiler',
-    product_name: 'Multivitamins',
+  }),
+  ...[15, 17, 19].map((d) =>
+    c('layer', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 3 M/W/F',
+      priority: 'high',
+    })
+  ),
+  c('layer', {
+    product_name: 'Anti-Stress',
     task_type: 'supplement',
     startDay: 22,
     durationDays: 3,
     delivery_method: 'drinking_water',
-    indication: 'Pre-Lasota support (research anti-stress window)',
-    priority: 'medium',
-  },
-  {
-    species: 'broiler',
+    indication: 'Pre-Lasota',
+    priority: 'high',
+  }),
+  c('layer', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
-    startDay: 25,
-    durationDays: 3,
-    delivery_method: 'drinking_water',
-    indication: 'Week 4 support',
-    priority: 'medium',
-  },
-  {
-    species: 'broiler',
-    product_name: 'Fenbendazole Deworming',
-    task_type: 'medication',
-    startDay: 36,
-    durationDays: 1,
-    delivery_method: 'drinking_water',
-    indication: 'Week 6 deworm before sale window (research D36)',
-    priority: 'critical',
-    doseHint: 'Per label',
-    withdrawal_meat_days: 0,
-    withdrawal_egg_days: 0,
-  },
-  {
-    species: 'broiler',
-    product_name: 'Multivitamins',
-    task_type: 'supplement',
-    startDay: 37,
+    startDay: 29,
     durationDays: 2,
     delivery_method: 'drinking_water',
-    indication: 'Post-deworm support',
+    indication: 'Post-Lasota',
     priority: 'high',
-  },
-  {
-    species: 'broiler',
-    product_name: 'PLAIN WATER ONLY (Pre-sale)',
-    task_type: 'checkpoint',
-    startDay: 39,
-    durationDays: 4,
-    delivery_method: 'drinking_water',
-    indication: 'No medications — withdrawal / sale compliance (research D39–42)',
-    priority: 'critical',
-  },
-];
-
-const LAYER_COURSES: ProtocolCourse[] = [
-  { ...ARRIVAL, species: 'layer' },
-  {
-    species: 'layer',
-    product_name: 'Coccidiostat (Prevention)',
+  }),
+  ...[31, 33].map((d) =>
+    c('layer', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 5 prevention',
+      priority: 'medium',
+    })
+  ),
+  c('layer', {
+    product_name: 'Coccidiostat / Vitamins (Maintenance)',
     task_type: 'medication',
-    startDay: 4,
+    startDay: 36,
+    durationDays: 7,
+    delivery_method: 'drinking_water',
+    indication: 'Week 6 alternating cocci/vitamins maintenance',
+    priority: 'medium',
+  }),
+  c('layer', {
+    product_name: 'Anti-Stress',
+    task_type: 'supplement',
+    startDay: 43,
     durationDays: 3,
     delivery_method: 'drinking_water',
-    indication: 'Week 1 prevention',
+    indication: 'Pre-deworm (W7)',
     priority: 'high',
-    doseHint: '1.5 tbsp per gallon',
-  },
-  {
-    species: 'layer',
+  }),
+  c('layer', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
-    startDay: 8,
-    durationDays: 3,
+    startDay: 50,
+    durationDays: 2,
     delivery_method: 'drinking_water',
-    indication: 'Post-vaccine support',
+    indication: 'Post-deworm recovery',
     priority: 'high',
-  },
-  {
-    species: 'layer',
-    product_name: 'Coccidiostat (Prevention)',
-    task_type: 'medication',
-    startDay: 11,
-    durationDays: 3,
+  }),
+  c('layer', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 57,
+    durationDays: 2,
     delivery_method: 'drinking_water',
-    indication: 'Week 2 prevention',
+    indication: 'Post Fowl Pox',
     priority: 'high',
-  },
-  {
-    species: 'layer',
+  }),
+  c('layer', {
     product_name: 'Calcium Supplement (Pre-lay)',
     task_type: 'supplement',
-    startDay: 98, // week 14
-    durationDays: 14, // through week 15
+    startDay: 98,
+    durationDays: 14,
     delivery_method: 'feed',
-    indication: 'Shell prep — calcium in feed (research W14–15)',
+    indication: 'Shell prep W14–15 (research)',
     priority: 'critical',
     doseHint: 'In feed / free-choice oyster shell',
-  },
+  }),
+  // Production phase: first 6 months monthly deworm + multi (when cycle allows)
+  ...Array.from({ length: 6 }, (_, i) => {
+    const week = 19 + i * 4; // monthly-ish from week 19
+    const day = week * 7;
+    return [
+      c('layer', {
+        product_name: 'Monthly Deworming (Production)',
+        task_type: 'medication',
+        startDay: day,
+        durationDays: 1,
+        delivery_method: 'drinking_water',
+        indication: `Production month ${i + 1} deworm (research W19+)`,
+        priority: 'high',
+        doseHint: 'Per label',
+      }),
+      c('layer', {
+        product_name: 'Multivitamins',
+        task_type: 'supplement',
+        startDay: day + 1,
+        durationDays: 2,
+        delivery_method: 'drinking_water',
+        indication: `Post-deworm production month ${i + 1}`,
+        priority: 'medium',
+      }),
+    ];
+  }).flat(),
 ];
 
+// ─── DUCK meat (research DUCK.md 8 weeks) ───────────────────────────────────
+
 const DUCK_COURSES: ProtocolCourse[] = [
-  { ...ARRIVAL, species: 'duck', doseHint: '4 tbsp per 4 gallons (scale)' },
-  {
-    species: 'duck',
+  arrival('duck', '4 tbsp per 4 gallons (scale to flock)'),
+  c('duck', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 4,
     durationDays: 3,
     delivery_method: 'drinking_water',
-    indication: 'Week 1 support',
+    indication: 'Week 1 support D4–6',
     priority: 'high',
-  },
-  {
-    species: 'duck',
+  }),
+  c('duck', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 8,
@@ -192,9 +324,17 @@ const DUCK_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Week 2 support',
     priority: 'high',
-  },
-  {
-    species: 'duck',
+  }),
+  c('duck', {
+    product_name: 'Coccidiostat (if needed)',
+    task_type: 'medication',
+    startDay: 11,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 2 optional prevention (research lower cocci risk)',
+    priority: 'medium',
+  }),
+  c('duck', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 18,
@@ -202,9 +342,8 @@ const DUCK_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Week 3 support',
     priority: 'medium',
-  },
-  {
-    species: 'duck',
+  }),
+  c('duck', {
     product_name: 'Anti-Stress',
     task_type: 'supplement',
     startDay: 22,
@@ -212,17 +351,32 @@ const DUCK_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Week 4 support',
     priority: 'medium',
-  },
+  }),
+  c('duck', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 29,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 5 post-deworm multi',
+    priority: 'high',
+  }),
+  c('duck', {
+    product_name: 'PLAIN WATER ONLY (Pre-sale)',
+    task_type: 'checkpoint',
+    startDay: 50,
+    durationDays: 7,
+    delivery_method: 'drinking_water',
+    indication: 'Week 8 withdrawal / pre-sale plain water',
+    priority: 'critical',
+  }),
 ];
 
+// ─── TURKEY meat (research TURKEY.md) ───────────────────────────────────────
+
 const TURKEY_COURSES: ProtocolCourse[] = [
-  {
-    ...ARRIVAL,
-    species: 'turkey',
-    doseHint: '3 tbsp per gallon (turkeys stress-sensitive)',
-  },
-  {
-    species: 'turkey',
+  arrival('turkey', '3 tbsp per gallon — turkeys highly stress-sensitive'),
+  c('turkey', {
     product_name: 'Coccidiostat (Prevention)',
     task_type: 'medication',
     startDay: 4,
@@ -230,22 +384,19 @@ const TURKEY_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Week 1 prevention',
     priority: 'high',
-  },
-  {
-    species: 'turkey',
+  }),
+  c('turkey', {
     product_name: 'Blackhead Preventive',
     task_type: 'medication',
     startDay: 8,
     durationDays: 3,
     delivery_method: 'drinking_water',
-    indication: 'CRITICAL first blackhead block (research W2 D8–10)',
+    indication: 'CRITICAL first Blackhead block (W2 D8–10)',
     priority: 'critical',
     doseHint: 'Per label / vet guidance',
     withdrawal_meat_days: 5,
-    withdrawal_egg_days: 0,
-  },
-  {
-    species: 'turkey',
+  }),
+  c('turkey', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 11,
@@ -253,7 +404,80 @@ const TURKEY_COURSES: ProtocolCourse[] = [
     delivery_method: 'drinking_water',
     indication: 'Post-blackhead support',
     priority: 'high',
-  },
+  }),
+  c('turkey', {
+    product_name: 'Coccidiostat (Prevention)',
+    task_type: 'medication',
+    startDay: 15,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 3 cocci',
+    priority: 'high',
+  }),
+  c('turkey', {
+    product_name: 'Blackhead Preventive',
+    task_type: 'medication',
+    startDay: 18,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 3 blackhead block',
+    priority: 'critical',
+    withdrawal_meat_days: 5,
+  }),
+  c('turkey', {
+    product_name: 'Anti-Stress',
+    task_type: 'supplement',
+    startDay: 22,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Pre Fowl Pox / Lasota',
+    priority: 'high',
+  }),
+  c('turkey', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 25,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 4 support',
+    priority: 'high',
+  }),
+  c('turkey', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 36,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Week 6 rest support',
+    priority: 'medium',
+  }),
+  c('turkey', {
+    product_name: 'Anti-Stress',
+    task_type: 'supplement',
+    startDay: 85,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Pre final-phase deworm (W13)',
+    priority: 'high',
+  }),
+  c('turkey', {
+    product_name: 'Multivitamins',
+    task_type: 'supplement',
+    startDay: 92,
+    durationDays: 7,
+    delivery_method: 'drinking_water',
+    indication: 'W14–15 reduce meds, multi support',
+    priority: 'medium',
+  }),
+  c('turkey', {
+    product_name: 'PLAIN WATER ONLY (Pre-sale)',
+    task_type: 'checkpoint',
+    startDay: 105,
+    durationDays: 7,
+    delivery_method: 'drinking_water',
+    indication: 'Week 16 withdrawal / pre-sale',
+    priority: 'critical',
+  }),
 ];
 
 const BY_SPECIES: Record<string, ProtocolCourse[]> = {
@@ -267,7 +491,12 @@ export function getProtocolCourses(species: string): ProtocolCourse[] {
   return BY_SPECIES[species] ?? [];
 }
 
-/** Convert 1-based start day to scheduled week (1-based). */
 export function courseScheduledWeek(startDay: number): number {
   return Math.max(1, Math.ceil(startDay / 7));
+}
+
+/** Courses that fall within a cycle length in weeks. */
+export function getProtocolCoursesForCycle(species: string, cycleLengthWeeks: number): ProtocolCourse[] {
+  const maxDay = cycleLengthWeeks * 7;
+  return getProtocolCourses(species).filter((c) => c.startDay <= maxDay);
 }

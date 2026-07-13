@@ -5,6 +5,7 @@ import { format, addDays } from 'date-fns';
 import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { shouldAutoLedger } from '@/lib/production-system';
+import { shouldOfferBookNow } from '@/lib/ledger-policy';
 import { LEDGER_SOURCES } from '@/lib/canonical';
 import {
   isVaccinationHealthTask,
@@ -153,26 +154,60 @@ export function useMedicationLogic(
     }
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
-    const autoLedger = shouldAutoLedger(activeBatch?.production_system);
+    const system = activeBatch?.production_system as any;
+    const autoLedger = shouldAutoLedger(system);
+    const qty = task.computed_dose_amount ? Number(task.computed_dose_amount) : (task.container_count ?? 1);
+    const amountMajor = costPesewas / 100;
+    const source = isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health;
+    const description = `${task.product_name} — ${task.duration_days}d course`;
 
     if (autoLedger && task.product_name) {
       await autoDeductStock({
-        farmId, itemName: task.product_name, 
-        quantity: task.computed_dose_amount ? Number(task.computed_dose_amount) : (task.container_count ?? 1),
+        farmId, itemName: task.product_name,
+        quantity: qty,
         batchId: task.batch_id, reason: `Auto-deduction for health task: ${task.product_name}`,
         sourceRef: taskId, doseUnit: task.computed_dose_unit,
       });
 
-      await autoCreateExpense({
-        farmId, batchId: batchId, category: 'health_and_medicine',
-        description: `${task.product_name} — ${task.duration_days}d course`,
-        amount: costPesewas / 100,
-        source: isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health,
-        sourceRef: taskId,
+      if (amountMajor > 0) {
+        await autoCreateExpense({
+          farmId, batchId: batchId, category: 'health_and_medicine',
+          description,
+          amount: amountMajor,
+          source,
+          sourceRef: taskId,
+        });
+      }
+      toast.success('Task completed');
+    } else if (shouldOfferBookNow(system) && amountMajor > 0 && farmId) {
+      toast.message('Task completed (flexible — not auto-ledgered)', {
+        duration: 8000,
+        action: {
+          label: 'Book now',
+          onClick: async () => {
+            await autoDeductStock({
+              farmId, itemName: task.product_name!,
+              quantity: qty,
+              batchId: task.batch_id,
+              reason: `Booked health task: ${task.product_name}`,
+              sourceRef: `${taskId}:book`,
+              doseUnit: task.computed_dose_unit,
+            });
+            await autoCreateExpense({
+              farmId, batchId, category: 'health_and_medicine',
+              description: `${description} (booked)`,
+              amount: amountMajor,
+              source,
+              sourceRef: `${taskId}:book`,
+            });
+            toast.success('Health expense booked');
+          },
+        },
       });
+    } else {
+      toast.success('Task completed');
     }
 
-    toast.success('Task completed');
     return { withdrawalMeatUntil, withdrawalEggsUntil, hasWithdrawal, isVaccination: isVaccinationHealthTask(task) };
   };
 
