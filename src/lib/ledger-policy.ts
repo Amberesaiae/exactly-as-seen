@@ -34,3 +34,17 @@ export function shouldDeductStockOnConsumption(system: ProductionSystem): boolea
 export function shouldOfferBookNow(system: ProductionSystem): boolean {
   return !shouldAutoLedger(system);
 }
+
+/**
+ * Double-ledger guard: if feed stock was purchased (purchase-class expense) the same day,
+ * day-feed consumption should stock-out but not create a second expense for the same bags.
+ * Formulation purchase path uses auto:stock / ready-made purchase; day feed uses auto:feed.
+ */
+export function shouldSkipDayFeedExpense(args: {
+  stockPurchasedSameDay: boolean;
+  unitPricePesewas: number;
+}): boolean {
+  if (args.unitPricePesewas <= 0) return true;
+  if (args.stockPurchasedSameDay) return true;
+  return false;
+}

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Users, Calendar, Skull, ShoppingCart, Info } from 'lucide-react';
 import { format } from 'date-fns';
 import { mortalityRate } from '@/lib/batch-utils';
+import { getAllowedBatchActions } from '@/lib/batch-fsm';
 
 interface OverviewTabProps {
   batch: any;
@@ -14,6 +15,15 @@ interface OverviewTabProps {
 
 export function OverviewTab({ batch, onRecordMortality, onSellBirds, onTerminate }: OverviewTabProps) {
   if (!batch) return null;
+
+  const actions = getAllowedBatchActions({
+    status: batch.status,
+    currentWeek: batch.current_week ?? 1,
+    cycleLengthWeeks: batch.cycle_length_weeks ?? 8,
+    hasActiveWithdrawal: !!batch.has_active_withdrawal,
+    species: batch.species,
+    duckType: batch.duck_type ?? null,
+  });
 
   return (
     <div className="space-y-6">
@@ -38,19 +48,37 @@ export function OverviewTab({ batch, onRecordMortality, onSellBirds, onTerminate
           <Info className="h-5 w-5 mx-auto text-muted-foreground mb-1" />
           <p className="text-2xl font-bold capitalize">{batch.status}</p>
           <p className="text-xs text-muted-foreground">Flock Status</p>
+          {batch.status === 'active' && (
+            <Badge variant="secondary" className="mt-1 capitalize text-[10px]">{actions.phase}</Badge>
+          )}
         </CardContent></Card>
       </div>
 
-      {/* Quick Actions (if active) */}
+      {/* Quick Actions — gated by batch-fsm helpers */}
       {batch.status === 'active' && (
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" className="rounded-full gap-2 border-primary/20 text-primary" onClick={onSellBirds} disabled={batch.has_active_withdrawal}>
-            <ShoppingCart className="h-4 w-4" /> {batch.has_active_withdrawal ? 'Sale Blocked' : 'Sell Birds'}
+          <Button
+            variant="outline"
+            className="rounded-full gap-2 border-primary/20 text-primary"
+            onClick={onSellBirds}
+            disabled={!actions.canSellBirds}
+          >
+            <ShoppingCart className="h-4 w-4" /> {!actions.canSellBirds ? 'Sale Blocked' : 'Sell Birds'}
           </Button>
-          <Button variant="outline" className="rounded-full gap-2 border-destructive/20 text-destructive" onClick={onRecordMortality}>
+          <Button
+            variant="outline"
+            className="rounded-full gap-2 border-destructive/20 text-destructive"
+            onClick={onRecordMortality}
+            disabled={!actions.canRecordMortality}
+          >
             <Skull className="h-4 w-4" /> Record Mortality
           </Button>
-          <Button variant="destructive" className="rounded-full ml-auto" onClick={onTerminate}>
+          <Button
+            variant="destructive"
+            className="rounded-full ml-auto"
+            onClick={onTerminate}
+            disabled={!actions.canEmergencyTerminate}
+          >
             Terminate Batch
           </Button>
         </div>

@@ -274,6 +274,52 @@ export function useEggData() {
     const totalPesewas = toPesewas(totalAmount);
     const normalizedPayment = normalizePaymentMethod(paymentMethod);
 
+    // W5: atomic sale + revenue (withdrawal + inventory checked server-side)
+    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale' as any, {
+      p_farm_id: farmId,
+      p_batch_id: selectedBatch,
+      p_quantity: totalEggs,
+      p_crates_sold: crates,
+      p_looses_sold: looses,
+      p_size_category: sizeCategory,
+      p_price_per_crate_pesewas: toPesewas(pricePerCrate),
+      p_price_per_loose_pesewas: toPesewas(pricePerLoose),
+      p_total_revenue_pesewas: totalPesewas,
+      p_buyer: buyer || null,
+      p_payment_method: normalizedPayment,
+      p_payment_status: (paymentStatus as 'paid' | 'pending' | 'partial') || 'paid',
+      p_notes: notes || null,
+      p_date: new Date().toISOString().slice(0, 10),
+    });
+
+    if (!rpcError && rpcData && (rpcData as any).ok) {
+      const sale = {
+        id: (rpcData as any).sale_id,
+        farm_id: farmId,
+        batch_id: selectedBatch,
+        quantity: totalEggs,
+        crates_sold: crates,
+        looses_sold: looses,
+        size_category: sizeCategory,
+        total_revenue_pesewas: totalPesewas,
+        buyer: buyer || null,
+      };
+      setSales(prev => [sale as any, ...prev.slice(0, 29)]);
+      setSaleSubmitting(false);
+      toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
+      return;
+    }
+
+    if (rpcError) {
+      const msg = rpcError.message || '';
+      if (/withdrawal|insufficient/i.test(msg)) {
+        toast.error(msg);
+        setSaleSubmitting(false);
+        return;
+      }
+      console.warn('record_egg_sale RPC failed, client fallback:', msg);
+    }
+
     const { data: sale, error } = await supabase.from('egg_sales').insert({
       farm_id: farmId,
       batch_id: selectedBatch,
@@ -291,7 +337,6 @@ export function useEggData() {
 
     if (error) { toast.error(error.message); setSaleSubmitting(false); return; }
 
-    // 3. Synergy: Financial Ledger Entry with Metadata
     await autoCreateRevenue({
       farmId,
       batchId: selectedBatch,

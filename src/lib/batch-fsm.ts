@@ -148,3 +148,48 @@ export const batchMachine = setup({
     },
   },
 });
+
+/** Pure phase label from week + species (for UI; mirrors machine boundaries). */
+export function phaseFromWeek(ctx: Pick<BatchContext, 'species' | 'duckType' | 'currentWeek'>): string {
+  const key = ctx.species === 'duck'
+    ? (ctx.duckType === 'layer' ? 'duck_layer' : 'duck_meat')
+    : ctx.species;
+  const b = PHASE_BOUNDARIES[key] || PHASE_BOUNDARIES.other;
+  if (ctx.currentWeek <= b.brooding) return 'brooding';
+  if (ctx.currentWeek <= b.starter) return 'starter';
+  if (ctx.currentWeek <= b.grower) return 'grower';
+  if (ctx.currentWeek < b.finisher) return 'finisher';
+  return 'ready_to_sell';
+}
+
+/** Allowed lifecycle actions for batch detail UI (uses same guards as FSM). */
+export function getAllowedBatchActions(ctx: {
+  status: string;
+  currentWeek: number;
+  cycleLengthWeeks: number;
+  hasActiveWithdrawal: boolean;
+  species: BatchContext['species'];
+  duckType: BatchContext['duckType'];
+}): {
+  phase: string;
+  canSellBirds: boolean;
+  canTerminateNormal: boolean;
+  canEmergencyTerminate: boolean;
+  canRecordMortality: boolean;
+} {
+  const active = ctx.status === 'active';
+  const phase = active
+    ? phaseFromWeek({
+        species: ctx.species,
+        duckType: ctx.duckType,
+        currentWeek: ctx.currentWeek,
+      })
+    : 'terminated';
+  return {
+    phase,
+    canSellBirds: active && !ctx.hasActiveWithdrawal,
+    canTerminateNormal: active && !ctx.hasActiveWithdrawal,
+    canEmergencyTerminate: active,
+    canRecordMortality: active,
+  };
+}

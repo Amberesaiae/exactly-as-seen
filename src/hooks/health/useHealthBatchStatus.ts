@@ -3,6 +3,7 @@ import { isBefore, isAfter, format } from 'date-fns';
 import { getActiveAlerts, getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
 import { getWaterPrescription } from '@/lib/dosing-utils';
 import { isSemiIntensiveSystem } from '@/lib/production-system';
+import { resolveAmbientTempC } from '@/lib/ghana-regions';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -55,9 +56,8 @@ export function useHealthBatchStatus(
 
   // 3. Species-Specific Projections (Tool Effect)
   const todayTemp = useMemo(() => {
-    // In production, this would fetch real weather or use the latest sensor record
-    // Using regional fallback as specified in the Lean Tool philosophy
-    return latestTemp ? Number(latestTemp) : (farmRegion ? 28.0 : 28.0);
+    // Prefer last water-log sensor; else regional climatology (not always 28°C)
+    return resolveAmbientTempC(latestTemp != null ? Number(latestTemp) : null, farmRegion);
   }, [latestTemp, farmRegion]);
 
   const waterPrescription = useMemo(() => {
@@ -83,6 +83,7 @@ export function useHealthBatchStatus(
       if (!alreadyDone) {
         tasks.push({
           id: `water:${batch.id}:${todayStr}`,
+          batch_id: batch.id,
           task_type: 'hydration',
           title: 'Daily Hydration Protocol',
           description: `Provide ${waterPrescription.gallons} gal of water`,
@@ -94,7 +95,7 @@ export function useHealthBatchStatus(
       }
     }
     
-    // 🍲 Feeding House Task (Spec-Aligned Consumption Rates)
+    // 🍲 Feeding House Task — single prescription: getPrescriptiveFeedIntake (+ foraging)
     const feedLoggedToday = feedLogs.some(f => f.date === todayStr);
     if (!feedLoggedToday) {
        let kgPerBird = getPrescriptiveFeedIntake(batch.species, batchAge.week);
@@ -108,6 +109,7 @@ export function useHealthBatchStatus(
        
        tasks.push({
          id: `feed:${batch.id}:${todayStr}`,
+         batch_id: batch.id,
          task_type: 'feeding',
          title: 'Daily Feeding Protocol',
          description: `Provide ${totalKg.toFixed(1)} kg of ${batch.species} feed`,

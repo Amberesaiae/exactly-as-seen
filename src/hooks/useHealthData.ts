@@ -203,65 +203,111 @@ export function useHealthData() {
       await logWater(task.amount, todayTemp, 'Protocol fulfilled via Task Orchestrator');
       toast.success(`Today's hydration confirmed: ${task.amount} ${task.unit}`);
     } else if (task.task_type === 'feeding') {
-      // Canonical day feed: always write feed_logs. Stock/expense only if dual consumption gate.
-      const { shouldDeductStockOnConsumption, shouldExpenseConsumption } = await import('@/lib/ledger-policy');
+      const {
+        shouldDeductStockOnConsumption,
+        shouldExpenseConsumption,
+        shouldOfferBookNow,
+        shouldSkipDayFeedExpense,
+      } = await import('@/lib/ledger-policy');
       const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
+      const { queueWrite } = await import('@/lib/sync');
       const active = batches.find(b => b.id === selectedBatch);
       const system = active?.production_system as any;
       const deductStock = shouldDeductStockOnConsumption(system);
       const expenseConsumption = shouldExpenseConsumption(system);
 
-      // Match feed_ingredient / feed / concentrate etc. (not exact category "feed" only)
       const { pickPreferredFeedStock } = await import('@/lib/stock-match');
-      const { data: allStock } = await supabase
-        .from('stock_items')
-        .select('*')
-        .eq('farm_id', farmId);
-
+      const { data: allStock } = await supabase.from('stock_items').select('*').eq('farm_id', farmId);
       const feedStock = pickPreferredFeedStock(allStock ?? []);
       const feedName = feedStock?.name ?? `${active?.species ?? 'flock'} feed`;
       const sourceRef = `day-feed:${selectedBatch}:${todayStr}`;
+      const unitPricePesewas = feedStock ? Number(feedStock.unit_price_pesewas || 0) : 0;
+      const unitPrice = unitPricePesewas / 100;
+      const bookAmount = unitPrice > 0 ? task.amount * unitPrice : 0;
 
-      const { error: logErr } = await supabase.from('feed_logs').insert({
-        batch_id: selectedBatch,
-        farm_id: farmId,
-        quantity_kg: task.amount,
-        feed_type: feedName,
-        date: todayStr,
-      });
-      if (logErr) {
-        toast.error(logErr.message.includes('duplicate') || logErr.code === '23505'
-          ? 'Feed already logged for today'
-          : logErr.message);
+      // Double-ledger guard: stock purchase same day → stock-out only, no second expense
+      let stockPurchasedSameDay = false;
+      if (feedStock) {
+        const { data: txs } = await supabase
+          .from('stock_transactions')
+          .select('id')
+          .eq('farm_id', farmId)
+          .eq('stock_item_id', feedStock.id)
+          .eq('transaction_type', 'purchase')
+          .gte('date', todayStr)
+          .limit(1);
+        stockPurchasedSameDay = (txs?.length ?? 0) > 0;
+      }
+      const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
+
+      // Offline: queue payload for later flush
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await queueWrite('feed_logs', 'insert', crypto.randomUUID(), {
+          farm_id: farmId,
+          batch_id: selectedBatch,
+          quantity_kg: task.amount,
+          feed_type: feedName,
+          date: todayStr,
+        });
+        toast.warning('Offline — feed queued; will sync when online');
+        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
         return;
       }
 
-      const { shouldOfferBookNow } = await import('@/lib/ledger-policy');
-      const unitPrice = feedStock ? Number(feedStock.unit_price_pesewas || 0) / 100 : 0;
-      const bookAmount = unitPrice > 0 ? task.amount * unitPrice : 0;
+      // Atomic RPC preferred
+      const ledger = deductStock && !!feedStock;
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed' as any, {
+        p_farm_id: farmId,
+        p_batch_id: selectedBatch,
+        p_quantity_kg: task.amount,
+        p_feed_type: feedName,
+        p_date: todayStr,
+        p_ledger: ledger && expenseConsumption,
+        p_stock_item_id: feedStock?.id ?? null,
+        p_unit_price_pesewas: unitPricePesewas,
+        p_skip_expense: skipExpense || !expenseConsumption,
+      });
+
+      if (rpcErr) {
+        // Client fallback
+        const { error: logErr } = await supabase.from('feed_logs').insert({
+          batch_id: selectedBatch,
+          farm_id: farmId,
+          quantity_kg: task.amount,
+          feed_type: feedName,
+          date: todayStr,
+        });
+        if (logErr) {
+          toast.error(logErr.message.includes('duplicate') || logErr.code === '23505'
+            ? 'Feed already logged for today'
+            : logErr.message);
+          return;
+        }
+        if (deductStock && feedStock) {
+          await autoDeductStock({
+            farmId, itemName: feedStock.name, quantity: task.amount,
+            batchId: selectedBatch, reason: `Daily feeding ${task.amount}kg`, sourceRef,
+          });
+          if (expenseConsumption && !skipExpense && unitPrice > 0) {
+            await autoCreateExpense({
+              farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+              description: `Daily Feeding: ${task.amount}kg ${feedStock.name}`,
+              amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
+            });
+          }
+        }
+      } else if ((rpcData as any)?.already_logged) {
+        toast.error('Feed already logged for today');
+        return;
+      }
 
       if (deductStock && feedStock) {
-        await autoDeductStock({
-          farmId,
-          itemName: feedStock.name,
-          quantity: task.amount,
-          batchId: selectedBatch,
-          reason: `Daily feeding ${task.amount}kg`,
-          sourceRef,
-        });
-        if (expenseConsumption && unitPrice > 0) {
-          await autoCreateExpense({
-            farmId,
-            batchId: selectedBatch,
-            category: 'feed_and_nutrition',
-            description: `Daily Feeding: ${task.amount}kg ${feedStock.name}`,
-            amount: bookAmount,
-            source: LEDGER_SOURCES.feed,
-            sourceRef,
-          });
-        }
-        toast.success(`Today's feeding confirmed: ${task.amount}kg deducted from stock`);
+        toast.success(
+          skipExpense
+            ? `Today's feeding confirmed: ${task.amount}kg (stock out; expense skipped — purchased today)`
+            : `Today's feeding confirmed: ${task.amount}kg deducted from stock`
+        );
       } else if (deductStock && !feedStock) {
         toast.warning(`Feed logged (${task.amount}kg) — no feed stock item found for auto-deduct`);
       } else if (shouldOfferBookNow(system)) {
@@ -271,25 +317,23 @@ export function useHealthData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  await autoCreateExpense({
-                    farmId,
-                    batchId: selectedBatch,
-                    category: 'feed_and_nutrition',
-                    description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
-                    amount: bookAmount,
-                    source: LEDGER_SOURCES.feed,
-                    sourceRef: `${sourceRef}:book`,
-                  });
-                  if (feedStock) {
-                    await autoDeductStock({
-                      farmId,
-                      itemName: feedStock.name,
-                      quantity: task.amount,
-                      batchId: selectedBatch,
-                      reason: `Daily feeding booked ${task.amount}kg`,
-                      sourceRef: `${sourceRef}:book`,
+                  await supabase.rpc('confirm_day_feed' as any, {
+                    p_farm_id: farmId,
+                    p_batch_id: selectedBatch,
+                    p_quantity_kg: task.amount,
+                    p_feed_type: feedName,
+                    p_date: todayStr,
+                    p_ledger: true,
+                    p_stock_item_id: feedStock?.id ?? null,
+                    p_unit_price_pesewas: unitPricePesewas,
+                    p_skip_expense: false,
+                  }).catch(async () => {
+                    await autoCreateExpense({
+                      farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                      description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
+                      amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
                     });
-                  }
+                  });
                   toast.success('Feed expense booked');
                 },
               }

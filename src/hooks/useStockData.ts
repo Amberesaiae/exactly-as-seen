@@ -107,6 +107,50 @@ export function useStockData() {
     const newQty = type === 'purchase' ? item.current_quantity + qty : item.current_quantity - qty;
     if (newQty < 0) { toast.error('Insufficient stock'); setSubmitting(false); return; }
 
+    // W4: atomic purchase path (tx + lot + qty + expense)
+    if (type === 'purchase') {
+      const unitPricePesewas = price != null && price > 0 ? Math.round(price * 100) : 0;
+      const { data: rpcData, error: rpcError } = await supabase.rpc('stock_purchase' as any, {
+        p_farm_id: farmId,
+        p_stock_item_id: itemId,
+        p_qty: qty,
+        p_unit_price_pesewas: unitPricePesewas,
+        p_notes: notes || null,
+        p_quality_grade: (qualityGrade as typeof DEFAULT_STOCK_QUALITY) || DEFAULT_STOCK_QUALITY,
+        p_expiry_date: expiryDate || null,
+        p_batch_id: batchId || null,
+        p_expense_category: expenseCategoryForStockItem(item.category),
+      });
+
+      if (!rpcError && rpcData && (rpcData as any).ok) {
+        const computedNew = Number((rpcData as any).new_quantity);
+        setStockItems(prev => prev.map(i => i.id === itemId ? {
+          ...i,
+          current_quantity: computedNew,
+          ...(unitPricePesewas > 0 ? { unit_price_pesewas: unitPricePesewas } : {}),
+        } : i));
+        const txStub = {
+          id: (rpcData as any).transaction_id,
+          farm_id: farmId,
+          stock_item_id: itemId,
+          transaction_type: 'purchase',
+          quantity: qty,
+          unit_price_pesewas: unitPricePesewas || null,
+          total_cost_pesewas: unitPricePesewas ? Math.round(qty * unitPricePesewas) : null,
+          notes: notes || null,
+          date: ledgerDate(),
+        } as StockTransaction;
+        setTransactions(prev => [txStub, ...prev.slice(0, 49)]);
+        setSubmitting(false);
+        toast.success(`Recorded purchase: ${qty} ${item.unit}`);
+        return;
+      }
+
+      if (rpcError) {
+        console.warn('stock_purchase RPC failed, client fallback:', rpcError.message);
+      }
+    }
+
     const { data: tx, error: txError } = await supabase.from('stock_transactions').insert({
       farm_id: farmId,
       stock_item_id: itemId,
@@ -119,7 +163,6 @@ export function useStockData() {
 
     if (txError) { toast.error(txError.message); setSubmitting(false); return; }
 
-    // If purchase, create a stock lot with Quality and Expiry (Spec Essential)
     if (type === 'purchase') {
       const { error: lotError } = await supabase.from('stock_lots').insert({
         farm_id: farmId,
@@ -137,7 +180,6 @@ export function useStockData() {
       }
     }
 
-    // If usage, perform FIFO allocation via RPC with Batch attribution
     if (type === 'usage') {
       const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
         p_farm_id: farmId,
@@ -165,7 +207,6 @@ export function useStockData() {
 
     if (itemError) { toast.error(itemError.message); setSubmitting(false); return; }
 
-    // Purchases always ledger (dual pattern purchase class) — never silent-fail
     if (type === 'purchase' && price != null && price > 0) {
       const totalPesewas = toPesewas(qty * price);
       const { error: expError } = await supabase.from('expenses').insert({
@@ -181,7 +222,6 @@ export function useStockData() {
         payment_status: 'paid',
       });
       if (expError) {
-        // Idempotent re-try: duplicate source_ref is OK; other errors must surface
         const isDup = expError.code === '23505' || /duplicate|unique/i.test(expError.message);
         if (!isDup) {
           toast.error(`Stock updated but expense failed: ${expError.message}`);
