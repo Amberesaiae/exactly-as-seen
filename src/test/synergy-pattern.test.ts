@@ -4,6 +4,7 @@ import {
   shouldExpensePurchase,
   shouldRevenueSale,
   shouldDeductStockOnConsumption,
+  shouldOfferBookNow,
 } from '@/lib/ledger-policy';
 
 describe('ledger-policy (dual pattern)', () => {
@@ -27,5 +28,12 @@ describe('ledger-policy (dual pattern)', () => {
   it('deducts stock on consumption only when intensive', () => {
     expect(shouldDeductStockOnConsumption('deep_litter')).toBe(true);
     expect(shouldDeductStockOnConsumption('semi_intensive')).toBe(false);
+  });
+
+  it('offers Book now only on flexible systems', () => {
+    expect(shouldOfferBookNow('semi_intensive')).toBe(true);
+    expect(shouldOfferBookNow('free_range')).toBe(true);
+    expect(shouldOfferBookNow('deep_litter')).toBe(false);
+    expect(shouldOfferBookNow('cage')).toBe(false);
   });
 });

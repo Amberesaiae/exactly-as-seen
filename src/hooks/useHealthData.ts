@@ -102,21 +102,28 @@ export function useHealthData() {
     dailyOperationalTasks,
   } = useHealthBatchStatus(batch, batchAge, healthTasks, waterRecords, farmRegion, waterRatePesewas, feedLogs);
 
-  // Load batch-specific data
+  // Load batch-specific data — only re-run when selection/farm changes (not every batches identity)
   useEffect(() => {
     if (!selectedBatch || !farmId) {
       setVaccinations([]);
       setHealthTasks([]);
       setWaterRecords([]);
       setBatchTasks([]);
+      setFeedLogs([]);
       return;
     }
 
-    const loadBatchData = async () => {
-      const activeBatch = batches.find(b => b.id === selectedBatch);
-      if (!activeBatch) return;
-      const age = getBatchAge(activeBatch.start_date, activeBatch.species);
+    let cancelled = false;
 
+    const loadBatchData = async () => {
+      const { data: activeBatch } = await supabase
+        .from('batches')
+        .select('*')
+        .eq('id', selectedBatch)
+        .maybeSingle();
+      if (!activeBatch || cancelled) return;
+
+      const age = getBatchAge(activeBatch.start_date, activeBatch.species);
       const startDate = new Date(activeBatch.start_date);
       const weekStart = addDays(startDate, (age.week - 1) * 7);
       const weekEnd = addDays(weekStart, 7);
@@ -132,6 +139,8 @@ export function useHealthData() {
         supabase.from('feed_logs').select('*').eq('batch_id', selectedBatch).eq('date', todayStrLocal).limit(1),
       ]);
 
+      if (cancelled) return;
+
       setVaccinations(vResult.data ?? []);
       setHealthTasks(hResult.data ?? []);
       setWaterRecords(wResult.data ?? []);
@@ -141,7 +150,8 @@ export function useHealthData() {
     };
 
     loadBatchData();
-  }, [selectedBatch, farmId, batches, setVaccinations, setWaterRecords, fetchWeeklySummary]);
+    return () => { cancelled = true; };
+  }, [selectedBatch, farmId, fetchWeeklySummary, setVaccinations, setWaterRecords]);
 
   const addMedication = async (params: any) => {
     const task = await baseAddMedication(params);
@@ -149,19 +159,38 @@ export function useHealthData() {
   };
 
   const markTaskComplete = async (taskId: string, costPesewas: number = 0) => {
+    const task = healthTasks.find(t => t.id === taskId);
     const result = await baseMarkTaskComplete(taskId, costPesewas);
     if (result) {
+      const completedAt = new Date().toISOString();
       setHealthTasks(prev => prev.map(t => t.id === taskId ? { 
-        ...t, completed: true, completed_at: new Date().toISOString(),
+        ...t, completed: true, completed_at: completedAt,
         withdrawal_meat_until: result.withdrawalMeatUntil,
         withdrawal_eggs_until: result.withdrawalEggsUntil,
         cost_pesewas: costPesewas || null
       } : t));
+      // Keep Vaccines tab counter in sync without full reload
+      if (result.isVaccination && task?.product_name) {
+        setVaccinations(prev => prev.map(v =>
+          v.vaccine_name === task.product_name && !v.administered
+            ? { ...v, administered: true, administered_at: completedAt }
+            : v
+        ));
+      }
     }
   };
 
   const markVaccineAdministered = async (vId: string, costPesewas: number = 0, notes?: string) => {
-    await baseMarkVaccineAdministered(vId, vaccinations, costPesewas, notes);
+    const vaccine = vaccinations.find(v => v.id === vId);
+    const ok = await baseMarkVaccineAdministered(vId, vaccinations, costPesewas, notes);
+    if (ok && vaccine?.vaccine_name) {
+      const completedAt = new Date().toISOString();
+      setHealthTasks(prev => prev.map(t =>
+        t.task_type === 'vaccination' && t.product_name === vaccine.vaccine_name && !t.completed
+          ? { ...t, completed: true, completed_at: completedAt }
+          : t
+      ));
+    }
   };
 
   const today = new Date();
@@ -174,21 +203,24 @@ export function useHealthData() {
       await logWater(task.amount, todayTemp, 'Protocol fulfilled via Task Orchestrator');
       toast.success(`Today's hydration confirmed: ${task.amount} ${task.unit}`);
     } else if (task.task_type === 'feeding') {
-      // Canonical day feed: always write feed_logs (done flag). Stock/expense only if intensive.
-      const { isIntensiveSystem } = await import('@/lib/production-system');
+      // Canonical day feed: always write feed_logs. Stock/expense only if dual consumption gate.
+      const { shouldDeductStockOnConsumption, shouldExpenseConsumption } = await import('@/lib/ledger-policy');
       const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
       const active = batches.find(b => b.id === selectedBatch);
-      const intensive = isIntensiveSystem(active?.production_system);
+      const system = active?.production_system as any;
+      const deductStock = shouldDeductStockOnConsumption(system);
+      const expenseConsumption = shouldExpenseConsumption(system);
 
-      const { data: matchedStock } = await supabase
+      // Match feed_ingredient / feed / concentrate etc. (not exact category "feed" only)
+      const { pickPreferredFeedStock } = await import('@/lib/stock-match');
+      const { data: allStock } = await supabase
         .from('stock_items')
         .select('*')
-        .eq('farm_id', farmId)
-        .ilike('category', 'feed')
-        .limit(1);
+        .eq('farm_id', farmId);
 
-      const feedName = matchedStock?.[0]?.name ?? `${active?.species ?? 'flock'} feed`;
+      const feedStock = pickPreferredFeedStock(allStock ?? []);
+      const feedName = feedStock?.name ?? `${active?.species ?? 'flock'} feed`;
       const sourceRef = `day-feed:${selectedBatch}:${todayStr}`;
 
       const { error: logErr } = await supabase.from('feed_logs').insert({
@@ -205,32 +237,69 @@ export function useHealthData() {
         return;
       }
 
-      if (intensive && matchedStock?.length) {
+      const { shouldOfferBookNow } = await import('@/lib/ledger-policy');
+      const unitPrice = feedStock ? Number(feedStock.unit_price_pesewas || 0) / 100 : 0;
+      const bookAmount = unitPrice > 0 ? task.amount * unitPrice : 0;
+
+      if (deductStock && feedStock) {
         await autoDeductStock({
           farmId,
-          itemName: matchedStock[0].name,
+          itemName: feedStock.name,
           quantity: task.amount,
           batchId: selectedBatch,
           reason: `Daily feeding ${task.amount}kg`,
           sourceRef,
         });
-        const unitPrice = Number(matchedStock[0].unit_price_pesewas || 0) / 100;
-        if (unitPrice > 0) {
+        if (expenseConsumption && unitPrice > 0) {
           await autoCreateExpense({
             farmId,
             batchId: selectedBatch,
             category: 'feed_and_nutrition',
-            description: `Daily Feeding: ${task.amount}kg ${matchedStock[0].name}`,
-            amount: task.amount * unitPrice,
+            description: `Daily Feeding: ${task.amount}kg ${feedStock.name}`,
+            amount: bookAmount,
             source: LEDGER_SOURCES.feed,
             sourceRef,
           });
         }
         toast.success(`Today's feeding confirmed: ${task.amount}kg deducted from stock`);
-      } else if (intensive && !matchedStock?.length) {
+      } else if (deductStock && !feedStock) {
         toast.warning(`Feed logged (${task.amount}kg) — no feed stock item found for auto-deduct`);
+      } else if (shouldOfferBookNow(system)) {
+        toast.message(`Today's feeding logged: ${task.amount}kg (flexible — not auto-ledgered)`, {
+          duration: 8000,
+          action: bookAmount > 0
+            ? {
+                label: 'Book now',
+                onClick: async () => {
+                  await autoCreateExpense({
+                    farmId,
+                    batchId: selectedBatch,
+                    category: 'feed_and_nutrition',
+                    description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
+                    amount: bookAmount,
+                    source: LEDGER_SOURCES.feed,
+                    sourceRef: `${sourceRef}:book`,
+                  });
+                  if (feedStock) {
+                    await autoDeductStock({
+                      farmId,
+                      itemName: feedStock.name,
+                      quantity: task.amount,
+                      batchId: selectedBatch,
+                      reason: `Daily feeding booked ${task.amount}kg`,
+                      sourceRef: `${sourceRef}:book`,
+                    });
+                  }
+                  toast.success('Feed expense booked');
+                },
+              }
+            : {
+                label: 'Open Ledger',
+                onClick: () => { window.location.href = '/finance'; },
+              },
+        });
       } else {
-        toast.success(`Today's feeding logged: ${task.amount}kg (flexible system — no auto stock/expense)`);
+        toast.success(`Today's feeding logged: ${task.amount}kg`);
       }
 
       setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
@@ -255,12 +324,20 @@ export function useHealthData() {
   const bulkCompleteWeekTasks = async (batchId: string, weekNumber: number) => {
     const success = await baseBulkCompleteWeekTasks(batchId, weekNumber);
     if (success) {
-      const { data: refreshedTasks } = await supabase
-        .from('health_tasks')
-        .select('*')
-        .eq('batch_id', batchId)
-        .order('scheduled_date', { ascending: false });
-      if (refreshedTasks) setHealthTasks(refreshedTasks);
+      const [tasksRes, vaxRes] = await Promise.all([
+        supabase
+          .from('health_tasks')
+          .select('*')
+          .eq('batch_id', batchId)
+          .order('scheduled_date', { ascending: false }),
+        supabase
+          .from('vaccination_schedule')
+          .select('*')
+          .eq('batch_id', batchId)
+          .order('scheduled_date'),
+      ]);
+      if (tasksRes.data) setHealthTasks(tasksRes.data);
+      if (vaxRes.data) setVaccinations(vaxRes.data);
     }
   };
 
@@ -276,6 +353,7 @@ export function useHealthData() {
     vaccinations,
     healthTasks,
     waterRecords,
+    feedLogs,
     loading: baseLoading,
     generatingVaccines,
     medSubmitting,

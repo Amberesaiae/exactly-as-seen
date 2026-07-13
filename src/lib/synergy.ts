@@ -55,7 +55,12 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
   }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
 
   if (error) {
-    console.error(`Synergy Error (Auto-Expense): ${error.message}`);
+    // Duplicate auto-ledger is expected (idempotent unique source+source_ref)
+    const isDup = error.code === '23505' || /duplicate|unique/i.test(error.message);
+    if (!isDup) {
+      console.error(`Synergy Error (Auto-Expense): ${error.message}`);
+      toast.error(`Ledger expense failed: ${error.message}`);
+    }
   }
 }
 

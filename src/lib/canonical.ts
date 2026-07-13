@@ -48,6 +48,17 @@ export const PAYMENT_METHODS = [
 
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number]['value'];
 
+// ─── Species gates ──────────────────────────────────────────────────────────
+
+/**
+ * Layer egg collection may start at week 19 (product contract).
+ * Research Egg Production also cites week 17 pre-lay rates — collection UI uses 19.
+ */
+export const LAYER_EGG_START_WEEK = 19;
+
+/** Duck-layer egg collection may start at week 20. */
+export const DUCK_EGG_START_WEEK = 20;
+
 export const PAYMENT_STATUSES = [
   { value: 'paid', label: 'Paid' },
   { value: 'pending', label: 'Pending' },

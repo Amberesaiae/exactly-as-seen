@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { addDays, format, parseISO } from 'date-fns';
 import { cacheBatches } from '@/lib/sync';
 import { generateAutoTasks } from '@/lib/health-auto-tasks';
+import { VACCINATION_TEMPLATES } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
 
 export function useBatchCreateLogic(farmId: string | null, userId: string | undefined) {
@@ -98,7 +99,7 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     // Occupy house
     await supabase.from('houses').update({ occupied_by_batch_id: batch.id }).eq('id', houseId);
 
-    // Seed vaccination / protocol health tasks from templates
+    // Flow B: seed care plan once — health_tasks + vaccination_schedule (same templates)
     const autoTasks = generateAutoTasks({
       batchId: batch.id,
       farmId,
@@ -113,20 +114,42 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
           farm_id: t.farm_id,
           task_type: t.task_type,
           product_name: t.product_name,
-          medication_id: t.medication_id,
-          delivery_method: t.delivery_method,
+          medication_id: t.medication_id || null,
+          delivery_method: t.delivery_method || null,
           scheduled_date: t.scheduled_date,
-          scheduled_week: t.scheduled_week,
-          duration_days: t.duration_days,
-          indication: t.indication,
-          priority: t.priority,
-          withdrawal_meat_days: t.withdrawal_meat_days,
-          withdrawal_egg_days: t.withdrawal_egg_days,
+          duration_days: t.duration_days ?? 1,
+          withdrawal_meat_days: t.withdrawal_meat_days ?? 0,
+          withdrawal_egg_days: t.withdrawal_egg_days ?? 0,
+          notes: t.notes ?? t.indication ?? null,
           completed: false,
         }))
       );
       if (taskErr) {
         console.error('Auto health tasks seed failed:', taskErr.message);
+        toast.warning('Batch created, but care tasks failed to seed — open Health to regenerate.');
+      }
+    }
+
+    const vaxTemplates = VACCINATION_TEMPLATES.filter(
+      (t) => t.species.includes(species) && t.scheduledWeek <= cycleWeeks
+    );
+    if (vaxTemplates.length > 0) {
+      const start = parseISO(startDate);
+      const { error: vaxErr } = await supabase.from('vaccination_schedule').insert(
+        vaxTemplates.map((t) => ({
+          batch_id: batch.id,
+          farm_id: farmId,
+          vaccine_name: t.name,
+          scheduled_week: t.scheduledWeek,
+          scheduled_date: format(
+            addDays(start, (t.scheduledDay ?? t.scheduledWeek * 7) - 1),
+            'yyyy-MM-dd'
+          ),
+        }))
+      );
+      if (vaxErr) {
+        console.error('Vaccination schedule seed failed:', vaxErr.message);
+        toast.warning('Batch created, but vaccination schedule failed — use Generate in Health if empty.');
       }
     }
 

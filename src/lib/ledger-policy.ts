@@ -26,3 +26,11 @@ export function shouldRevenueSale(): boolean {
 export function shouldDeductStockOnConsumption(system: ProductionSystem): boolean {
   return shouldAutoLedger(system);
 }
+
+/**
+ * Flexible systems: offer one-tap "Book now" after consumption (farmer-lean).
+ * Intensive systems auto-ledger — no offer needed.
+ */
+export function shouldOfferBookNow(system: ProductionSystem): boolean {
+  return !shouldAutoLedger(system);
+}

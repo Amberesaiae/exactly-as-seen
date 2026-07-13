@@ -1,5 +1,9 @@
 import { addDays, format, parseISO } from 'date-fns';
 import { VACCINATION_TEMPLATES } from './health-data';
+import {
+  courseScheduledWeek,
+  getProtocolCourses,
+} from './species-protocol-courses';
 
 export interface AutoTaskInsert {
   batch_id: string;
@@ -15,12 +19,14 @@ export interface AutoTaskInsert {
   priority: string;
   withdrawal_meat_days: number;
   withdrawal_egg_days: number;
+  notes?: string | null;
 }
 
 /**
- * Lean Task Orchestrator: Realigned to Project Foundation.
- * Uses established VACCINATION_TEMPLATES for core schedules.
- * Provides proactive 'House Protocols' rather than overkill historical records.
+ * Seed care plan on batch create:
+ * 1) Vaccination milestones (VACCINATION_TEMPLATES)
+ * 2) Research day-range courses (species-protocol-courses)
+ * 3) Duck niacin continuous; turkey biweekly blackhead from week 2
  */
 export function generateAutoTasks(args: {
   batchId: string;
@@ -31,14 +37,14 @@ export function generateAutoTasks(args: {
 }): AutoTaskInsert[] {
   const tasks: AutoTaskInsert[] = [];
   const start = parseISO(args.startDate);
+  const maxDay = args.cycleLengthWeeks * 7;
 
-  // 1. Core Vaccination Protocols (From Project health-data.ts)
-  VACCINATION_TEMPLATES.filter(t => t.species.includes(args.species)).forEach(vax => {
-    // Only schedule if within cycle length
+  // 1. Vaccination milestones
+  VACCINATION_TEMPLATES.filter((t) => t.species.includes(args.species)).forEach((vax) => {
     if (vax.scheduledWeek > args.cycleLengthWeeks) return;
 
-    const scheduledDate = addDays(start, (vax.scheduledDay || (vax.scheduledWeek * 7)) - 1);
-    
+    const scheduledDate = addDays(start, (vax.scheduledDay || vax.scheduledWeek * 7) - 1);
+
     tasks.push({
       batch_id: args.batchId,
       farm_id: args.farmId,
@@ -52,14 +58,38 @@ export function generateAutoTasks(args: {
       indication: 'Preventive Protocol',
       priority: 'critical',
       withdrawal_meat_days: 0,
-      withdrawal_egg_days: 0
+      withdrawal_egg_days: 0,
+      notes: vax.instructions ?? null,
     });
   });
 
-  // 2. High-Value House Protocols (Lean Guidance)
-  // These are scheduled milestones that trigger 'Operational Synergy'
+  // 2. Research care courses (arrival, cocci, multi, deworm, blackhead W2, etc.)
+  getProtocolCourses(args.species).forEach((course) => {
+    if (course.startDay > maxDay) return;
+    const week = courseScheduledWeek(course.startDay);
+    if (week > args.cycleLengthWeeks) return;
+
+    const scheduledDate = addDays(start, course.startDay - 1);
+    tasks.push({
+      batch_id: args.batchId,
+      farm_id: args.farmId,
+      task_type: course.task_type,
+      product_name: course.product_name,
+      medication_id: course.product_name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, ''),
+      delivery_method: course.delivery_method,
+      scheduled_date: format(scheduledDate, 'yyyy-MM-dd'),
+      scheduled_week: week,
+      duration_days: course.durationDays,
+      indication: course.indication,
+      priority: course.priority,
+      withdrawal_meat_days: course.withdrawal_meat_days ?? 0,
+      withdrawal_egg_days: course.withdrawal_egg_days ?? 0,
+      notes: course.doseHint ?? null,
+    });
+  });
+
+  // 3. Duck niacin continuous (critical)
   if (args.species === 'duck') {
-    // Duck Niacin Alert Task (Lean Guidance)
     tasks.push({
       batch_id: args.batchId,
       farm_id: args.farmId,
@@ -69,17 +99,20 @@ export function generateAutoTasks(args: {
       delivery_method: 'drinking_water',
       scheduled_date: args.startDate,
       scheduled_week: 1,
-      duration_days: args.cycleLengthWeeks * 7,
-      indication: 'CRITICAL: Preventing leg weakness in ducks',
-      priority: 'high',
+      duration_days: Math.max(1, args.cycleLengthWeeks * 7),
+      indication: 'CRITICAL: 1.5 tsp/gallon or ≥55 mg/kg feed — prevent leg weakness',
+      priority: 'critical',
       withdrawal_meat_days: 0,
-      withdrawal_egg_days: 0
+      withdrawal_egg_days: 0,
+      notes: 'Research: ducks cannot synthesize niacin. Dose 1.5 tsp per gallon drinking water daily.',
     });
   }
 
+  // 4. Turkey biweekly blackhead from week 2 (research every 2 weeks; W2 also in courses)
   if (args.species === 'turkey') {
-    // Bi-weekly Blackhead Prevention Protocol (Production Spec Logic)
-    for (let w = 4; w <= args.cycleLengthWeeks; w += 2) {
+    for (let w = 2; w <= args.cycleLengthWeeks; w += 2) {
+      // Skip W2 day-8 course duplicate — course already seeds D8–10; loop covers W4, W6, ...
+      if (w === 2) continue;
       tasks.push({
         batch_id: args.batchId,
         farm_id: args.farmId,
@@ -87,13 +120,14 @@ export function generateAutoTasks(args: {
         product_name: 'Blackhead Preventive',
         medication_id: 'blackhead_prev',
         delivery_method: 'drinking_water',
-        scheduled_date: format(addDays(start, (w * 7) - 1), 'yyyy-MM-dd'),
+        scheduled_date: format(addDays(start, w * 7 - 1), 'yyyy-MM-dd'),
         scheduled_week: w,
         duration_days: 5,
-        indication: 'Strict Bi-weekly Turkey Protocol',
+        indication: 'Strict bi-weekly turkey Blackhead (Histomoniasis) protocol',
         priority: 'critical',
         withdrawal_meat_days: 5,
-        withdrawal_egg_days: 0
+        withdrawal_egg_days: 0,
+        notes: 'Per label / veterinary guidance. Never raise turkeys with chickens.',
       });
     }
   }

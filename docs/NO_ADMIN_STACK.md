@@ -97,22 +97,26 @@ If stack was already up: just `bun run frontend` (and `stack:env` after reboot).
 
 ---
 
-## Escape hatch: zero local Docker
+## Canonical daily path: hosted Supabase (zero Docker)
 
-If WSL/Docker stays painful, use **hosted Supabase** (no Engine at all):
+**Preferred for this repo (2026-07-13+):** hosted Supabase + local Vite only.  
+No Docker Engine, no PowerShell stack scripts, no UAC.
 
-1. Create free project at https://supabase.com  
-2. Put in `.env.local`:
-
-```env
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=your-anon-key
+```bash
+# Ubuntu / WSL normal user
+cd /mnt/c/src/exactly-as-seen   # or C:\src\exactly-as-seen
+bun install
+# .env.local already points at https://<project>.supabase.co when linked
+bun run db:push    # migrations to hosted (CLI token once)
+bun run dev        # frontend only — ~0 backend RAM locally
 ```
 
-3. Apply migrations once: `npx supabase db push` (or SQL editor)  
-4. `bun run frontend` only  
+Package scripts that need Windows/WSL Docker are prefixed `win:*` (opt-in).  
+Default `bun run backend` prints the hosted reminder and does **not** start Docker.
 
-Still **no Windows admin**.
+### Escape hatch was the old local stack
+
+If you still need local containers: `bun run win:stack:up` (WSL root dockerd — still no Windows Admin).
 
 ---
 

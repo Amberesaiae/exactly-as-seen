@@ -1,67 +1,119 @@
 # Flow audit status (canonical journeys)
 
 **Branch:** `feat/canonical-journeys`  
-**PR:** https://github.com/Amberesaiae/exactly-as-seen/pull/3  
-**Updated:** 2026-07-12  
+**Updated:** 2026-07-13  
+**Master plan:** `docs/JOURNEY_AUDIT_MASTER_PLAN.md`  
+**Production E2E audit (research vs runtime):** `docs/PRODUCTION_E2E_AUDIT.md`  
+**Backend:** Hosted Supabase `lampfarms` (`ulliwnizurgfbwryhnng`) — **no local Docker required**
 
-Method: offline e2e code-path audit + Vitest mocks first; live Supabase/Docker is **optional residual**, not a unit gate.  
-See `docs/AUDIT_WITHOUT_BACKEND.md`, `docs/CANONICAL_JOURNEYS.md`.
-
----
-
-## Done this session
-
-### Product / stack docs
-- Field-ledger landing (Welcome, Platform, Solutions, Impact, Resources)
-- Zero-admin WSL Docker Engine path (`docs/NO_ADMIN_STACK.md`, stack scripts)
-- Dual-pattern foundation (`ledger-policy`, water dual gate)
-
-### Flow A — Onboard (code + tests)
-| Item | Change |
-|---|---|
-| Farm finish atomicity | `FarmSetup.handleFinish`: identity → houses → **then** `setup_complete: true` → prefs → activity |
-| Farm pick | `AuthContext` + `FarmSetup` use `selectPrimaryFarm` from `canonical.ts` |
-| Route gates | Covered in `src/test/flow-a-onboarding.test.tsx` |
-| Auth writers | Existing `src/test/auth.test.tsx` (mocked Supabase) |
-| Env helper | `stack-env.ps1`: UTF-8 **no BOM** (Supabase CLI rejects BOM); eth0 WSL IP |
-
-### Offline green (subset)
-```
-bun run test -- src/test/flow-a-onboarding.test.tsx src/test/auth.test.tsx \
-  src/test/production-system.test.ts src/test/synergy-pattern.test.ts \
-  src/test/preferences.test.ts src/test/batch-fsm.test.ts \
-  src/test/medication-conflicts.test.ts src/test/example.test.ts
-```
-→ **38 passed** (last run).
+Method: code-path audit vs CANONICAL_JOURNEYS + Vitest; live smoke on hosted.  
+**Honesty gate:** UI-present ≠ production-complete. See PRODUCTION_E2E_AUDIT completeness ~35–40%.
 
 ---
 
-## Not done / residual
+## Stack (no admin PowerShell)
 
-### Live stack
-- WSL Docker Engine may start; Supabase containers often **unhealthy** on low-RAM WSL.
-- `.env.local` must use WSL eth0 IP (not `localhost:54321`) when Engine path is used.
-- Live register → farm-setup → dashboard smoke: **deferred**.
+| Command | Purpose |
+|---------|---------|
+| `bun install` / `bun run setup` | Frontend deps only |
+| `bun run dev` / `bun run frontend` | Vite app |
+| `bun run db:push` | Push migrations to linked hosted project |
+| `bun run test` | Unit suite |
+| `bun run win:stack:*` | **Optional** local Docker (Windows) — not default |
 
-### Red unit suites (implementation drift — fix next, not test-only)
-| Suite | Symptom | Real fix target |
-|---|---|---|
-| `health-auto-tasks` | Missing glucose / daily niacin / amprolium / multivitamins | Restore full species protocols in `generateAutoTasks` (Flow B seed) |
-| `feed-safety` | R-FC-1..5 not applied (auto toxin binder, gossypol code, fish cap warn, single calcium, duck strips free niacin line) | Rewrite `preprocessFormulation` to match research rules + tests |
-| `feed-lp` | `usageLimits` undefined on test Ingredient shape; WASM mock fragile | Normalize ingredient bounds helper; harden fallback path |
-
-### Flows B–K
-Contract rows exist in `CANONICAL_JOURNEYS.md`. **Not yet code-audited/fixed end-to-end** in this commit. Next work should start with Flow B (`BatchCreate` + `generateAutoTasks` seed) after health protocol fix.
+`.env.local` → hosted URL. Docker Desktop / Admin UAC **not** required for daily work.
 
 ---
 
-## How to continue without Docker
+## Flow board
 
-```powershell
-cd C:\src\exactly-as-seen
+| Flow | Offline | Live | Notes |
+|------|---------|------|-------|
+| **A Onboard** | Green | **Live green** | Playwright A0–A3; email-confirm residual on public register |
+| **B Start flock** | Green | **Live green ×4 species** | Broiler/layer/duck/turkey create + redirect; houses gate |
+| **C Today ops** | Green | **Live green** | Broiler feed+water; feed auto-deduct misses `feed_ingredient` category |
+| **D Care complete** | **Green** | Re-verify | Dual writers sync via `care-completion.ts` (This Week ↔ Vaccines + bulk) |
+| **E Plan/buy feed** | Partial | Smoke | Ready-made always expenses (code); full E not re-run |
+| **F Stock** | **Green** | Re-verify | Purchase inserts expense + surfaces errors; unit_price for day feed |
+| **G Eggs** | Green | **Gate green** | Week-19 block on collect (layer week 1) |
+| **H Mortality** | Green | **Live green** | Turkey −1 → 99 birds / 1% |
+| **I–J** | Pending | — | Terminate / edge not re-run this session |
+| **K Hub** | Green | **Live green UI** | Dashboard 4 flocks / 399 birds; Finance period filter fixed (local dates) |
+
+---
+
+## This session fixes
+
+### C — Today feed reachable + consistent kg
+- `useHealthBatchStatus`: virtual tasks include `batch_id`
+- `Feed.tsx`: resolve feeding task by type (+ optional batch_id); amount from task; done = `feed_logs` only
+- `useDashboardLogic`: same `getPrescriptiveFeedIntake` + foraging as Health
+- Day feed uses `ledger-policy` dual gates
+
+### B — One schedule seed
+- `useBatchCreateLogic`: insert `vaccination_schedule` from same templates; toast if seed fails
+
+### E — Purchase always ledger
+- `ReadyMadeFeed`: expense even on flexible systems (purchase class)
+
+### Tooling
+- Default npm scripts no longer invoke PowerShell stack-up
+- `docs/JOURNEY_AUDIT_MASTER_PLAN.md` written
+
+---
+
+## Live browser (2026-07-13)
+
+- Script: `scripts/live-audit-browser.mjs` (Playwright = Chrome DevTools Protocol engine)  
+- Optional real Chrome attach: `scripts/live-audit-cdp.mjs` (needs Chrome `--remote-debugging-port=9222` reachable from the agent)  
+- Report: `docs/live-audit-artifacts/REPORT.md`  
+- **12/12 pass** (re-verified after security migration)  
+- **Headed multi-species MCP session:** `docs/live-audit-artifacts/CDP_LIVE_AUDIT_SESSION.md`  
+  - Broiler → Layer → Duck → Turkey create; care/feed/water/mortality/eggs/stock/dashboard  
+  - Screenshot: `docs/live-audit-artifacts/cdp-session/dashboard-4-species.png`  
+- Public register still blocked by hosted **email confirmation** (use admin createUser for automation)  
+- Security hardening: `docs/SECURITY_ADVISOR_FIX.md` + migration `20260713010000_security_advisor_hardening.sql`
+
+## This session code fixes (post live audit)
+
+| Fix | Files |
+|-----|--------|
+| Dual vax complete sync | `src/lib/care-completion.ts`, `useMedicationLogic`, `useVaccinationLogic`, `useWeeklyHealthSummary`, `useHealthData` |
+| Stock purchase always expense + toast on fail | `useStockData.ts`, `synergy.ts` |
+| Feed stock category match | `src/lib/stock-match.ts`, `useHealthData`, `useCustomFormulationSolver` |
+| Health max update depth | `useWeeklyHealthSummary` (useCallback), `useHealthData` effect deps |
+| Finance period DATE filter | `useFinanceData.ts` (local `yyyy-MM-dd` compare) |
+
+## Superpowers plan execution (2026-07-13 production-protocol-hardening)
+
+Plan: `docs/superpowers/plans/2026-07-13-production-protocol-hardening.md`
+
+| Deliverable | Status |
+|-------------|--------|
+| Research care courses seed (arrival, cocci, multi, broiler D36 deworm, turkey BH W2) | **Done** — `species-protocol-courses.ts` + `health-auto-tasks.ts` |
+| Dashboard Today checklist (due only, no medication relabel) | **Done** — `today-tasks.ts` + dashboard hook |
+| Flexible **Book now** (feed + water) | **Done** |
+| Egg week constants (layer 19 / duck-layer 20) | **Done** — `canonical.ts` |
+| Duck water mid bands | **Done** — `dosing-utils.ts` |
+| MarketTrends no hardcode | **Done** — loads `config_overrides` or Settings CTA |
+| Protocol parity matrix | `docs/PROTOCOL_PARITY_MATRIX.md` |
+| Vitest | **63/63 pass** |
+
+## Next (atomic, do not skip)
+
+1. Headed re-smoke: complete vax → Vaccines shows done; stock purchase → Ledger expense; day feed deducts feed_ingredient  
+2. Flexible **Book now** toasts on feed/water/health  
+3. Dev project: disable email confirm **or** document confirm UX  
+4. Flows I–J deep audit
+
+---
+
+## Verify
+
+```bash
 bun install
 bun run test
-# Fix implementation until full suite is green; one flow at a time.
+bun run lint
+bunx tsc -p tsconfig.app.json --noEmit
+bun run dev
 ```
-
-When stack is healthy: `bun run stack:up` → `bun run stack:env` → `bun run frontend` → manual Flow A smoke.

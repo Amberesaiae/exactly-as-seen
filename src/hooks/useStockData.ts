@@ -154,16 +154,21 @@ export function useStockData() {
       }
     }
 
-    const { error: itemError } = await supabase.from('stock_items').update({
+    const itemPatch: Record<string, unknown> = {
       current_quantity: newQty,
       updated_at: new Date().toISOString(),
-    }).eq('id', itemId);
+    };
+    if (type === 'purchase' && price != null && price > 0) {
+      itemPatch.unit_price_pesewas = Math.round(price * 100);
+    }
+    const { error: itemError } = await supabase.from('stock_items').update(itemPatch as any).eq('id', itemId);
 
     if (itemError) { toast.error(itemError.message); setSubmitting(false); return; }
 
-    if (type === 'purchase' && price) {
+    // Purchases always ledger (dual pattern purchase class) — never silent-fail
+    if (type === 'purchase' && price != null && price > 0) {
       const totalPesewas = toPesewas(qty * price);
-      await supabase.from('expenses').upsert({
+      const { error: expError } = await supabase.from('expenses').insert({
         farm_id: farmId,
         batch_id: batchId || null,
         category: expenseCategoryForStockItem(item.category),
@@ -174,7 +179,15 @@ export function useStockData() {
         source_ref: tx.id,
         payment_method: 'cash',
         payment_status: 'paid',
-      }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+      });
+      if (expError) {
+        // Idempotent re-try: duplicate source_ref is OK; other errors must surface
+        const isDup = expError.code === '23505' || /duplicate|unique/i.test(expError.message);
+        if (!isDup) {
+          toast.error(`Stock updated but expense failed: ${expError.message}`);
+          console.error('Stock purchase expense:', expError);
+        }
+      }
     }
 
     await supabase.from('activity_log').insert({
@@ -183,7 +196,13 @@ export function useStockData() {
       description: `${type.toUpperCase()}: ${qty} ${item.unit} of ${item.name}`,
     });
 
-    setStockItems(prev => prev.map(i => i.id === itemId ? { ...i, current_quantity: newQty } : i));
+    setStockItems(prev => prev.map(i => i.id === itemId ? {
+      ...i,
+      current_quantity: newQty,
+      ...(type === 'purchase' && price != null && price > 0
+        ? { unit_price_pesewas: Math.round(price * 100) }
+        : {}),
+    } : i));
     setTransactions(prev => [tx, ...prev.slice(0, 49)]);
     setSubmitting(false);
     toast.success(`Recorded ${type}: ${qty} ${item.unit}`);

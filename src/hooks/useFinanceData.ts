@@ -47,25 +47,27 @@ export function useFinanceData() {
     load();
   }, [user]);
 
-  const filteredExpenses = useMemo(() => {
-    if (period === 'all') return expenses;
+  // Parse DATE columns as local calendar days (avoid UTC-midnight shifting out of period)
+  const dateKey = (d: string) => d.slice(0, 10);
+  const periodStartKey = useMemo(() => {
+    if (period === 'all') return null;
     const now = new Date();
     let start: Date;
     if (period === 'month') start = startOfMonth(now);
     else if (period === 'quarter') start = startOfQuarter(now);
     else start = startOfYear(now);
-    return expenses.filter(e => new Date(e.date) >= start);
-  }, [expenses, period]);
+    return format(start, 'yyyy-MM-dd');
+  }, [period]);
+
+  const filteredExpenses = useMemo(() => {
+    if (!periodStartKey) return expenses;
+    return expenses.filter(e => dateKey(e.date) >= periodStartKey);
+  }, [expenses, periodStartKey]);
 
   const filteredRevenue = useMemo(() => {
-    if (period === 'all') return revenue;
-    const now = new Date();
-    let start: Date;
-    if (period === 'month') start = startOfMonth(now);
-    else if (period === 'quarter') start = startOfQuarter(now);
-    else start = startOfYear(now);
-    return revenue.filter(r => new Date(r.date) >= start);
-  }, [revenue, period]);
+    if (!periodStartKey) return revenue;
+    return revenue.filter(r => dateKey(r.date) >= periodStartKey);
+  }, [revenue, periodStartKey]);
 
   const stats = useMemo(() => {
     const totalExp = filteredExpenses.reduce((s, e) => s + Number(e.amount_pesewas ?? 0) / 100, 0);

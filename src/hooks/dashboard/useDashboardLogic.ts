@@ -3,8 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBatchAge } from '@/lib/batch-utils';
 import { getWaterPrescription, getRegionalTemperature } from '@/lib/dosing-utils';
+import { getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
+import { isSemiIntensiveSystem } from '@/lib/production-system';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { buildTodayChecklist } from '@/lib/today-tasks';
 
 export function useDashboardLogic() {
   const { farmId } = useAuth();
@@ -26,7 +29,7 @@ export function useDashboardLogic() {
       supabase.from('stock_items').select('*').eq('farm_id', farmId),
       supabase.rpc('get_farm_financial_stats', { p_farm_id: farmId }),
       supabase.from('water_records').select('batch_id, date').eq('farm_id', farmId).eq('date', todayStr),
-      supabase.from('farms').select('region, water_rate_per_liter_pesewas').eq('id', farmId).maybeSingle()
+      supabase.from('farms').select('location_region, water_rate_per_liter_pesewas').eq('id', farmId).maybeSingle()
     ]);
 
     const activeBatches = batchesRes.data ?? [];
@@ -36,7 +39,7 @@ export function useDashboardLogic() {
     const opTasks: any[] = [];
     const todayWaterRecords = waterRes.data ?? [];
     const todayFeedLogs = await supabase.from('feed_logs').select('batch_id').eq('farm_id', farmId).eq('date', todayStr);
-    const farmRegion = farmRes.data?.region;
+    const farmRegion = farmRes.data?.location_region ?? null;
     const waterRate = farmRes.data?.water_rate_per_liter_pesewas;
     const ambientTemp = getRegionalTemperature(farmRegion);
 
@@ -66,15 +69,14 @@ export function useDashboardLogic() {
         });
       }
 
-      // 🍲 Feed Task
+      // 🍲 Feed Task — same prescription as Health/Feed (getPrescriptiveFeedIntake + foraging)
       if (!todayFeedLogs.data?.some(f => f.batch_id === b.id)) {
-        let gPerBird = 150;
-        if (age.week === 1) gPerBird = 40;
-        else if (age.week === 2) gPerBird = 60;
-        else if (age.week === 3) gPerBird = 80;
-        else if (age.week === 4) gPerBird = 100;
-        
-        const totalKg = (b.current_population * gPerBird) / 1000;
+        let kgPerBird = getPrescriptiveFeedIntake(b.species, age.week);
+        const foragingMod = getForagingModifier(b.species, age.week);
+        if (isSemiIntensiveSystem(b.production_system) && foragingMod > 0) {
+          kgPerBird = kgPerBird * (1 - foragingMod);
+        }
+        const totalKg = b.current_population * kgPerBird;
         opTasks.push({
           id: `feed:${b.id}:${todayStr}`,
           batch_id: b.id,
@@ -88,10 +90,13 @@ export function useDashboardLogic() {
       }
     });
 
-    const combinedTasks = [
-      ...opTasks,
-      ...(tasksRes.data ?? []).map(t => ({ ...t, task_type: 'medication', batch_name: t.batches?.name }))
-    ];
+    // Unified checklist: virtual ops + due care only (no medication relabel)
+    const combinedTasks = buildTodayChecklist({
+      todayStr,
+      maxItems: 24,
+      virtualOps: opTasks,
+      healthTasks: tasksRes.data ?? [],
+    });
 
     setHealthTasks(combinedTasks);
     

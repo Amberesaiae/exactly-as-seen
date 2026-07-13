@@ -8,7 +8,14 @@ import { getExpectedRate } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
 import type { Database } from '@/integrations/supabase/types';
 import { autoCreateRevenue } from '@/lib/synergy';
-import { selectPrimaryFarm, normalizePaymentMethod, toPesewas, LEDGER_SOURCES } from '@/lib/canonical';
+import {
+  selectPrimaryFarm,
+  normalizePaymentMethod,
+  toPesewas,
+  LEDGER_SOURCES,
+  LAYER_EGG_START_WEEK,
+  DUCK_EGG_START_WEEK,
+} from '@/lib/canonical';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
@@ -158,15 +165,15 @@ export function useEggData() {
       return;
     }
 
-    // Start week check: Layer >= 19, Duck-layer >= 20
+    // Product gate: layer ≥ LAYER_EGG_START_WEEK, duck-layer ≥ DUCK_EGG_START_WEEK
     const week = batch.current_week;
-    if (batch.species === 'layer' && week < 19) {
-      toast.error(`Egg collection is not permitted for layers before week 19 (Current week: ${week})`);
+    if (batch.species === 'layer' && week < LAYER_EGG_START_WEEK) {
+      toast.error(`Egg collection is not permitted for layers before week ${LAYER_EGG_START_WEEK} (Current week: ${week})`);
       setEggSubmitting(false);
       return;
     }
-    if (batch.species === 'duck' && batch.duck_type === 'layer' && week < 20) {
-      toast.error(`Egg collection is not permitted for duck layers before week 20 (Current week: ${week})`);
+    if (batch.species === 'duck' && batch.duck_type === 'layer' && week < DUCK_EGG_START_WEEK) {
+      toast.error(`Egg collection is not permitted for duck layers before week ${DUCK_EGG_START_WEEK} (Current week: ${week})`);
       setEggSubmitting(false);
       return;
     }

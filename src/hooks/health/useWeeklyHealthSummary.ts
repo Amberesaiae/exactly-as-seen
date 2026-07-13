@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { syncScheduleForCompletedVaccinationTasks } from '@/lib/care-completion';
 
 export type WeeklySummary = {
   health_tasks_total: number;
@@ -16,7 +17,8 @@ export function useWeeklyHealthSummary(farmId: string | null) {
   const [weeklySummary, setWeeklySummary] = useState<WeeklySummary | null>(null);
   const [weeklyLoading, setWeeklyLoading] = useState(false);
 
-  const fetchWeeklySummary = async (batchId: string, weekNumber: number) => {
+  // Stable identity — unstable deps here caused Health.tsx max update depth
+  const fetchWeeklySummary = useCallback(async (batchId: string, weekNumber: number) => {
     if (!farmId) return;
     setWeeklyLoading(true);
     try {
@@ -32,9 +34,9 @@ export function useWeeklyHealthSummary(farmId: string | null) {
     } finally {
       setWeeklyLoading(false);
     }
-  };
+  }, [farmId]);
 
-  const bulkCompleteWeekTasks = async (batchId: string, weekNumber: number) => {
+  const bulkCompleteWeekTasks = useCallback(async (batchId: string, weekNumber: number) => {
     if (!farmId) return;
     try {
       const { error } = await supabase.rpc('bulk_complete_health_tasks', {
@@ -45,6 +47,9 @@ export function useWeeklyHealthSummary(farmId: string | null) {
       });
       if (error) throw error;
 
+      // Dual writer: bulk only touches health_tasks — sync vaccination_schedule
+      await syncScheduleForCompletedVaccinationTasks(batchId);
+
       toast.success('Successfully completed all pending weekly health tasks');
       await fetchWeeklySummary(batchId, weekNumber);
       return true;
@@ -53,7 +58,7 @@ export function useWeeklyHealthSummary(farmId: string | null) {
       toast.error('Failed to complete weekly tasks: ' + err.message);
       return false;
     }
-  };
+  }, [farmId, fetchWeeklySummary]);
 
   return {
     weeklySummary,

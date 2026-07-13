@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense } from '@/lib/synergy';
-import { shouldExpenseConsumption } from '@/lib/ledger-policy';
+import { shouldExpenseConsumption, shouldOfferBookNow } from '@/lib/ledger-policy';
 import { LEDGER_SOURCES } from '@/lib/canonical';
 
 export function useWaterLogic(farmId: string | null, selectedBatch: string, waterRatePesewas?: number | null) {
@@ -23,29 +23,28 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
 
     if (error) { toast.error(error.message); setWaterSaving(false); return; }
 
+    const { data: batch } = await supabase
+      .from('batches')
+      .select('production_system')
+      .eq('id', selectedBatch)
+      .maybeSingle();
+
+    const liters = gallons * 3.785;
+    const hasRate = !!(waterRatePesewas && waterRatePesewas > 0);
+    const amount = hasRate ? Math.round(liters * (waterRatePesewas as number)) / 100 : 0;
+    const system = batch?.production_system as any;
+
     // Dual pattern: water utility expense only for intensive consumption
-    if (waterRatePesewas && waterRatePesewas > 0) {
-      const { data: batch } = await supabase
-        .from('batches')
-        .select('production_system')
-        .eq('id', selectedBatch)
-        .maybeSingle();
-
-      if (shouldExpenseConsumption(batch?.production_system)) {
-        const liters = gallons * 3.785;
-        const costPesewas = Math.round(liters * waterRatePesewas);
-        const amount = costPesewas / 100;
-
-        await autoCreateExpense({
-          farmId,
-          batchId: selectedBatch,
-          category: 'utilities_and_services',
-          description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
-          amount,
-          source: LEDGER_SOURCES.water,
-          sourceRef: `water:${data.id}`,
-        });
-      }
+    if (hasRate && shouldExpenseConsumption(system)) {
+      await autoCreateExpense({
+        farmId,
+        batchId: selectedBatch,
+        category: 'utilities_and_services',
+        description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
+        amount,
+        source: LEDGER_SOURCES.water,
+        sourceRef: `water:${data.id}`,
+      });
     }
 
     setWaterRecords(prev => [data, ...prev.slice(0, 13)]);
@@ -54,7 +53,29 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     if (temp && temp > 32) {
       toast.warning('⚠️ High temperature detected! Consider adding electrolytes to water and increasing ventilation.', { duration: 6000 });
     }
-    toast.success('Water consumption logged');
+
+    if (hasRate && shouldOfferBookNow(system) && amount > 0) {
+      toast.message('Water logged (flexible — not auto-ledgered)', {
+        duration: 8000,
+        action: {
+          label: 'Book now',
+          onClick: async () => {
+            await autoCreateExpense({
+              farmId,
+              batchId: selectedBatch,
+              category: 'utilities_and_services',
+              description: `Water consumption (booked): ${gallons} gal (${liters.toFixed(1)}L)`,
+              amount,
+              source: LEDGER_SOURCES.water,
+              sourceRef: `water:${data.id}:book`,
+            });
+            toast.success('Water expense booked');
+          },
+        },
+      });
+    } else {
+      toast.success('Water consumption logged');
+    }
     return data;
   };
 

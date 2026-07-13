@@ -6,6 +6,11 @@ import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { shouldAutoLedger } from '@/lib/production-system';
 import { LEDGER_SOURCES } from '@/lib/canonical';
+import {
+  isVaccinationHealthTask,
+  seedPostVaccinationSupplements,
+  syncScheduleFromHealthTask,
+} from '@/lib/care-completion';
 import type { Database } from '@/integrations/supabase/types';
 
 type Medication = Database['public']['Tables']['medications']['Row'];
@@ -135,6 +140,18 @@ export function useMedicationLogic(
       await supabase.from('batches').update({ has_active_withdrawal: true }).eq('id', batchId);
     }
 
+    // Dual writer: health_tasks complete → vaccination_schedule
+    if (isVaccinationHealthTask(task) && task.product_name) {
+      await syncScheduleFromHealthTask({
+        batchId: task.batch_id,
+        productName: task.product_name,
+        completedAt: completedAtISO,
+      });
+      if (farmId) {
+        await seedPostVaccinationSupplements(farmId, task.batch_id);
+      }
+    }
+
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
     const autoLedger = shouldAutoLedger(activeBatch?.production_system);
 
@@ -149,12 +166,14 @@ export function useMedicationLogic(
       await autoCreateExpense({
         farmId, batchId: batchId, category: 'health_and_medicine',
         description: `${task.product_name} — ${task.duration_days}d course`,
-        amount: costPesewas / 100, source: LEDGER_SOURCES.health, sourceRef: taskId,
+        amount: costPesewas / 100,
+        source: isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health,
+        sourceRef: taskId,
       });
     }
 
     toast.success('Task completed');
-    return { withdrawalMeatUntil, withdrawalEggsUntil, hasWithdrawal };
+    return { withdrawalMeatUntil, withdrawalEggsUntil, hasWithdrawal, isVaccination: isVaccinationHealthTask(task) };
   };
 
   return {

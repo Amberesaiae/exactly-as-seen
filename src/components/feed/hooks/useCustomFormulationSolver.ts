@@ -1,24 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { type FeedPhase } from '@/lib/feed-data';
+import { type FeedPhase, normalizeIngredient, type Ingredient } from '@/lib/feed-data';
 import { preprocessFormulation } from '@/lib/feed-safety';
 import { solveFeedLP, type InfeasibilityAdvice } from '@/lib/feed-lp';
-
-interface Ingredient {
-  id: string;
-  name: string;
-  category: string;
-  proteinPct: number;
-  energyKcal: number;
-  calciumPct: number;
-  phosphorusPct: number;
-  lysinePct: number;
-  methioninePct: number;
-  containsGossypol: boolean;
-  containsAflatoxinRisk: boolean;
-  maxSharePct: number;
-}
 
 interface SelectedIngredient {
   ingredient: Ingredient;
@@ -51,10 +36,12 @@ export const useCustomFormulationSolver = (
     const load = async () => {
       setDbLoading(true);
       const { data: ingData } = await supabase.from('ingredients').select('*');
-      const { data: sData } = await supabase.from('stock_items').select('*').ilike('category', 'feed');
-      
+      const { data: sData } = await supabase.from('stock_items').select('*');
+      const { isFeedStockCategory } = await import('@/lib/stock-match');
+      const feedStock = (sData ?? []).filter((s: { category: string }) => isFeedStockCategory(s.category));
+
       setDbIngredients(ingData ?? []);
-      setStockItems(sData ?? []);
+      setStockItems(feedStock);
 
       let reqQuery = supabase.from('nutritional_requirements')
         .select('*')
@@ -101,24 +88,12 @@ export const useCustomFormulationSolver = (
       species: batch.species,
       targetKg: totalKg,
       selected: selected.map(s => ({
-        ingredient: {
-          ...s.ingredient,
-          protein_pct: s.ingredient.proteinPct,
-          energy_kcal_per_kg: s.ingredient.energyKcal,
-          calcium_pct: s.ingredient.calciumPct,
-          phosphorus_pct: s.ingredient.phosphorusPct,
-          lysine_pct: s.ingredient.lysinePct,
-          methionine_pct: s.ingredient.methioninePct,
-          contains_gossypol: s.ingredient.containsGossypol,
-          contains_aflatoxin_risk: s.ingredient.containsAflatoxinRisk,
-          max_share_pct: s.ingredient.maxSharePct,
-          usageLimits: { min: 0, max: s.ingredient.maxSharePct }
-        },
+        ingredient: normalizeIngredient(s.ingredient),
         quantityKg: s.quantityKg,
         unitPrice: s.unitPrice,
         autoAdded: s.autoAdded,
       })),
-      availableIngredients: dbIngredients,
+      availableIngredients: dbIngredients.map((i) => normalizeIngredient(i)),
     });
   }, [selected, totalKg, dbIngredients, batch.species]);
 
@@ -137,7 +112,7 @@ export const useCustomFormulationSolver = (
         species: batch.species,
         targetKg: totalKg,
         selected: selected.map(s => ({
-           ingredient: { ...s.ingredient, usageLimits: { min: 0, max: s.ingredient.maxSharePct } },
+           ingredient: normalizeIngredient(s.ingredient),
            quantityKg: s.quantityKg,
            unitPrice: s.unitPrice
         })),

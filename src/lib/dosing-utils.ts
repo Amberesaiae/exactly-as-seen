@@ -49,9 +49,13 @@ export function getWaterPrescription(args: {
     else baseMl = 300;
   } 
   else if (species === 'duck') {
+    // Research 03-SPECIES-PROTOCOLS/DUCK.md water table
     if (week <= 2) baseMl = 150;
     else if (week <= 4) baseMl = 250;
-    else baseMl = 400; 
+    else if (week <= 6) baseMl = 350;
+    else if (week <= 8) baseMl = 400;
+    else if (week <= 19) baseMl = 450;
+    else baseMl = 500; // layer ducks week 20+
   } 
   else if (species === 'turkey') {
     if (week <= 2) baseMl = 100;
