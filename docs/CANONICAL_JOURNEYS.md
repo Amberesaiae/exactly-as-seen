@@ -120,9 +120,16 @@ For each flow A–K:
 1. **Audit** current code vs this contract (gates, writers, dual pattern).
 2. **TDD** domain rules in Vitest where pure logic exists.
 3. **Fix** gaps (minimal diffs).
-4. **Verify** unit tests + manual smoke path when backend is up.
+4. **Verify** unit/mock tests (required). Live smoke when backend is up (optional residual).
 5. **Document** residual risk in plan checkboxes.
 6. **Commit** only that flow’s scope.
+
+### Flow status (offline unit gate)
+
+| Flow | Offline unit | Live smoke | Notes |
+|---|---|---|---|
+| **A Onboard** | **Green** | Deferred (Docker flaky) | `auth.test.tsx` + `flow-a-onboarding.test.tsx`; setup_complete only after houses |
+| B–K | Pending | Deferred | Proceed offline per `AUDIT_WITHOUT_BACKEND.md` |
 
 ---
 
@@ -136,19 +143,24 @@ For each flow A–K:
 
 ---
 
+## Offline audit first (preferred when Docker flaky)
+
+**You can complete flow A–K audit + Vitest without containers.**  
+See `docs/AUDIT_WITHOUT_BACKEND.md`. Live Supabase smoke is residual risk, not a gate for unit acceptance.
+
 ## Local complete project (Bun)
 
 | Piece | Command (user-mode) |
 |---|---|
 | Deps | `bun install` |
+| **Tests (no Docker)** | `bun run test` |
 | Docker repair (**once**, if broken) | `bun run docker:fix` — approve single UAC |
-| Backend | `bun run backend` → Supabase via Docker |
+| Backend (optional for unit work) | `bun run backend` → Supabase via WSL Engine |
 | Env keys | `bun run stack:env` |
 | Migrations | `bun run db:reset` |
 | Frontend | `bun run frontend` or `bun run dev` |
-| Tests | `bun run test` |
 
-See `docs/BACKEND_LOCAL.md`. **Never** require Admin PowerShell for daily dev.
+See `docs/BACKEND_LOCAL.md`, `docs/NO_ADMIN_STACK.md`. **Never** require Admin PowerShell for daily dev.
 
 ### “Error getting docker binary key”
 

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef, type ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { selectPrimaryFarm } from '@/lib/canonical';
 import { useAppStore } from '@/stores/useAppStore';
 import type { User, Session } from '@supabase/supabase-js';
 
@@ -38,15 +39,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from('farms')
       .select('id, name, setup_complete, updated_at')
       .eq('user_id', userId);
-    if (data && data.length > 0) {
-      const sorted = [...data].sort((a, b) => {
-        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-      });
-      const selectedFarm = sorted[0];
+    const selectedFarm = selectPrimaryFarm(data);
+    if (selectedFarm) {
       setFarmId(selectedFarm.id);
       setFarmName(selectedFarm.name);
-      setFarmReady(selectedFarm.setup_complete);
+      setFarmReady(!!selectedFarm.setup_complete);
     } else {
       setFarmReady(false);
       setFarmId(null);
@@ -84,15 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('id, name, setup_complete, updated_at')
       .eq('user_id', userId);
 
-    if (data && data.length > 0) {
-      const sorted = [...data].sort((a, b) => {
-        if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-      });
-      const existingFarm = sorted[0];
+    const existingFarm = selectPrimaryFarm(data);
+    if (existingFarm) {
       setFarmId(existingFarm.id);
       setFarmName(existingFarm.name);
-      setFarmReady(existingFarm.setup_complete);
+      setFarmReady(!!existingFarm.setup_complete);
       return;
     }
 

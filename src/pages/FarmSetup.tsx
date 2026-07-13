@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { Progress } from '@/components/ui/progress';
 import { GHANA_REGIONS, DISTRICTS_BY_REGION } from '@/lib/ghana-regions';
+import { selectPrimaryFarm } from '@/lib/canonical';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft, ArrowRight, Plus, Trash2, Sprout, Check } from 'lucide-react';
 
@@ -46,12 +47,7 @@ export default function FarmSetup() {
         .select('id, name, setup_complete, updated_at')
         .eq('user_id', user.id);
 
-      const data = farms && farms.length > 0
-        ? [...farms].sort((a, b) => {
-            if (a.setup_complete !== b.setup_complete) return a.setup_complete ? -1 : 1;
-            return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
-          })[0]
-        : null;
+      const data = selectPrimaryFarm(farms);
 
       if (data?.setup_complete) {
         navigate('/dashboard', { replace: true });
@@ -128,12 +124,13 @@ export default function FarmSetup() {
     if (!farmId) return;
     setSubmitting(true);
 
-    // Update farm details
+    // 1) Save farm identity first — keep setup_complete false until houses land
+    //    so a house insert failure never marks the farm "ready" with zero pens.
     const { error: farmError } = await supabase.from('farms').update({
       name: farmName,
       location_region: region || null,
       location_district: district || null,
-      setup_complete: true,
+      setup_complete: false,
     }).eq('id', farmId);
 
     if (farmError) {
@@ -142,7 +139,7 @@ export default function FarmSetup() {
       return;
     }
 
-    // Insert houses
+    // 2) Houses required for a usable farm
     const { error: houseError } = await supabase.from('houses').insert(
       houses.map((h) => ({
         farm_id: farmId,
@@ -157,7 +154,18 @@ export default function FarmSetup() {
       return;
     }
 
-    // Upsert preferences (handles OAuth users without an initial prefs row)
+    // 3) Mark setup complete only after houses succeed
+    const { error: completeError } = await supabase.from('farms').update({
+      setup_complete: true,
+    }).eq('id', farmId);
+
+    if (completeError) {
+      toast.error('Failed to complete farm setup', { description: completeError.message });
+      setSubmitting(false);
+      return;
+    }
+
+    // 4) Preferences (OAuth users may lack a prefs row)
     const { error: prefError } = await supabase.from('user_preferences').upsert({
       user_id: user.id,
       currency,
@@ -171,7 +179,7 @@ export default function FarmSetup() {
       return;
     }
 
-    // Log activity
+    // Soft side-effect — do not block entry if activity log fails
     await supabase.from('activity_log').insert({
       farm_id: farmId,
       event_type: 'farm_setup',
