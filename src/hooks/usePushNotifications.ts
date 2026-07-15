@@ -104,7 +104,7 @@ export function usePushNotifications(userId?: string) {
           auth: (subJson.keys as { auth?: string })?.auth ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
-      } catch { /* ignore if table missing */ }
+      } catch { console.debug('push_subscriptions table may not exist'); }
 
       setIsSubscribed(true);
       setIsLoading(false);
@@ -125,7 +125,8 @@ export function usePushNotifications(userId?: string) {
       if (sub) {
         await sub.unsubscribe();
         if (userId) {
-          await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+          const { error: delErr } = await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+          if (delErr) console.debug('push_subscriptions delete failed:', delErr.message);
         }
       }
       setIsSubscribed(false);

@@ -371,25 +371,37 @@ export function useHealthData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  const { error: bookErr } = await supabase.rpc('confirm_day_feed', {
-                    p_farm_id: farmId,
-                    p_batch_id: selectedBatch,
-                    p_quantity_kg: task.amount,
-                    p_feed_type: feedName,
-                    p_date: todayStr,
-                    p_ledger: true,
-                    p_stock_item_id: feedStock?.id ?? null,
-                    p_unit_price_pesewas: unitPricePesewas,
-                    p_skip_expense: false,
-                  });
-                  if (bookErr) {
-                    await autoCreateExpense({
-                      farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-                      description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
-                      amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
+                  let rpcOk = false;
+                  let expenseOk = false;
+                  try {
+                    const { error: bookErr } = await supabase.rpc('confirm_day_feed', {
+                      p_farm_id: farmId,
+                      p_batch_id: selectedBatch,
+                      p_quantity_kg: task.amount,
+                      p_feed_type: feedName,
+                      p_date: todayStr,
+                      p_ledger: true,
+                      p_stock_item_id: feedStock?.id ?? null,
+                      p_unit_price_pesewas: unitPricePesewas,
+                      p_skip_expense: false,
                     });
+                    rpcOk = !bookErr;
+                    if (!rpcOk) {
+                      const res = await autoCreateExpense({
+                        farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                        description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
+                        amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
+                      });
+                      expenseOk = true;
+                    }
+                  } catch (e) {
+                    console.error('Book now feed error:', e);
                   }
-                  toast.success('Feed expense booked');
+                  if (rpcOk || expenseOk) {
+                    toast.success('Feed expense booked');
+                  } else {
+                    toast.error('Failed to book feed expense');
+                  }
                 },
               }
             : {
@@ -449,9 +461,14 @@ export function useHealthData() {
     if (success) {
       // Run post-RPC side-effects for each task that was just completed
       if (farmId && pendingTasks) {
-        await Promise.all(
+        const results = await Promise.allSettled(
           pendingTasks.map(task => runPostCompletionSideEffects({ farmId, task }))
         );
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.warn('Partial side-effect failures:', failures);
+          toast.warning(`${failures.length} of ${results.length} post-completion side-effects failed`);
+        }
       }
 
       const [tasksRes, vaxRes] = await Promise.all([

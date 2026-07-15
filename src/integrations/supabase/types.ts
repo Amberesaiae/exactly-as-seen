@@ -1786,6 +1786,39 @@ export type Database = {
           revenue_pesewas: number
         }
       }
+      record_egg_collection: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_date: string
+          p_total_eggs: number
+          p_eggs_cracked: number
+          p_eggs_rejected: number
+          p_notes: string
+        }
+        Returns: {
+          ok: boolean
+          collection_id?: string
+          reason?: string
+        }
+      }
+      record_bird_sale: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_quantity: number
+          p_price_pesewas: number
+          p_buyer: string
+          p_date: string
+          p_notes: string
+        }
+        Returns: {
+          ok: boolean
+          revenue_id?: string
+          new_population?: number
+          reason?: string
+        }
+      }
       create_batch: {
         Args: {
           p_farm_id: string

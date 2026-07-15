@@ -4,6 +4,7 @@
  */
 import { addDays, format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { shouldAutoLedger } from '@/lib/production-system';
 import { LEDGER_SOURCES } from '@/lib/canonical';
@@ -40,6 +41,7 @@ export async function syncScheduleFromHealthTask(params: {
 
   if (error) {
     console.error('syncScheduleFromHealthTask:', error.message);
+    toast.error(`Failed to sync vaccination schedule: ${error.message}`);
     return 0;
   }
   return data?.length ?? 0;
@@ -70,6 +72,7 @@ export async function syncHealthTaskFromSchedule(params: {
 
   if (error) {
     console.error('syncHealthTaskFromSchedule:', error.message);
+    toast.error(`Failed to sync health task: ${error.message}`);
     return 0;
   }
   return data?.length ?? 0;
@@ -91,7 +94,7 @@ export async function syncScheduleForCompletedVaccinationTasks(batchId: string):
   );
   if (names.length === 0) return;
 
-  await supabase
+  const { error } = await supabase
     .from('vaccination_schedule')
     .update({
       administered: true,
@@ -100,6 +103,11 @@ export async function syncScheduleForCompletedVaccinationTasks(batchId: string):
     .eq('batch_id', batchId)
     .eq('administered', false)
     .in('vaccine_name', names);
+
+  if (error) {
+    console.error('syncScheduleForCompletedVaccinationTasks:', error.message);
+    toast.error(`Failed to sync completed vaccination tasks: ${error.message}`);
+  }
 }
 
 /**
@@ -153,7 +161,7 @@ export async function seedPostVaccinationSupplements(
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const dayAfter = format(addDays(new Date(), 2), 'yyyy-MM-dd');
 
-  await supabase.from('health_tasks').upsert(
+  const { error } = await supabase.from('health_tasks').upsert(
     [
       {
         batch_id: batchId,
@@ -197,4 +205,9 @@ export async function seedPostVaccinationSupplements(
     ],
     { onConflict: 'batch_id,medication_id,scheduled_date', ignoreDuplicates: true }
   );
+
+  if (error) {
+    console.error('seedPostVaccinationSupplements:', error.message);
+    toast.error(`Failed to seed post-vaccination supplements: ${error.message}`);
+  }
 }

@@ -11,6 +11,7 @@ import {
   LEDGER_SOURCES,
   selectPrimaryFarm,
 } from '@/lib/canonical';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type StockItem = Database['public']['Tables']['stock_items']['Row'];
@@ -64,7 +65,7 @@ export function useStockData() {
   const addStockItem = async (data: any) => {
     if (!farmId) return;
     setSubmitting(true);
-    const { data: item, error } = await supabase.from('stock_items').insert({
+    const insertData = {
       name: data.name,
       category: data.category,
       unit: data.unit,
@@ -72,15 +73,28 @@ export function useStockData() {
       reorder_threshold: data.reorder_threshold,
       unit_price_pesewas: data.unit_price ? Math.round(Number(data.unit_price) * 100) : 0,
       farm_id: farmId,
-    }).select().single();
+    };
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('stock_items', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+      const item = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as StockItem;
+      setStockItems(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
+      setSubmitting(false);
+      toast.success('Stock item added (offline — will sync)');
+      return;
+    }
+
+    const { data: item, error } = await supabase.from('stock_items').insert(insertData).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       event_type: 'stock_update',
       description: `Added new stock item: ${data.name} (${data.category})`,
     });
+    if (actErr) console.debug('Activity log failed:', actErr);
 
     setStockItems(prev => [...prev, item].sort((a, b) => a.name.localeCompare(b.name)));
     setSubmitting(false);
@@ -247,11 +261,12 @@ export function useStockData() {
       }
     }
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr2 } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       event_type: 'stock_transaction',
       description: `${type.toUpperCase()}: ${qty} ${item.unit} of ${item.name}`,
     });
+    if (actErr2) console.debug('Activity log failed:', actErr2);
 
     setStockItems(prev => prev.map(i => i.id === itemId ? {
       ...i,

@@ -64,59 +64,12 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
     const { data: rpcData, error: rpcError } = await supabase.rpc('terminate_batch', terminateArgs);
 
     if (rpcError) {
-      console.warn('terminate_batch RPC failed, client fallback:', rpcError.message);
+      console.warn('terminate_batch RPC failed:', rpcError.message);
+      setCompleting(false);
+      throw new Error(rpcError.message);
+    }
 
-      const { error: updateError } = await supabase.from('batches').update({
-        status: 'completed',
-        phase: 'terminated',
-        termination_reason: terminationMode,
-        updated_at: new Date().toISOString(),
-      }).eq('id', batch.id);
-
-      if (updateError) {
-        toast.error(updateError.message);
-        setCompleting(false);
-        return;
-      }
-
-      if (batch.house_id) {
-        const { error: houseErr } = await supabase
-          .from('houses')
-          .update({ occupied_by_batch_id: null })
-          .eq('id', batch.house_id);
-        if (houseErr) {
-          toast.error(`Batch closed but house not released: ${houseErr.message}`);
-          setCompleting(false);
-          return;
-        }
-      }
-
-      if (revenueAmt > 0) {
-        try {
-          await autoCreateRevenue({
-            farmId: batch.farm_id,
-            batchId: batch.id,
-            category: revenueCategory,
-            description: `Auto-revenue: Sold birds from terminated batch "${batch.name}" (${terminationMode} culling)`,
-            amount: revenueAmt,
-            source: 'auto:batch',
-            sourceRef: batch.id + ':terminate',
-          });
-        } catch (e: any) {
-          toast.error(`Terminated but revenue failed: ${e?.message || e}`);
-          setCompleting(false);
-          return;
-        }
-      }
-
-      await cleanupBatchCompletion(batch.id);
-      await supabase.from('activity_log').insert({
-        farm_id: batch.farm_id,
-        batch_id: batch.id,
-        event_type: 'batch_completed',
-        description: `Flock "${batch.name}" terminated (${terminationMode} mode)${revenueAmt > 0 ? ` for ${currency} ${revenueAmt.toFixed(2)}` : ''}`,
-      });
-    } else if ((rpcData as TerminateBatchReturn)?.ok === false) {
+    if ((rpcData as TerminateBatchReturn)?.ok === false) {
       toast.error('Terminate failed');
       setCompleting(false);
       return;

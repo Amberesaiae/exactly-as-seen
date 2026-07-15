@@ -1,6 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { toPesewas, ledgerDate } from '@/lib/canonical';
+import { isOffline, queueWrite, queueRpc } from '@/lib/sync';
 
 /**
  * Synergy Service (Dovetail Synergy)
@@ -41,7 +42,7 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
 
   if (amount <= 0) return;
 
-  const { error } = await supabase.from('expenses').upsert({
+  const insertData = {
     farm_id: farmId,
     batch_id: batchId || null,
     category,
@@ -52,7 +53,16 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
     source_ref: sourceRef,
     payment_method: paymentMethod,
     payment_status: paymentStatus,
-  }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+  };
+
+  if (isOffline()) {
+    const tempId = crypto.randomUUID();
+    await queueWrite('expenses', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+    toast.success('Expense recorded (offline — will sync)');
+    return;
+  }
+
+  const { error } = await supabase.from('expenses').upsert(insertData, { onConflict: 'source,source_ref', ignoreDuplicates: true });
 
   if (error) {
     // Duplicate auto-ledger is expected (idempotent unique source+source_ref)
@@ -101,14 +111,22 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
 
   const qtyToDeduct = convertDoseToStockUnit(quantity, doseUnit || null, matchedStock.unit);
 
-  const { error: allocError } = await supabase.rpc('allocate_fifo_by_quality', {
+  const allocateArgs = {
     p_farm_id: farmId,
     p_stock_item_id: matchedStock.id,
     p_qty_needed: qtyToDeduct,
     p_batch_id: batchId,
     p_reason: reason,
     p_source_ref: sourceRef,
-  });
+  };
+
+  if (isOffline()) {
+    await queueRpc('allocate_fifo_by_quality', allocateArgs);
+    toast.success(`Auto-deduction queued for ${itemName} (offline — will sync)`);
+    return;
+  }
+
+  const { error: allocError } = await supabase.rpc('allocate_fifo_by_quality', allocateArgs);
 
   if (allocError) {
     console.error(`Synergy Error (FIFO Allocation): ${allocError.message}`);
@@ -117,9 +135,14 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
   }
 
   const newQty = Math.max(0, Number(matchedStock.current_quantity) - qtyToDeduct);
-  await supabase.from('stock_items')
+  const { error: stockUpdateErr } = await supabase.from('stock_items')
     .update({ current_quantity: newQty, updated_at: new Date().toISOString() })
     .eq('id', matchedStock.id);
+
+  if (stockUpdateErr) {
+    console.error(`Synergy Error (Stock Update): ${stockUpdateErr.message}`);
+    toast.error(`Stock quantity update failed for ${itemName}: ${stockUpdateErr.message}`);
+  }
 }
 
 interface SynergyRevenueParams {
@@ -147,7 +170,7 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
 
   if (amount <= 0) return;
 
-  const { error } = await supabase.from('revenue').upsert({
+  const insertData = {
     farm_id: farmId,
     batch_id: batchId,
     category,
@@ -159,15 +182,28 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
     source_ref: sourceRef,
     payment_method: paymentMethod,
     payment_status: paymentStatus,
-  }, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+  };
+
+  if (isOffline()) {
+    const tempId = crypto.randomUUID();
+    await queueWrite('revenue', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+    toast.success('Revenue recorded (offline — will sync)');
+    return;
+  }
+
+  const { error } = await supabase.from('revenue').upsert(insertData, { onConflict: 'source,source_ref', ignoreDuplicates: true });
 
   if (error) {
-    console.error(`Synergy Error (Auto-Revenue): ${error.message}`);
+    const isDup = error.code === '23505' || /duplicate|unique/i.test(error.message);
+    if (!isDup) {
+      console.error(`Synergy Error (Auto-Revenue): ${error.message}`);
+      toast.error(`Failed to record revenue: ${error.message}`);
+    }
   }
 }
 
 /**
- * Bird Sale Synergy: Records revenue and reduces batch population.
+ * Bird Sale Synergy: Atomic RPC — records revenue, reduces batch population, and logs activity.
  */
 export async function recordBirdSale(params: {
   farmId: string;
@@ -186,38 +222,39 @@ export async function recordBirdSale(params: {
     return null;
   }
 
-  const sourceRef = `${batchId}:sale:${quantity}:${Math.round(totalAmount * 100)}:${Date.now()}`;
+  const pricePesewas = Math.round(totalAmount * 100);
 
-  await autoCreateRevenue({
-    farmId,
-    batchId,
-    category: 'bird_sales',
-    description: `Bird Sale: ${quantity} birds @ ${unitPrice.toFixed(2)}${notes ? ` — ${notes}` : ''}`,
-    amount: totalAmount,
-    buyer,
-    source: 'auto:sale',
-    sourceRef,
-  });
+  const birdSaleArgs = {
+    p_farm_id: farmId,
+    p_batch_id: batchId,
+    p_quantity: quantity,
+    p_price_pesewas: pricePesewas,
+    p_buyer: buyer || '',
+    p_date: new Date().toISOString().slice(0, 10),
+    p_notes: notes || '',
+  };
 
-  const newPop = currentPopulation - quantity;
-  const { error: popError, data: updated } = await supabase.from('batches')
-    .update({ current_population: newPop })
-    .eq('id', batchId)
-    .gte('current_population', quantity)
-    .select('id')
-    .maybeSingle();
+  if (isOffline()) {
+    await queueRpc('record_bird_sale', birdSaleArgs);
+    toast.success('Bird sale recorded (offline — will sync)');
+    return { newPop: currentPopulation - quantity };
+  }
 
-  if (popError || !updated) {
-    console.error(`Synergy Error (Population Sync): ${popError?.message ?? 'population race'}`);
+  const { data: rpcResult, error: rpcError } = await supabase.rpc('record_bird_sale', birdSaleArgs);
+
+  if (rpcError) {
+    console.error(`Synergy Error (record_bird_sale): ${rpcError.message}`);
     return null;
   }
 
-  await supabase.from('activity_log').insert({
-    farm_id: farmId,
-    batch_id: batchId,
-    event_type: 'bird_sale',
-    description: `Sold ${quantity} birds for ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
-  });
+  if (rpcResult && !rpcResult.ok) {
+    if (rpcResult.reason === 'insufficient_population') {
+      toast.error(`Insufficient birds. Current: ${currentPopulation}, requested: ${quantity}`);
+    } else {
+      console.error(`Synergy Error (record_bird_sale): ${rpcResult.reason}`);
+    }
+    return null;
+  }
 
-  return { newPop };
+  return { newPop: rpcResult?.new_population ?? currentPopulation - quantity };
 }

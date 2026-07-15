@@ -121,16 +121,21 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
         action: {
           label: 'Book now',
           onClick: async () => {
-            await autoCreateExpense({
-              farmId,
-              batchId: selectedBatch,
-              category: 'utilities_and_services',
-              description: `Water consumption (booked): ${gallons} gal (${liters.toFixed(1)}L)`,
-              amount,
-              source: LEDGER_SOURCES.water,
-              sourceRef: `water:${data.id}:book`,
-            });
-            toast.success('Water expense booked');
+            try {
+              await autoCreateExpense({
+                farmId,
+                batchId: selectedBatch,
+                category: 'utilities_and_services',
+                description: `Water consumption (booked): ${gallons} gal (${liters.toFixed(1)}L)`,
+                amount,
+                source: LEDGER_SOURCES.water,
+                sourceRef: `water:${data.id}:book`,
+              });
+              toast.success('Water expense booked');
+            } catch (e) {
+              console.error('Book now water error:', e);
+              toast.error('Failed to book water expense');
+            }
           },
         },
       });

@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { getExpectedRate } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 import { autoCreateRevenue } from '@/lib/synergy';
 import {
@@ -179,23 +180,56 @@ export function useEggData() {
       return;
     }
 
-    // Duplicate check for batch + date
-    const { data: existing, error: existError } = await supabase
-      .from('egg_collections')
-      .select('id')
-      .eq('batch_id', selectedBatch)
-      .eq('date', todayStr)
-      .maybeSingle();
+    const eggCollectionArgs = {
+      p_farm_id: farmId,
+      p_batch_id: selectedBatch,
+      p_date: todayStr,
+      p_total_eggs: total,
+      p_eggs_cracked: broken,
+      p_eggs_rejected: dirty,
+      p_notes: notes || '',
+    };
 
-    if (existing) {
-      toast.error('An egg collection has already been recorded for this batch today.');
+    if (isOffline()) {
+      const { queueRpc } = await import('@/lib/sync');
+      const tempId = crypto.randomUUID();
+      await queueRpc('record_egg_collection', eggCollectionArgs, tempId);
+      const good = Math.max(0, total - broken - dirty);
+      const entry = {
+        id: tempId,
+        batch_id: selectedBatch,
+        farm_id: farmId,
+        total_eggs: total,
+        broken,
+        dirty,
+        good,
+        size_category: sizeCategory,
+        notes: notes || null,
+        date: todayStr,
+        created_at: new Date().toISOString(),
+      } as unknown as EggRecord;
+      setRecords(prev => [entry, ...prev.slice(0, 29)]);
+      setEggSubmitting(false);
+      toast.success(`Recorded ${total} eggs (${good} good, offline — will sync)`);
+      return;
+    }
+
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('record_egg_collection', eggCollectionArgs);
+
+    if (rpcError) { toast.error(rpcError.message); setEggSubmitting(false); return; }
+    if (rpcResult && !rpcResult.ok) {
+      if (rpcResult.reason === 'duplicate') {
+        toast.error('An egg collection has already been recorded for this batch today.');
+      } else {
+        toast.error('Failed to record egg collection');
+      }
       setEggSubmitting(false);
       return;
     }
 
     const good = Math.max(0, total - broken - dirty);
-
-    const { data, error } = await supabase.from('egg_collections').insert({
+    const data = {
+      id: rpcResult.collection_id,
       batch_id: selectedBatch,
       farm_id: farmId,
       total_eggs: total,
@@ -204,16 +238,9 @@ export function useEggData() {
       good,
       size_category: sizeCategory,
       notes: notes || null,
-    }).select().single();
-
-    if (error) { toast.error(error.message); setEggSubmitting(false); return; }
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: selectedBatch,
-      event_type: 'egg_collection',
-      description: `Collected ${total} eggs (${good} good, ${broken} broken, ${dirty} dirty) — ${SIZE_LABELS[sizeCategory] || sizeCategory}`,
-    });
+      date: todayStr,
+      created_at: new Date().toISOString(),
+    };
 
     // T6: sync daily batch_tasks egg row
     try {
@@ -383,12 +410,13 @@ export function useEggData() {
       sourceRef: sale.id,
     });
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       batch_id: selectedBatch,
-      event_type: 'egg_sale',
-      description: `Sold ${totalEggs} eggs (${crates} crt, ${looses} loose) for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
+      event_type: 'egg_collection',
+      description: `Collected ${total} eggs (${good} good, ${broken} broken, ${dirty} dirty) — ${SIZE_LABELS[sizeCategory] || sizeCategory}`,
     });
+    if (actErr) console.debug('Activity log failed:', actErr);
 
     setSales(prev => [sale!, ...prev.slice(0, 29)]);
     setSaleSubmitting(false);

@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { User, Home, Settings, DollarSign, Download, Cpu, Activity, Bell } from 'lucide-react';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 
 import ProfileTab from '@/components/settings/ProfileTab';
 import FarmTab from '@/components/settings/FarmTab';
@@ -112,7 +113,8 @@ export default function SettingsPage() {
     if (!farm) return;
     if (!farmName.trim()) { toast.error('Farm name is required'); return; }
     setSaving('farm');
-    const { error } = await supabase.from('farms').update({
+
+    const updateData = {
       name: farmName.trim(),
       farm_type: farmType,
       location_region: region || null,
@@ -120,7 +122,17 @@ export default function SettingsPage() {
       water_source_chlorinated: waterSourceChlorinated,
       egg_low_inventory_crates: parseInt(eggLowInventoryCrates) || 5,
       timezone: timezone,
-    }).eq('id', farm.id);
+    };
+
+    if (isOffline()) {
+      await queueWrite('farms', 'update', farm.id, updateData as unknown as Record<string, unknown>);
+      toast.success('Farm details updated (offline — will sync)');
+      showSaved('farm');
+      setSaving(null);
+      return;
+    }
+
+    const { error } = await supabase.from('farms').update(updateData).eq('id', farm.id);
     if (error) toast.error(error.message);
     else {
       toast.success('Farm details updated');
@@ -133,12 +145,25 @@ export default function SettingsPage() {
   const savePreferences = async () => {
     if (!user) return;
     setSaving('prefs');
-    const { error } = await supabase.from('user_preferences').upsert({
+
+    const prefsData = {
       user_id: user.id,
       currency,
       theme,
       cost_privacy_enabled: costPrivacyEnabled,
-    }, { onConflict: 'user_id' });
+    };
+
+    if (isOffline()) {
+      await queueWrite('user_preferences', 'insert', user.id, prefsData as unknown as Record<string, unknown>);
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      toast.success('Preferences saved (offline — will sync)');
+      showSaved('prefs');
+      recheckFarm();
+      setSaving(null);
+      return;
+    }
+
+    const { error } = await supabase.from('user_preferences').upsert(prefsData, { onConflict: 'user_id' });
     if (error) toast.error(error.message);
     else {
       document.documentElement.classList.toggle('dark', theme === 'dark');

@@ -5,6 +5,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 import { format, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { selectPrimaryFarm, toPesewas, fromPesewas } from '@/lib/canonical';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Expense = Database['public']['Tables']['expenses']['Row'];
@@ -139,7 +140,7 @@ export function useFinanceData() {
     if (!farmId) return;
     setSubmitting(true);
     const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
-    const { data: entry, error } = await supabase.from('expenses').insert({
+    const insertData = {
       amount_pesewas: toPesewas(major),
       category: data.category,
       description: data.description,
@@ -150,16 +151,31 @@ export function useFinanceData() {
       payment_status: data.payment_status ?? 'paid',
       source: 'manual',
       source_ref: null,
-    } as Database['public']['Tables']['expenses']['Insert']).select().single();
+    };
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('expenses', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+      const entry = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as Expense;
+      setExpenses(prev => [entry, ...prev]);
+      setSubmitting(false);
+      toast.success('Expense recorded (offline — will sync)');
+      return;
+    }
+
+    const { data: entry, error } = await supabase.from('expenses').insert(
+      insertData as Database['public']['Tables']['expenses']['Insert']
+    ).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       batch_id: data.batch_id || null,
       event_type: 'expense',
       description: `Added expense: ${data.category} — ${major.toFixed(2)} (${data.description})`,
     });
+    if (actErr) console.debug('Activity log failed:', actErr);
 
     setExpenses(prev => [entry, ...prev]);
     setSubmitting(false);
@@ -170,7 +186,7 @@ export function useFinanceData() {
     if (!farmId) return;
     setSubmitting(true);
     const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
-    const { data: entry, error } = await supabase.from('revenue').insert({
+    const insertData = {
       amount_pesewas: toPesewas(major),
       category: data.category,
       description: data.description,
@@ -182,16 +198,31 @@ export function useFinanceData() {
       payment_status: data.payment_status ?? 'paid',
       source: 'manual',
       source_ref: null,
-    } as Database['public']['Tables']['revenue']['Insert']).select().single();
+    };
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('revenue', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+      const entry = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as Revenue;
+      setRevenue(prev => [entry, ...prev]);
+      setSubmitting(false);
+      toast.success('Revenue recorded (offline — will sync)');
+      return;
+    }
+
+    const { data: entry, error } = await supabase.from('revenue').insert(
+      insertData as Database['public']['Tables']['revenue']['Insert']
+    ).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr2 } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       batch_id: data.batch_id || null,
       event_type: 'revenue',
       description: `Added revenue: ${data.category} — ${major.toFixed(2)} (${data.description})`,
     });
+    if (actErr2) console.debug('Activity log failed:', actErr2);
 
     setRevenue(prev => [entry, ...prev]);
     setSubmitting(false);

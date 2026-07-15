@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { cacheBatches } from '@/lib/sync';
+import { cacheBatches, isOffline, queueRpc } from '@/lib/sync';
 import { generateAutoTasks } from '@/lib/health-auto-tasks';
 import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 import { getBatchAge } from '@/lib/batch-utils';
@@ -106,7 +106,7 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     });
 
     // W6: atomic batch + house + seed + activity
-    const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch', {
+    const createBatchArgs = {
       p_farm_id: farmId,
       p_name: name.trim(),
       p_species: species,
@@ -121,7 +121,34 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       p_duck_type: species === 'duck' ? duckType : null,
       p_health_tasks: healthTasksJson,
       p_vaccinations: vaccinationsJson,
-    });
+    };
+
+    if (isOffline()) {
+      await queueRpc('create_batch', createBatchArgs);
+      const tempId = crypto.randomUUID();
+      const batch = {
+        id: tempId,
+        farm_id: farmId,
+        name: name.trim(),
+        species,
+        duck_type: species === 'duck' ? duckType : null,
+        house_id: houseId,
+        production_system: productionSystem,
+        initial_quantity: qty,
+        current_population: qty,
+        start_date: startDate,
+        cycle_length_weeks: cycleWeeks,
+        current_week: age.week,
+        current_day: age.day,
+        status: 'active',
+        phase: age.phase,
+      };
+      toast.success('Batch created (offline — will sync when connected)');
+      setSubmitting(false);
+      return batch as Batch;
+    }
+
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch', createBatchArgs);
 
     if (!rpcError && rpcData && (rpcData as CreateBatchReturn).ok) {
       const batchId = (rpcData as CreateBatchReturn).batch_id;
@@ -151,90 +178,18 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     }
 
     if (rpcError) {
-      console.warn('create_batch RPC failed, client fallback:', rpcError.message);
+      console.warn('create_batch RPC failed:', rpcError.message);
       if (/house not available|name is required|duck_type/i.test(rpcError.message)) {
         toast.error(rpcError.message);
         setSubmitting(false);
         return null;
       }
-    }
-
-    const { data: batch, error: batchError } = await supabase.from('batches').insert({
-      farm_id: farmId,
-      name: name.trim(),
-      species,
-      duck_type: species === 'duck' ? duckType : null,
-      house_id: houseId,
-      production_system: productionSystem,
-      initial_quantity: qty,
-      current_population: qty,
-      start_date: startDate,
-      cycle_length_weeks: cycleWeeks,
-      current_week: age.week,
-      current_day: age.day,
-      status: 'active',
-      phase: age.phase,
-    }).select().single();
-
-    if (batchError) {
-      toast.error(batchError.message);
       setSubmitting(false);
-      return null;
+      throw new Error(rpcError.message);
     }
 
-    await supabase.from('houses').update({ occupied_by_batch_id: batch.id }).eq('id', houseId);
-
-    if (autoTasks.length > 0) {
-      const { error: taskErr } = await supabase.from('health_tasks').insert(
-        autoTasks.map((t) => ({
-          batch_id: batch.id,
-          farm_id: farmId,
-          task_type: t.task_type,
-          product_name: t.product_name,
-          medication_id: t.medication_id || null,
-          delivery_method: t.delivery_method || null,
-          scheduled_date: t.scheduled_date,
-          duration_days: t.duration_days ?? 1,
-          withdrawal_meat_days: t.withdrawal_meat_days ?? 0,
-          withdrawal_egg_days: t.withdrawal_egg_days ?? 0,
-          notes: t.notes ?? t.indication ?? null,
-          completed: false,
-        }))
-      );
-      if (taskErr) {
-        console.error('Auto health tasks seed failed:', taskErr.message);
-        toast.warning('Batch created, but care tasks failed to seed — open Health to regenerate.');
-      }
-    }
-
-    if (vaccinationsJson.length > 0) {
-      const { error: vaxErr } = await supabase.from('vaccination_schedule').insert(
-        vaccinationsJson.map((t) => ({
-          batch_id: batch.id,
-          farm_id: farmId,
-          vaccine_name: t.vaccine_name,
-          scheduled_week: t.scheduled_week,
-          scheduled_date: t.scheduled_date,
-        }))
-      );
-      if (vaxErr) {
-        console.error('Vaccination schedule seed failed:', vaxErr.message);
-        toast.warning('Batch created, but vaccination schedule failed — use Generate in Health if empty.');
-      }
-    }
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      event_type: 'batch_created',
-      description: `Created new ${species} flock: "${name}" (${qty} birds)`,
-    });
-
-    await cacheBatches(farmId).catch(err => console.error('Cache sync error:', err));
-
-    toast.success('Batch created successfully');
     setSubmitting(false);
-    return batch;
+    throw new Error((rpcData as CreateBatchReturn)?.error ?? 'create_batch failed');
   };
 
   return {

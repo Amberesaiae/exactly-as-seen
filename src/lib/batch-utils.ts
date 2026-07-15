@@ -106,30 +106,11 @@ export async function recordMortality(params: {
   }
 
   if (rpcError) {
-    console.warn('record_mortality RPC failed, client fallback:', rpcError.message);
+    console.warn('record_mortality RPC failed:', rpcError.message);
+    throw new Error(rpcError.message);
   }
 
-  const { error: mrError } = await supabase.from('mortality_records').insert({
-    batch_id: batchId,
-    farm_id: farmId,
-    count,
-    cause: cause || null,
-    notes: notes || null,
-  });
-  if (mrError) return null;
-
-  const newPop = Math.max(0, currentPopulation - count);
-  const { error: bError } = await supabase.from('batches').update({ current_population: newPop }).eq('id', batchId);
-  if (bError) return null;
-
-  await supabase.from('activity_log').insert({
-    farm_id: farmId,
-    batch_id: batchId,
-    event_type: 'mortality',
-    description: `Recorded ${count} mortality in ${batchName}${cause ? `: ${cause}` : ''}`,
-  });
-
-  return newPop;
+  throw new Error((rpcData as RecordMortalityReturn)?.error ?? 'record_mortality failed');
 }
 
 /**

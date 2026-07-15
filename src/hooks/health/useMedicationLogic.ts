@@ -6,6 +6,7 @@ import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { shouldOfferBookNow } from '@/lib/ledger-policy';
 import { LEDGER_SOURCES } from '@/lib/canonical';
+import { isOffline, queueWrite } from '@/lib/sync';
 import {
   isVaccinationHealthTask,
   syncScheduleFromHealthTask,
@@ -68,7 +69,7 @@ export function useMedicationLogic(
     setMedSubmitting(true);
     const dosingInfo = params.dosePerGallon ? `${params.dosePerGallon} | ${params.indication || ''}` : '';
 
-    const { data: task, error } = await supabase.from('health_tasks').insert({
+    const insertData = {
       batch_id: batchId,
       farm_id: farmId,
       task_type: params.taskType,
@@ -87,16 +88,29 @@ export function useMedicationLogic(
       cost_pesewas: params.costPesewas || null,
       scheduled_date: newDate,
       notes: params.notes ? `${dosingInfo}\n${params.notes}` : dosingInfo,
-    }).select().single();
+    };
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('health_tasks', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+      const task = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as HealthTask;
+      setTasks(prev => [task, ...prev]);
+      setMedSubmitting(false);
+      toast.success('Medication recorded (offline — will sync)');
+      return task;
+    }
+
+    const { data: task, error } = await supabase.from('health_tasks').insert(insertData).select().single();
 
     if (error) { toast.error(error.message); setMedSubmitting(false); return; }
 
-    await supabase.from('activity_log').insert({
+    const { error: actErr } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       batch_id: batchId,
       event_type: 'health_task',
       description: `Started ${newMed.name} — ${params.durationDays}d course`,
     });
+    if (actErr) console.debug('Activity log failed:', actErr);
 
     setTasks(prev => [task, ...prev]);
     setMedSubmitting(false);
@@ -147,7 +161,12 @@ export function useMedicationLogic(
 
     if (rpcError) throw rpcError;
 
-    await runPostCompletionSideEffects({ farmId, task, costPesewas });
+    try {
+      await runPostCompletionSideEffects({ farmId, task, costPesewas });
+    } catch (e) {
+      console.error('Post-completion side effects failed:', e);
+      toast.warning('Task completed, but some side-effects failed to sync');
+    }
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
     const system = activeBatch?.production_system as string | null;
@@ -160,22 +179,27 @@ export function useMedicationLogic(
         action: {
           label: 'Book now',
           onClick: async () => {
-            await autoDeductStock({
-              farmId, itemName: task.product_name!,
-              quantity: qty,
-              batchId: task.batch_id,
-              reason: `Booked health task: ${task.product_name}`,
-              sourceRef: `${taskId}:book`,
-              doseUnit: task.computed_dose_unit,
-            });
-            await autoCreateExpense({
-              farmId, batchId: task.batch_id, category: 'health_and_medicine',
-              description: `${description} (booked)`,
-              amount: amountMajor,
-              source,
-              sourceRef: `${taskId}:book`,
-            });
-            toast.success('Health expense booked');
+            try {
+              await autoDeductStock({
+                farmId, itemName: task.product_name!,
+                quantity: qty,
+                batchId: task.batch_id,
+                reason: `Booked health task: ${task.product_name}`,
+                sourceRef: `${taskId}:book`,
+                doseUnit: task.computed_dose_unit,
+              });
+              await autoCreateExpense({
+                farmId, batchId: task.batch_id, category: 'health_and_medicine',
+                description: `${description} (booked)`,
+                amount: amountMajor,
+                source,
+                sourceRef: `${taskId}:book`,
+              });
+              toast.success('Health expense booked');
+            } catch (e) {
+              console.error('Book now health error:', e);
+              toast.error('Failed to book health expense');
+            }
           },
         },
       });

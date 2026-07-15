@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 import {
   seedPostVaccinationSupplements,
   syncHealthTaskFromSchedule,
@@ -34,6 +35,24 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
       return;
     }
 
+    if (isOffline()) {
+      const tempIds = records.map(() => crypto.randomUUID());
+      for (let i = 0; i < records.length; i++) {
+        await queueWrite('vaccination_schedule', 'insert', tempIds[i], records[i] as unknown as Record<string, unknown>);
+      }
+      const offlineEntries = records.map((r, i) => ({ ...r, id: tempIds[i], created_at: new Date().toISOString() }));
+      setVaccinations(offlineEntries as any[]);
+      await supabase.from('activity_log').insert({
+        farm_id: farmId,
+        batch_id: batch.id,
+        event_type: 'vaccination',
+        description: `Generated ${records.length} vaccination schedule entries for ${batch.name} (offline)`,
+      }).then(({ error: actErr }) => { if (actErr) console.debug('Activity log failed:', actErr); });
+      toast.success(`Generated ${records.length} vaccinations (offline — will sync)`);
+      setGeneratingVaccines(false);
+      return;
+    }
+
     const { data, error } = await supabase.from('vaccination_schedule').insert(records).select();
     if (error) {
       toast.error(error.message);
@@ -42,12 +61,13 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
     }
 
     setVaccinations(data ?? []);
-    await supabase.from('activity_log').insert({
+    const { error: actErr } = await supabase.from('activity_log').insert({
       farm_id: farmId,
       batch_id: batch.id,
       event_type: 'vaccination',
       description: `Generated ${records.length} vaccination schedule entries for ${batch.name}`,
     });
+    if (actErr) console.debug('Activity log failed:', actErr);
 
     toast.success(`Generated ${records.length} vaccinations`);
     setGeneratingVaccines(false);
@@ -55,6 +75,19 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
 
   const markVaccineAdministered = async (vId: string, currentVaccinations: any[], costPesewas: number = 0, notes?: string) => {
     const completedAt = new Date().toISOString();
+
+    if (isOffline()) {
+      await queueWrite('vaccination_schedule', 'update', vId, {
+        administered: true,
+        administered_at: completedAt,
+      });
+      const vaccine = currentVaccinations.find(v => v.id === vId);
+      const updated = currentVaccinations.map(v => v.id === vId ? { ...v, administered: true, administered_at: completedAt } : v);
+      setVaccinations(updated);
+      toast.success(`Administered ${vaccine?.vaccine_name ?? 'vaccine'} (offline — will sync)`);
+      return true;
+    }
+
     const { error } = await supabase.from('vaccination_schedule')
       .update({ 
         administered: true, 
@@ -97,12 +130,13 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
     setVaccinations(updated);
 
     if (farmId && batch) {
-      await supabase.from('activity_log').insert({
+      const { error: actErr } = await supabase.from('activity_log').insert({
         farm_id: farmId,
         batch_id: batch.id,
         event_type: 'vaccination',
         description: `Administered ${vaccine?.vaccine_name ?? 'vaccine'}${notes ? `: ${notes}` : ''}`,
       });
+      if (actErr) console.debug('Activity log failed:', actErr);
 
       await seedPostVaccinationSupplements(farmId, batch.id);
     }

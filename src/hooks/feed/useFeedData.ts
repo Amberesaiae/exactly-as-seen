@@ -226,16 +226,26 @@ export function useFeedData() {
           return;
         }
         if (deductStock && feedStock) {
-          await autoDeductStock({
-            farmId, itemName: feedStock.name, quantity: qty,
-            batchId: selectedBatch, reason: `Daily feeding ${qty}kg`, sourceRef,
-          });
-          if (expenseConsumption && !skipExpense && unitPrice > 0) {
-            await autoCreateExpense({
-              farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-              description: `Daily Feeding: ${qty}kg ${feedStock.name}`,
-              amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
+          try {
+            await autoDeductStock({
+              farmId, itemName: feedStock.name, quantity: qty,
+              batchId: selectedBatch, reason: `Daily feeding ${qty}kg`, sourceRef,
             });
+          } catch (e) {
+            console.error('Fallback stock deduction failed:', e);
+            toast.error(`Feed logged but stock deduction failed: ${feedStock.name}`);
+          }
+          if (expenseConsumption && !skipExpense && unitPrice > 0) {
+            try {
+              await autoCreateExpense({
+                farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                description: `Daily Feeding: ${qty}kg ${feedStock.name}`,
+                amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
+              });
+            } catch (e) {
+              console.error('Fallback expense creation failed:', e);
+              toast.error('Feed logged but expense recording failed');
+            }
           }
         }
       } else if ((rpcData as ConfirmDayFeedReturn)?.already_logged) {
@@ -266,12 +276,17 @@ export function useFeedData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  await autoCreateExpense({
-                    farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-                    description: `Daily Feeding (booked): ${qty}kg ${feedName}`,
-                    amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
-                  });
-                  toast.success('Feed expense booked');
+                  try {
+                    await autoCreateExpense({
+                      farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                      description: `Daily Feeding (booked): ${qty}kg ${feedName}`,
+                      amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
+                    });
+                    toast.success('Feed expense booked');
+                  } catch (e) {
+                    console.error('Book now feed error:', e);
+                    toast.error('Failed to book feed expense');
+                  }
                 },
               }
             : {

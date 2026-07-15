@@ -12,6 +12,7 @@ import { Progress } from '@/components/ui/progress';
 import { GHANA_REGIONS, DISTRICTS_BY_REGION } from '@/lib/ghana-regions';
 import { selectPrimaryFarm } from '@/lib/canonical';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 import { Loader2, ArrowLeft, ArrowRight, Plus, Trash2, Sprout, Check } from 'lucide-react';
 
 interface House {
@@ -123,6 +124,42 @@ export default function FarmSetup() {
   const handleFinish = async () => {
     if (!farmId) return;
     setSubmitting(true);
+
+    if (isOffline()) {
+      // Queue farm update
+      await queueWrite('farms', 'update', farmId, {
+        name: farmName,
+        location_region: region || null,
+        location_district: district || null,
+        setup_complete: false,
+      });
+
+      // Queue house inserts
+      for (const h of houses) {
+        await queueWrite('houses', 'insert', crypto.randomUUID(), {
+          farm_id: farmId,
+          name: h.name,
+          capacity: parseInt(h.capacity) || 0,
+        });
+      }
+
+      // Queue setup complete
+      await queueWrite('farms', 'update', farmId, { setup_complete: true });
+
+      // Queue preferences
+      await queueWrite('user_preferences', 'insert', crypto.randomUUID(), {
+        user_id: user.id,
+        currency,
+        cost_privacy_enabled: costPrivacy,
+        theme,
+      });
+
+      await recheckFarm();
+      toast.success('Farm setup complete! (offline — will sync when connected)');
+      navigate('/dashboard', { replace: true });
+      setSubmitting(false);
+      return;
+    }
 
     // 1) Save farm identity first — keep setup_complete false until houses land
     //    so a house insert failure never marks the farm "ready" with zero pens.
@@ -316,7 +353,7 @@ export default function FarmSetup() {
                 Next <ArrowRight className="h-4 w-4" />
               </Button>
             ) : (
-              <Button onClick={handleFinish} disabled={submitting} className="gap-1.5 rounded-full">
+              <Button onClick={handleFinish} disabled={submitting || !farmId} className="gap-1.5 rounded-full">
                 {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4" /> Finish</>}
               </Button>
             )}
