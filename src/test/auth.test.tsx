@@ -75,7 +75,7 @@ describe('AuthContext - Complete Authentication Flow', () => {
     const mockUser = { id: 'user-123', email: 'test@example.com' };
     
     // Mock signUp API
-    (supabase.auth.signUp as any).mockResolvedValue({
+    vi.mocked(supabase.auth.signUp).mockResolvedValue({
       data: { user: mockUser },
       error: null
     });
@@ -91,7 +91,7 @@ describe('AuthContext - Complete Authentication Flow', () => {
       })
     });
 
-    (supabase.from as any).mockImplementation((table: string) => {
+    vi.mocked(supabase.from).mockImplementation((table: string) => {
       if (table === 'farms') {
         return { select: selectMock, insert: insertMock };
       }
@@ -126,14 +126,14 @@ describe('AuthContext - Complete Authentication Flow', () => {
   });
 
   it('should complete sign in flow and normalize unsupported currencies to GHS', async () => {
-    (supabase.auth.signInWithPassword as any).mockResolvedValue({
+    vi.mocked(supabase.auth.signInWithPassword).mockResolvedValue({
       data: {},
       error: null
     });
 
     // Mock getSession to simulate logged in user
     const mockUser = { id: 'user-123', email: 'test@example.com' };
-    (supabase.auth.getSession as any).mockResolvedValue({
+    vi.mocked(supabase.auth.getSession).mockResolvedValue({
       data: { session: { user: mockUser } }
     });
 
@@ -173,7 +173,7 @@ describe('AuthContext - Complete Authentication Flow', () => {
       eq: vi.fn().mockResolvedValue({ error: null })
     });
 
-    (supabase.from as any).mockImplementation(() => {
+    vi.mocked(supabase.from).mockImplementation(() => {
       return { select: selectMock, update: updateMock };
     });
 

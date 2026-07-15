@@ -38,7 +38,7 @@ if (typeof g.localStorage === "undefined" || !g.localStorage) {
     try {
       Object.defineProperty(g.window, "localStorage", { value: mem, configurable: true });
     } catch {
-      (g.window as any).localStorage = mem;
+      (g.window as unknown as { localStorage: Storage }).localStorage = mem;
     }
   }
 }

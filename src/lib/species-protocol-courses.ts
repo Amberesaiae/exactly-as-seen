@@ -399,6 +399,16 @@ const DUCK_COURSES: ProtocolCourse[] = [
     priority: 'medium',
   }),
   c('duck', {
+    product_name: 'Fenbendazole (Deworming)',
+    task_type: 'medication',
+    startDay: 28,
+    durationDays: 1,
+    delivery_method: 'drinking_water',
+    indication: 'Week 4 deworming (research D28)',
+    priority: 'high',
+    doseHint: 'Per label',
+  }),
+  c('duck', {
     product_name: 'Multivitamins',
     task_type: 'supplement',
     startDay: 29,

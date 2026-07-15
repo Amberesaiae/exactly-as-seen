@@ -13,7 +13,7 @@ const dom = new JSDOM("<!DOCTYPE html><html><body></body></html>", {
 const { window } = dom;
 
 // Assign globals expected by React / Testing Library / Supabase auth
-const g = globalThis as any;
+const g = globalThis as typeof globalThis & Record<string, unknown>;
 g.window = window;
 g.document = window.document;
 g.navigator = window.navigator;
