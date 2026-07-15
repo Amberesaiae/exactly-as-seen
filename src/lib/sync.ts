@@ -1,7 +1,34 @@
 import { supabase } from '@/integrations/supabase/client';
 import { db, type SyncOutbox } from '@/lib/db';
+import { toast } from 'sonner';
 
 let flushing = false;
+const failedItems: SyncOutbox[] = [];
+
+async function retryWithBackoff<T>(fn: () => Promise<T>, maxRetries = 3): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000;
+        await new Promise((r) => setTimeout(r, delay));
+      }
+    }
+  }
+  throw lastError;
+}
+
+export function getFailedItems(): readonly SyncOutbox[] {
+  return failedItems;
+}
+
+export function retryAllFailedItems(): Promise<void> {
+  failedItems.length = 0;
+  return flushOutbox();
+}
 
 // Cache Supabase data into Dexie after fetch
 export async function cacheFarms(userId: string) {
@@ -104,30 +131,35 @@ export async function flushOutbox() {
 
     for (const item of pending) {
       try {
-        if (item.table.startsWith('rpc:')) {
-          const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch';
-          const { error } = await supabase.rpc(fn, item.data as never);
-          if (error) throw error;
-        } else if (item.operation === 'insert') {
-          const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
-          if (error) throw error;
-        } else if (item.operation === 'update') {
-          const { error } = await supabase
-            .from(item.table as 'farms')
-            .update(item.data as never)
-            .eq('id', item.record_id);
-          if (error) throw error;
-        } else if (item.operation === 'delete') {
-          const { error } = await supabase
-            .from(item.table as 'farms')
-            .delete()
-            .eq('id', item.record_id);
-          if (error) throw error;
-        }
+        await retryWithBackoff(async () => {
+          if (item.table.startsWith('rpc:')) {
+            const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch';
+            const { error } = await supabase.rpc(fn, item.data as never);
+            if (error) throw error;
+          } else if (item.operation === 'insert') {
+            const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
+            if (error) throw error;
+          } else if (item.operation === 'update') {
+            const { error } = await supabase
+              .from(item.table as 'farms')
+              .update(item.data as never)
+              .eq('id', item.record_id);
+            if (error) throw error;
+          } else if (item.operation === 'delete') {
+            const { error } = await supabase
+              .from(item.table as 'farms')
+              .delete()
+              .eq('id', item.record_id);
+            if (error) throw error;
+          }
+        });
         if (item.id) await db.sync_outbox.delete(item.id);
       } catch (err) {
         console.error(`Sync failed for ${item.table}/${item.record_id}:`, err);
-        break; // Stop on first failure to maintain order
+        failedItems.push(item);
+        toast.error(`Sync failed: ${item.table}/${item.record_id}`, {
+          description: 'Will retry on next sync',
+        });
       }
     }
   } finally {

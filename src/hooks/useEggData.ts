@@ -324,7 +324,7 @@ export function useEggData() {
         size_category: sizeCategory,
         total_revenue_pesewas: totalPesewas,
         buyer: buyer || null,
-      } as any, ...prev.slice(0, 29)]);
+      } as unknown as EggSale, ...prev.slice(0, 29)]);
       setSaleSubmitting(false);
       toast.warning('Offline — egg sale queued; will sync when online');
       return;
@@ -345,7 +345,7 @@ export function useEggData() {
         total_revenue_pesewas: totalPesewas,
         buyer: buyer || null,
       };
-      setSales(prev => [sale as any, ...prev.slice(0, 29)]);
+      setSales(prev => [sale as unknown as EggSale, ...prev.slice(0, 29)]);
       setSaleSubmitting(false);
       toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
       return;
@@ -390,7 +390,7 @@ export function useEggData() {
       description: `Sold ${totalEggs} eggs (${crates} crt, ${looses} loose) for GHS ${totalAmount.toFixed(2)}${buyer ? ` to ${buyer}` : ''}`,
     });
 
-    setSales(prev => [sale as any, ...prev.slice(0, 29)]);
+    setSales(prev => [sale!, ...prev.slice(0, 29)]);
     setSaleSubmitting(false);
     toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
   };

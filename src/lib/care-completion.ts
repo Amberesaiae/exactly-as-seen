@@ -4,6 +4,9 @@
  */
 import { addDays, format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
+import { shouldAutoLedger } from '@/lib/production-system';
+import { LEDGER_SOURCES } from '@/lib/canonical';
 
 /** True when a health task is a vaccination protocol row. */
 export function isVaccinationHealthTask(task: {
@@ -97,6 +100,49 @@ export async function syncScheduleForCompletedVaccinationTasks(batchId: string):
     .eq('batch_id', batchId)
     .eq('administered', false)
     .in('vaccine_name', names);
+}
+
+/**
+ * Post-RPC side-effects for a single completed health task.
+ * Shared by single complete and bulk complete paths.
+ * Handles: seed supplements for vaccinations, auto-deduct stock + create expense for intensive.
+ * Does NOT handle the interactive "Book now" flow (single-path only, via shouldOfferBookNow).
+ */
+export async function runPostCompletionSideEffects(params: {
+  farmId: string;
+  task: { id: string; batch_id: string; task_type?: string | null; product_name?: string | null; duration_days?: number | null; computed_dose_amount?: string | number | null; computed_dose_unit?: string | null; container_count?: number | null; cost_pesewas?: number | null };
+  costPesewas?: number;
+}): Promise<void> {
+  const { farmId, task, costPesewas = task.cost_pesewas ?? 0 } = params;
+
+  if (isVaccinationHealthTask(task)) {
+    await seedPostVaccinationSupplements(farmId, task.batch_id);
+  }
+
+  const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
+  const system = activeBatch?.production_system as string | null;
+  const autoLedger = shouldAutoLedger(system);
+  const amountMajor = (costPesewas || 0) / 100;
+  const qty = task.computed_dose_amount ? Number(task.computed_dose_amount) : (task.container_count ?? 1);
+  const source = isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health;
+  const description = `${task.product_name} — ${task.duration_days ?? 0}d course`;
+
+  if (autoLedger && task.product_name) {
+    await autoDeductStock({
+      farmId, itemName: task.product_name,
+      quantity: qty,
+      batchId: task.batch_id,
+      reason: `Auto-deduction for health task: ${task.product_name}`,
+      sourceRef: task.id,
+      doseUnit: task.computed_dose_unit,
+    });
+    if (amountMajor > 0) {
+      await autoCreateExpense({
+        farmId, batchId: task.batch_id, category: 'health_and_medicine',
+        description, amount: amountMajor, source, sourceRef: task.id,
+      });
+    }
+  }
 }
 
 /** Spec protocol: anti-stress + multivitamin days after a live vaccine. */

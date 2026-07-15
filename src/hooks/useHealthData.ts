@@ -9,6 +9,7 @@ import { useVaccinationLogic } from './health/useVaccinationLogic';
 import { useMedicationLogic } from './health/useMedicationLogic';
 import { useWaterLogic } from './health/useWaterLogic';
 import { useWeeklyHealthSummary } from './health/useWeeklyHealthSummary';
+import { runPostCompletionSideEffects } from '@/lib/care-completion';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -331,7 +332,7 @@ export function useHealthData() {
           p_skip_expense: skipExpense || !expenseConsumption,
         });
         toast.warning('Offline — feed queued; will sync when online');
-        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
+        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as unknown as FeedLog, ...prev]);
         return;
       }
 
@@ -402,7 +403,7 @@ export function useHealthData() {
 
       setFeedLogs(prev => {
         const rest = prev.filter(f => f.date !== todayStr);
-        return [{ id: 'temp', date: todayStr, quantity_kg: task.amount, batch_id: selectedBatch } as any, ...rest];
+        return [{ id: 'temp', date: todayStr, quantity_kg: task.amount, batch_id: selectedBatch } as unknown as FeedLog, ...rest];
       });
       const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
       await markBatchTaskComplete({
@@ -437,8 +438,22 @@ export function useHealthData() {
   };
 
   const bulkCompleteWeekTasks = async (batchId: string, weekNumber: number) => {
+    // Fetch pending tasks BEFORE the RPC so we can run side-effects for each
+    const { data: pendingTasks } = await supabase
+      .from('health_tasks')
+      .select('*')
+      .eq('batch_id', batchId)
+      .eq('completed', false);
+
     const success = await baseBulkCompleteWeekTasks(batchId, weekNumber);
     if (success) {
+      // Run post-RPC side-effects for each task that was just completed
+      if (farmId && pendingTasks) {
+        await Promise.all(
+          pendingTasks.map(task => runPostCompletionSideEffects({ farmId, task }))
+        );
+      }
+
       const [tasksRes, vaxRes] = await Promise.all([
         supabase
           .from('health_tasks')

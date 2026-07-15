@@ -4,13 +4,12 @@ import { toast } from 'sonner';
 import { format, addDays } from 'date-fns';
 import { detectConflicts } from '@/lib/medication-conflicts';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
-import { shouldAutoLedger } from '@/lib/production-system';
 import { shouldOfferBookNow } from '@/lib/ledger-policy';
 import { LEDGER_SOURCES } from '@/lib/canonical';
 import {
   isVaccinationHealthTask,
-  seedPostVaccinationSupplements,
   syncScheduleFromHealthTask,
+  runPostCompletionSideEffects,
 } from '@/lib/care-completion';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -148,34 +147,14 @@ export function useMedicationLogic(
 
     if (rpcError) throw rpcError;
 
-    if (isVaccinationHealthTask(task) && farmId) {
-      await seedPostVaccinationSupplements(farmId, task.batch_id);
-    }
+    await runPostCompletionSideEffects({ farmId, task, costPesewas });
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
     const system = activeBatch?.production_system as string | null;
-    const autoLedger = shouldAutoLedger(system);
-    const rpcOk = !rpcError && rpcResult;
 
-    // Stock deduct client-side when intensive (RPC does not allocate med stock by name yet)
-    if (autoLedger && task.product_name) {
-      await autoDeductStock({
-        farmId, itemName: task.product_name,
-        quantity: qty,
-        batchId: task.batch_id,
-        reason: `Auto-deduction for health task: ${task.product_name}`,
-        sourceRef: taskId,
-        doseUnit: task.computed_dose_unit,
-      });
-      // Expense only if RPC did not (fallback path)
-      if (!rpcOk && amountMajor > 0) {
-        await autoCreateExpense({
-          farmId, batchId, category: 'health_and_medicine',
-          description, amount: amountMajor, source, sourceRef: taskId,
-        });
-      }
-      toast.success('Task completed');
-    } else if (shouldOfferBookNow(system) && amountMajor > 0) {
+    if (shouldOfferBookNow(system) && amountMajor > 0) {
+      const description = `${task.product_name} — ${task.duration_days}d course`;
+      const source = isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health;
       toast.message('Task completed (flexible — not auto-ledgered)', {
         duration: 8000,
         action: {
@@ -190,7 +169,7 @@ export function useMedicationLogic(
               doseUnit: task.computed_dose_unit,
             });
             await autoCreateExpense({
-              farmId, batchId, category: 'health_and_medicine',
+              farmId, batchId: task.batch_id, category: 'health_and_medicine',
               description: `${description} (booked)`,
               amount: amountMajor,
               source,

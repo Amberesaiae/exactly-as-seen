@@ -60,6 +60,7 @@ function AppInner() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBtn, setShowInstallBtn] = useState(false);
+  const [installDismissed, setInstallDismissed] = useState(false);
 
   useEffect(() => {
     setupOnlineListener();
@@ -86,6 +87,17 @@ function AppInner() {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
     };
   }, []);
+
+  useEffect(() => {
+    if (!showInstallBtn) return;
+    const timer = setTimeout(() => setShowInstallBtn(false), 8000);
+    return () => clearTimeout(timer);
+  }, [showInstallBtn]);
+
+  const dismissInstall = () => {
+    setShowInstallBtn(false);
+    setInstallDismissed(true);
+  };
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
@@ -136,19 +148,23 @@ function AppInner() {
         </Routes>
       </Suspense>
 
-      {/* Floating Installation Prompt */}
-      {showInstallBtn && (
-        <div className="fixed bottom-20 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-50 bg-slate-950/95 border border-slate-800 text-slate-100 p-3.5 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-bounce backdrop-blur-md max-w-sm">
+      {/* Floating Installation Prompt — toast-style at top on mobile, bottom-right on desktop */}
+      {showInstallBtn && !installDismissed && (
+        <div className="fixed top-16 left-4 right-4 md:top-auto md:bottom-6 md:left-auto md:right-6 z-40 bg-slate-950/95 border border-slate-800 text-slate-100 p-3.5 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-2 fade-in duration-300 backdrop-blur-md max-w-sm">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-bold">Install LampFarms App</span>
             <span className="text-xxs text-slate-400">Access offline ledger and rapid mobile metrics</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => setShowInstallBtn(false)}
-              className="text-xxs font-semibold text-slate-400 hover:text-slate-200 px-2 py-1 rounded"
+              onClick={dismissInstall}
+              className="text-slate-400 hover:text-slate-200 p-1 rounded-md transition-colors"
+              aria-label="Dismiss install prompt"
             >
-              Dismiss
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
             </button>
             <button
               onClick={handleInstallClick}
@@ -162,7 +178,7 @@ function AppInner() {
 
       {/* Toast-style Offline Banner */}
       {!isOnline && (
-        <div className="fixed bottom-4 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-50 bg-red-950/95 border border-red-500/20 text-red-200 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-fade-in backdrop-blur-md max-w-sm">
+        <div className="fixed bottom-16 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 bg-red-950/95 border border-red-500/20 text-red-200 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 backdrop-blur-md max-w-sm">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -179,7 +195,7 @@ const App = () => (
     <AuthProvider>
       <TooltipProvider>
         <Toaster />
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
           <AppInner />
         </BrowserRouter>
       </TooltipProvider>

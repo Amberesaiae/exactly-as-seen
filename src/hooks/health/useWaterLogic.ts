@@ -5,10 +5,13 @@ import { toast } from 'sonner';
 import { autoCreateExpense } from '@/lib/synergy';
 import { shouldExpenseConsumption, shouldOfferBookNow } from '@/lib/ledger-policy';
 import { LEDGER_SOURCES } from '@/lib/canonical';
+import type { Database } from '@/integrations/supabase/types';
+
+type WaterRecord = Database['public']['Tables']['water_records']['Row'];
 
 export function useWaterLogic(farmId: string | null, selectedBatch: string, waterRatePesewas?: number | null) {
   const [waterSaving, setWaterSaving] = useState(false);
-  const [waterRecords, setWaterRecords] = useState<any[]>([]);
+  const [waterRecords, setWaterRecords] = useState<WaterRecord[]>([]);
 
   const logWater = async (gallons: number, temp?: number | null, notes?: string) => {
     if (!farmId || !selectedBatch) return;
@@ -41,7 +44,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
         p_ledger: ledger,
         p_rate_per_liter_pesewas: hasRate ? waterRatePesewas : 0,
       });
-      const offlineRow = {
+      const offlineRow: WaterRecord = {
         id,
         batch_id: selectedBatch,
         farm_id: farmId,
@@ -49,11 +52,12 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
         gallons_consumed: gallons,
         temperature_c: temp ?? null,
         notes: notes || null,
+        created_at: new Date().toISOString(),
       };
       setWaterRecords(prev => [offlineRow, ...prev.slice(0, 13)]);
       toast.warning('Offline — water log queued; will sync when online');
       setWaterSaving(false);
-      return offlineRow as any;
+      return offlineRow;
     }
 
     const { data: rpcData, error: rpcError } = await supabase.rpc('log_day_water', {
@@ -70,7 +74,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     if (rpcError) throw rpcError;
 
     // Must include date — WaterTab + daily tasks gate on w.date === today
-    const data: any = {
+    const data: WaterRecord = {
       id: rpcData?.water_record_id,
       batch_id: selectedBatch,
       farm_id: farmId,
@@ -78,6 +82,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       gallons_consumed: gallons,
       temperature_c: temp ?? null,
       notes: notes || null,
+      created_at: new Date().toISOString(),
     };
 
     setWaterRecords(prev => {
