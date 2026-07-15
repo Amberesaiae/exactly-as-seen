@@ -266,7 +266,7 @@ export function useEggData() {
 
     // 2. Egg inventory verification (graded when available, else total good eggs)
     let onHand = 0;
-    const graded = await (supabase as any).rpc('get_graded_egg_inventory', {
+    const graded = await supabase.rpc('get_graded_egg_inventory', {
       p_batch_id: selectedBatch,
       p_farm_id: farmId,
       p_size: sizeCategory
@@ -274,7 +274,7 @@ export function useEggData() {
     if (!graded.error && graded.data != null) {
       onHand = Number(graded.data) || 0;
     } else {
-      const fallback = await (supabase as any).rpc('get_egg_inventory', {
+      const fallback = await supabase.rpc('get_egg_inventory', {
         p_batch_id: selectedBatch,
         p_farm_id: farmId,
       });
@@ -331,11 +331,11 @@ export function useEggData() {
     }
 
     // W5: atomic sale + revenue (withdrawal + inventory checked server-side)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale' as any, eggSaleArgs);
+    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale', eggSaleArgs);
 
-    if (!rpcError && rpcData && (rpcData as any).ok) {
+    if (!rpcError && rpcData && rpcData.ok) {
       const sale = {
-        id: (rpcData as any).sale_id,
+        id: rpcData.sale_id,
         farm_id: farmId,
         batch_id: selectedBatch,
         quantity: totalEggs,
@@ -374,7 +374,7 @@ export function useEggData() {
       buyer: buyer || null,
       payment_method: normalizedPayment,
       notes: notes || null,
-    } as any).select().single();
+    }).select().single();
 
     if (error) { toast.error(error.message); setSaleSubmitting(false); return; }
 

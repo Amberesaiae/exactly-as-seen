@@ -44,10 +44,10 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     const liters = gallons * 3.785;
     const hasRate = !!(waterRatePesewas && waterRatePesewas > 0);
     const amount = hasRate ? Math.round(liters * (waterRatePesewas as number)) / 100 : 0;
-    const system = batch?.production_system as any;
+    const system = batch?.production_system as string | null;
     const ledger = hasRate && shouldExpenseConsumption(system);
 
-    const { data: rpcData, error: rpcError } = await supabase.rpc('log_day_water' as any, {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('log_day_water', {
       p_farm_id: farmId,
       p_batch_id: selectedBatch,
       p_gallons: gallons,
@@ -87,7 +87,7 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     } else {
       // Must include date — WaterTab + daily tasks gate on w.date === today
       data = {
-        id: (rpcData as any)?.water_record_id,
+        id: rpcData?.water_record_id,
         batch_id: selectedBatch,
         farm_id: farmId,
         date: todayStr,

@@ -101,7 +101,7 @@ export async function autoDeductStock(params: SynergyStockDeductionParams & { do
 
   const qtyToDeduct = convertDoseToStockUnit(quantity, doseUnit || null, matchedStock.unit);
 
-  const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
+  const { error: allocError } = await supabase.rpc('allocate_fifo_by_quality', {
     p_farm_id: farmId,
     p_stock_item_id: matchedStock.id,
     p_qty_needed: qtyToDeduct,

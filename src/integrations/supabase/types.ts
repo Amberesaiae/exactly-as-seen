@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -407,7 +412,7 @@ export type Database = {
       }
       expenses: {
         Row: {
-          amount_pesewas: number
+          amount_pesewas: number | null
           batch_id: string | null
           category: string
           created_at: string
@@ -421,7 +426,7 @@ export type Database = {
           source_ref: string | null
         }
         Insert: {
-          amount_pesewas?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -435,7 +440,7 @@ export type Database = {
           source_ref?: string | null
         }
         Update: {
-          amount_pesewas?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           category?: string
           created_at?: string
@@ -479,8 +484,8 @@ export type Database = {
           timezone: string
           updated_at: string
           user_id: string
-          water_source_chlorinated: boolean
           water_rate_per_liter_pesewas: number | null
+          water_source_chlorinated: boolean
         }
         Insert: {
           created_at?: string
@@ -495,8 +500,8 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id: string
-          water_source_chlorinated?: boolean
           water_rate_per_liter_pesewas?: number | null
+          water_source_chlorinated?: boolean
         }
         Update: {
           created_at?: string
@@ -511,41 +516,8 @@ export type Database = {
           timezone?: string
           updated_at?: string
           user_id?: string
-          water_source_chlorinated?: boolean
           water_rate_per_liter_pesewas?: number | null
-        }
-        Relationships: []
-      }
-      feed_logs: {
-        Row: {
-          id: string
-          farm_id: string
-          batch_id: string
-          date: string
-          quantity_kg: number
-          feed_type: string | null
-          notes: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          farm_id: string
-          batch_id: string
-          date?: string
-          quantity_kg?: number
-          feed_type?: string | null
-          notes?: string | null
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          farm_id?: string
-          batch_id?: string
-          date?: string
-          quantity_kg?: number
-          feed_type?: string | null
-          notes?: string | null
-          created_at?: string
+          water_source_chlorinated?: boolean
         }
         Relationships: []
       }
@@ -606,6 +578,102 @@ export type Database = {
           },
         ]
       }
+      feed_ingredients: {
+        Row: {
+          category: string
+          formulation_id: string
+          id: string
+          name: string
+          quantity_kg: number
+          stock_item_id: string | null
+          total_cost_pesewas: number | null
+          unit_price_pesewas: number | null
+        }
+        Insert: {
+          category?: string
+          formulation_id: string
+          id?: string
+          name: string
+          quantity_kg?: number
+          stock_item_id?: string | null
+          total_cost_pesewas?: number | null
+          unit_price_pesewas?: number | null
+        }
+        Update: {
+          category?: string
+          formulation_id?: string
+          id?: string
+          name?: string
+          quantity_kg?: number
+          stock_item_id?: string | null
+          total_cost_pesewas?: number | null
+          unit_price_pesewas?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_ingredients_formulation_id_fkey"
+            columns: ["formulation_id"]
+            isOneToOne: false
+            referencedRelation: "feed_formulations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_ingredients_stock_item_id_fkey"
+            columns: ["stock_item_id"]
+            isOneToOne: false
+            referencedRelation: "stock_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_logs: {
+        Row: {
+          batch_id: string
+          created_at: string
+          date: string
+          farm_id: string
+          feed_type: string | null
+          id: string
+          notes: string | null
+          quantity_kg: number
+        }
+        Insert: {
+          batch_id: string
+          created_at?: string
+          date?: string
+          farm_id: string
+          feed_type?: string | null
+          id?: string
+          notes?: string | null
+          quantity_kg?: number
+        }
+        Update: {
+          batch_id?: string
+          created_at?: string
+          date?: string
+          farm_id?: string
+          feed_type?: string | null
+          id?: string
+          notes?: string | null
+          quantity_kg?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_logs_batch_id_fkey"
+            columns: ["batch_id"]
+            isOneToOne: false
+            referencedRelation: "batches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_logs_farm_id_fkey"
+            columns: ["farm_id"]
+            isOneToOne: false
+            referencedRelation: "farms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_recipes: {
         Row: {
           created_at: string
@@ -623,7 +691,7 @@ export type Database = {
           description?: string | null
           farm_id: string
           id?: string
-          ingredients: Json
+          ingredients?: Json
           name: string
           nutritional_profile?: Json | null
           species: string
@@ -646,60 +714,6 @@ export type Database = {
             columns: ["farm_id"]
             isOneToOne: false
             referencedRelation: "farms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      feed_ingredients: {
-        Row: {
-          category: string
-          formulation_id: string
-          id: string
-          name: string
-          quantity_kg: number
-          total_cost: number
-          total_cost_pesewas: number | null
-          unit_price: number
-          unit_price_pesewas: number | null
-          stock_item_id: string | null
-        }
-        Insert: {
-          category?: string
-          formulation_id: string
-          id?: string
-          name: string
-          quantity_kg?: number
-          total_cost?: number
-          total_cost_pesewas?: number | null
-          unit_price?: number
-          unit_price_pesewas?: number | null
-          stock_item_id?: string | null
-        }
-        Update: {
-          category?: string
-          formulation_id?: string
-          id?: string
-          name?: string
-          quantity_kg?: number
-          total_cost?: number
-          total_cost_pesewas?: number | null
-          unit_price?: number
-          unit_price_pesewas?: number | null
-          stock_item_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "feed_ingredients_formulation_id_fkey"
-            columns: ["formulation_id"]
-            isOneToOne: false
-            referencedRelation: "feed_formulations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "feed_ingredients_stock_item_id_fkey"
-            columns: ["stock_item_id"]
-            isOneToOne: false
-            referencedRelation: "stock_items"
             referencedColumns: ["id"]
           },
         ]
@@ -1144,9 +1158,36 @@ export type Database = {
         }
         Relationships: []
       }
+      push_subscriptions: {
+        Row: {
+          auth: string | null
+          created_at: string
+          endpoint: string
+          p256dh: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth?: string | null
+          created_at?: string
+          endpoint: string
+          p256dh?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth?: string | null
+          created_at?: string
+          endpoint?: string
+          p256dh?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       revenue: {
         Row: {
-          amount_pesewas: number
+          amount_pesewas: number | null
           batch_id: string | null
           buyer: string | null
           category: string
@@ -1161,7 +1202,7 @@ export type Database = {
           source_ref: string | null
         }
         Insert: {
-          amount_pesewas?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -1176,7 +1217,7 @@ export type Database = {
           source_ref?: string | null
         }
         Update: {
-          amount_pesewas?: number
+          amount_pesewas?: number | null
           batch_id?: string | null
           buyer?: string | null
           category?: string
@@ -1272,7 +1313,6 @@ export type Database = {
           name: string
           reorder_threshold: number
           unit: string
-          unit_price: number
           unit_price_pesewas: number | null
           updated_at: string
         }
@@ -1285,7 +1325,6 @@ export type Database = {
           name: string
           reorder_threshold?: number
           unit?: string
-          unit_price?: number
           unit_price_pesewas?: number | null
           updated_at?: string
         }
@@ -1298,7 +1337,6 @@ export type Database = {
           name?: string
           reorder_threshold?: number
           unit?: string
-          unit_price?: number
           unit_price_pesewas?: number | null
           updated_at?: string
         }
@@ -1370,10 +1408,8 @@ export type Database = {
           quantity: number
           source_ref: string | null
           stock_item_id: string
-          total_cost: number
           total_cost_pesewas: number | null
           transaction_type: string
-          unit_price: number
           unit_price_pesewas: number | null
         }
         Insert: {
@@ -1385,10 +1421,8 @@ export type Database = {
           quantity?: number
           source_ref?: string | null
           stock_item_id: string
-          total_cost?: number
           total_cost_pesewas?: number | null
           transaction_type?: string
-          unit_price?: number
           unit_price_pesewas?: number | null
         }
         Update: {
@@ -1400,10 +1434,8 @@ export type Database = {
           quantity?: number
           source_ref?: string | null
           stock_item_id?: string
-          total_cost?: number
           total_cost_pesewas?: number | null
           transaction_type?: string
-          unit_price?: number
           unit_price_pesewas?: number | null
         }
         Relationships: [
@@ -1563,70 +1595,215 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      assert_farm_owner: {
-        Args: { p_farm_id: string }
-        Returns: undefined
-      }
       allocate_fifo_by_quality: {
         Args: {
-          p_farm_id: string
-          p_stock_item_id: string
-          p_qty_needed: number
           p_batch_id: string
+          p_farm_id: string
+          p_qty_needed: number
           p_reason: string
           p_source_ref: string
+          p_stock_item_id: string
         }
-        Returns: { allocated_lot_id: string; qty_from_lot: number }[]
+        Returns: {
+          allocated_lot_id: string
+          qty_from_lot: number
+        }[]
       }
+      assert_farm_owner: { Args: { p_farm_id: string }; Returns: undefined }
+      bulk_complete_health_tasks: {
+        Args: {
+          p_batch_id: string
+          p_completed_at?: string
+          p_farm_id: string
+          p_week_number: number
+        }
+        Returns: Json
+      }
+      cron_advance_batch_weeks: { Args: never; Returns: undefined }
+      cron_check_withdrawal_periods: { Args: never; Returns: undefined }
+      cron_generate_daily_tasks: { Args: never; Returns: undefined }
+      cron_prune_idempotency_keys: { Args: never; Returns: undefined }
+      get_batch_record_summary: {
+        Args: { p_batch_ids: string[]; p_farm_id: string }
+        Returns: {
+          batch_id: string
+          current_population: number
+          initial_quantity: number
+          total_eggs: number
+          total_expenses_pesewas: number
+          total_feed_kg: number
+          total_mortality: number
+          total_revenue_pesewas: number
+        }[]
+      }
+      get_dashboard_overview: { Args: { p_farm_id: string }; Returns: Json }
       get_egg_inventory: {
         Args: { p_batch_id: string; p_farm_id: string }
         Returns: number
       }
+      get_farm_financial_stats: { Args: { p_farm_id: string }; Returns: Json }
       get_graded_egg_inventory: {
-        Args: { p_batch_id: string; p_farm_id: string; p_size?: string | null }
+        Args: { p_batch_id: string; p_farm_id: string; p_size?: string }
         Returns: number
       }
-      get_farm_financial_stats: {
-        Args: { p_farm_id: string }
-        Returns: Json
-      }
-      get_batch_record_summary: {
-        Args: { p_farm_id: string; p_batch_ids: string[] }
-        Returns: {
-          batch_id: string
-          initial_quantity: number
-          current_population: number
-          total_mortality: number
-          total_feed_kg: number
-          total_eggs: number
-          total_expenses_pesewas: number
-          total_revenue_pesewas: number
-        }[]
-      }
       get_weekly_health_summary: {
-        Args: { p_batch_id: string; p_week_number: number; p_farm_id: string }
+        Args: { p_batch_id: string; p_farm_id: string; p_week_number: number }
         Returns: Json
       }
-      bulk_complete_health_tasks: {
+      recompute_batch_phase: {
+        Args: { p_duck_type: string; p_species: string; p_week: number }
+        Returns: string
+      }
+      stock_purchase: {
         Args: {
-          p_batch_id: string
-          p_week_number: number
           p_farm_id: string
+          p_stock_item_id: string
+          p_qty: number
+          p_unit_price_pesewas?: number
+          p_notes?: string
+          p_quality_grade?: string
+          p_expiry_date?: string
+          p_batch_id?: string
+          p_expense_category?: string
+        }
+        Returns: {
+          ok: boolean
+          transaction_id: string
+          new_quantity: number
+          expense_pesewas: number
+        }
+      }
+      confirm_day_feed: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_quantity_kg: number
+          p_feed_type?: string
+          p_date?: string
+          p_ledger?: boolean
+          p_stock_item_id?: string
+          p_unit_price_pesewas?: number
+          p_skip_expense?: boolean
+        }
+        Returns: {
+          ok: boolean
+          already_logged?: boolean
+          feed_log_id: string
+          ledgered: boolean
+          expense_pesewas: number
+          source_ref: string
+        }
+      }
+      log_day_water: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_gallons: number
+          p_temperature_c?: number
+          p_notes?: string
+          p_date?: string
+          p_ledger?: boolean
+          p_rate_per_liter_pesewas?: number
+        }
+        Returns: {
+          ok: boolean
+          water_record_id: string
+          expense_pesewas: number
+          source_ref: string
+        }
+      }
+      record_egg_sale: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_quantity: number
+          p_crates_sold?: number
+          p_looses_sold?: number
+          p_size_category?: string
+          p_price_per_crate_pesewas?: number
+          p_price_per_loose_pesewas?: number
+          p_total_revenue_pesewas?: number
+          p_buyer?: string
+          p_payment_method?: string
+          p_payment_status?: string
+          p_notes?: string
+          p_date?: string
+        }
+        Returns: {
+          ok: boolean
+          sale_id: string
+          on_hand_before: number
+          revenue_pesewas: number
+        }
+      }
+      complete_health_task: {
+        Args: {
+          p_task_id: string
+          p_farm_id: string
+          p_cost_pesewas?: number
           p_completed_at?: string
         }
-        Returns: Json
+        Returns: {
+          ok: boolean
+          already_completed?: boolean
+          task_id: string
+          has_withdrawal: boolean
+          auto_ledgered: boolean
+          production_system: string
+          withdrawal_meat_until: string | null
+          withdrawal_eggs_until: string | null
+        }
       }
-      get_dashboard_overview: {
-        Args: { p_farm_id: string }
-        Returns: Json
+      record_mortality: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_count: number
+          p_cause?: string
+          p_notes?: string
+          p_date?: string
+        }
+        Returns: {
+          ok: boolean
+          mortality_id: string
+          new_population: number
+        }
       }
-      cron_advance_batch_weeks: { Args: Record<string, never>; Returns: undefined }
-      cron_check_withdrawal_periods: { Args: Record<string, never>; Returns: undefined }
-      cron_generate_daily_tasks: { Args: Record<string, never>; Returns: undefined }
-      cron_prune_idempotency_keys: { Args: Record<string, never>; Returns: undefined }
-      recompute_batch_phase: {
-        Args: { p_species: string; p_duck_type: string; p_week: number }
-        Returns: string
+      terminate_batch: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_mode?: string
+          p_revenue_pesewas?: number
+          p_notes?: string
+        }
+        Returns: {
+          ok: boolean
+          already_terminated?: boolean
+          batch_id: string
+          mode: string
+          house_released: boolean
+          revenue_pesewas: number
+        }
+      }
+      create_batch: {
+        Args: {
+          p_farm_id: string
+          p_name: string
+          p_species: string
+          p_duck_type?: string
+          p_initial_quantity: number
+          p_cycle_length_weeks?: number
+          p_start_date?: string
+          p_production_system?: string
+          p_house_id?: string
+        }
+        Returns: {
+          ok: boolean
+          batch_id: string
+          health_tasks_seeded: number
+          vaccinations_seeded: number
+        }
       }
     }
     Enums: {
@@ -1763,4 +1940,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-

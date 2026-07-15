@@ -51,7 +51,7 @@ export function useStockData() {
   }, [user]);
 
   const stats = useMemo(() => {
-    const totalValue = stockItems.reduce((s, item) => s + (item.current_quantity * Number((item as any).unit_price_pesewas || 0) / 100), 0);
+    const totalValue = stockItems.reduce((s, item) => s + (item.current_quantity * Number(item.unit_price_pesewas || 0) / 100), 0);
     const lowStockCount = stockItems.filter(item => item.current_quantity <= item.reorder_threshold).length;
     const categories = Array.from(new Set(stockItems.map(i => i.category)));
     return { totalValue, lowStockCount, categories };
@@ -72,7 +72,7 @@ export function useStockData() {
       reorder_threshold: data.reorder_threshold,
       unit_price_pesewas: data.unit_price ? Math.round(Number(data.unit_price) * 100) : 0,
       farm_id: farmId,
-    } as any).select().single();
+    }).select().single();
 
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
@@ -135,17 +135,17 @@ export function useStockData() {
         return;
       }
 
-      const { data: rpcData, error: rpcError } = await supabase.rpc('stock_purchase' as any, purchaseArgs);
+      const { data: rpcData, error: rpcError } = await supabase.rpc('stock_purchase', purchaseArgs);
 
-      if (!rpcError && rpcData && (rpcData as any).ok) {
-        const computedNew = Number((rpcData as any).new_quantity);
+      if (!rpcError && rpcData && rpcData.ok) {
+        const computedNew = Number(rpcData.new_quantity);
         setStockItems(prev => prev.map(i => i.id === itemId ? {
           ...i,
           current_quantity: computedNew,
           ...(unitPricePesewas > 0 ? { unit_price_pesewas: unitPricePesewas } : {}),
         } : i));
         const txStub = {
-          id: (rpcData as any).transaction_id,
+          id: rpcData.transaction_id,
           farm_id: farmId,
           stock_item_id: itemId,
           transaction_type: 'purchase',
@@ -196,7 +196,7 @@ export function useStockData() {
     }
 
     if (type === 'usage') {
-      const { error: allocError } = await (supabase as any).rpc('allocate_fifo_by_quality', {
+      const { error: allocError } = await supabase.rpc('allocate_fifo_by_quality', {
         p_farm_id: farmId,
         p_stock_item_id: itemId,
         p_qty_needed: qty,
@@ -211,14 +211,18 @@ export function useStockData() {
       }
     }
 
-    const itemPatch: Record<string, unknown> = {
+    const itemPatch: {
+      current_quantity: number;
+      updated_at: string;
+      unit_price_pesewas?: number;
+    } = {
       current_quantity: newQty,
       updated_at: new Date().toISOString(),
     };
     if (type === 'purchase' && price != null && price > 0) {
       itemPatch.unit_price_pesewas = Math.round(price * 100);
     }
-    const { error: itemError } = await supabase.from('stock_items').update(itemPatch as any).eq('id', itemId);
+    const { error: itemError } = await supabase.from('stock_items').update(itemPatch).eq('id', itemId);
 
     if (itemError) { toast.error(itemError.message); setSubmitting(false); return; }
 

@@ -139,7 +139,7 @@ export function useMedicationLogic(
     }
 
     // Prefer atomic RPC (health_tasks + vaccination_schedule + intensive expense)
-    const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_health_task' as any, {
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_health_task', {
       p_farm_id: farmId,
       p_task_id: taskId,
       p_cost_pesewas: costPesewas || 0,
@@ -187,7 +187,7 @@ export function useMedicationLogic(
     }
 
     const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
-    const system = activeBatch?.production_system as any;
+    const system = activeBatch?.production_system as string | null;
     const autoLedger = shouldAutoLedger(system);
     const rpcOk = !rpcError && rpcResult;
 
@@ -238,11 +238,11 @@ export function useMedicationLogic(
       toast.success('Task completed');
     }
 
-    const withdrawalMeatUntil = (rpcResult as any)?.withdrawal_meat_until
+    const withdrawalMeatUntil = rpcResult?.withdrawal_meat_until
       ?? (task.withdrawal_meat_days ? format(addDays(completedAt, task.withdrawal_meat_days), 'yyyy-MM-dd') : null);
-    const withdrawalEggsUntil = (rpcResult as any)?.withdrawal_eggs_until
+    const withdrawalEggsUntil = rpcResult?.withdrawal_eggs_until
       ?? (task.withdrawal_egg_days ? format(addDays(completedAt, task.withdrawal_egg_days), 'yyyy-MM-dd') : null);
-    const hasWithdrawal = !!(rpcResult as any)?.has_withdrawal
+    const hasWithdrawal = !!rpcResult?.has_withdrawal
       || !!(task.withdrawal_meat_days || task.withdrawal_egg_days);
 
     return {

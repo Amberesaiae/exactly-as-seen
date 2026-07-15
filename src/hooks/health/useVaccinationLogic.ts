@@ -59,7 +59,7 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
       .update({ 
         administered: true, 
         administered_at: completedAt 
-      } as any)
+      })
       .eq('id', vId);
     
     if (error) { toast.error(error.message); return; }

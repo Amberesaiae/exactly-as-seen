@@ -105,8 +105,8 @@ export async function flushOutbox() {
     for (const item of pending) {
       try {
         if (item.table.startsWith('rpc:')) {
-          const fn = item.table.slice(4);
-          const { error } = await (supabase as any).rpc(fn, item.data);
+          const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch';
+          const { error } = await supabase.rpc(fn, item.data as never);
           if (error) throw error;
         } else if (item.operation === 'insert') {
           const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);

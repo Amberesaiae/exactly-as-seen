@@ -86,7 +86,7 @@ export async function ensureDailyBatchTasks(args: {
   const rows = buildDailyTaskRows({ farmId, batches, todayStr });
 
   // Unique (batch_id, due_date, task_type) — ignore duplicates
-  const { error } = await supabase.from('batch_tasks').upsert(rows as any, {
+  const { error } = await supabase.from('batch_tasks').upsert(rows, {
     onConflict: 'batch_id,due_date,task_type',
     ignoreDuplicates: true,
   });
@@ -128,7 +128,7 @@ export async function markBatchTaskComplete(args: {
     .update({
       completed: true,
       completed_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('farm_id', args.farmId)
     .eq('batch_id', args.batchId)
     .eq('task_type', mapped)

@@ -75,7 +75,7 @@ export function useHealthData() {
 
   const updateWaterRate = async (rate: number | null) => {
     if (!farmId) return;
-    const { error } = await supabase.from('farms').update({ water_rate_per_liter_pesewas: rate } as any).eq('id', farmId);
+    const { error } = await supabase.from('farms').update({ water_rate_per_liter_pesewas: rate }).eq('id', farmId);
     if (error) { toast.error(error.message); return; }
     setWaterRatePesewas(rate);
     toast.success('Water utility rate updated');
@@ -287,7 +287,7 @@ export function useHealthData() {
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
       const { queueWrite } = await import('@/lib/sync');
       const active = batches.find(b => b.id === selectedBatch);
-      const system = active?.production_system as any;
+      const system = active?.production_system as string | null;
       const deductStock = shouldDeductStockOnConsumption(system);
       const expenseConsumption = shouldExpenseConsumption(system);
 
@@ -331,7 +331,7 @@ export function useHealthData() {
 
       // Atomic RPC preferred
       const ledger = deductStock && !!feedStock;
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed' as any, {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
         p_quantity_kg: task.amount,
@@ -371,7 +371,7 @@ export function useHealthData() {
             });
           }
         }
-      } else if ((rpcData as any)?.already_logged) {
+      } else if (rpcData?.already_logged) {
         toast.error('Feed already logged for today');
         return;
       }
@@ -391,7 +391,7 @@ export function useHealthData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  const { error: bookErr } = await supabase.rpc('confirm_day_feed' as any, {
+                  const { error: bookErr } = await supabase.rpc('confirm_day_feed', {
                     p_farm_id: farmId,
                     p_batch_id: selectedBatch,
                     p_quantity_kg: task.amount,
