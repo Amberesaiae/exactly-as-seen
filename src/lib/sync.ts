@@ -140,11 +140,22 @@ export async function flushOutbox() {
             const { error } = await supabase.from(item.table as 'farms').insert(item.data as never);
             if (error) throw error;
           } else if (item.operation === 'update') {
-            const { error } = await supabase
-              .from(item.table as 'farms')
-              .update(item.data as never)
-              .eq('id', item.record_id);
-            if (error) throw error;
+            if (item.table === 'batch_tasks') {
+              const { batch_id, due_date, task_type, ...patch } = item.data as Record<string, unknown>;
+              const { error } = await supabase
+                .from('batch_tasks')
+                .update(patch as never)
+                .eq('batch_id', batch_id)
+                .eq('due_date', due_date)
+                .eq('task_type', task_type);
+              if (error) throw error;
+            } else {
+              const { error } = await supabase
+                .from(item.table as 'farms')
+                .update(item.data as never)
+                .eq('id', item.record_id);
+              if (error) throw error;
+            }
           } else if (item.operation === 'delete') {
             const { error } = await supabase
               .from(item.table as 'farms')

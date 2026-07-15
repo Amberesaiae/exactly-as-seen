@@ -21,6 +21,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { isIntensiveSystem } from '@/lib/production-system';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type FeedIngredientInsert = Database['public']['Tables']['feed_ingredients']['Insert'];
@@ -140,6 +141,37 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
     }
 
     setSaving(true);
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('feed_formulations', 'insert', tempId, {
+        farm_id: farmId,
+        batch_id: batch.id,
+        species: batch.species,
+        phase: phase?.name.toLowerCase() ?? 'unknown',
+        population: batch.current_population,
+        bags_count: parseInt(bagsCount) || 1,
+        bag_size_kg: parseInt(bagSize) || 50,
+        total_kg: totalKg,
+        formulation_type: solverStatus === 'optimal' ? 'optimized' : solverStatus === 'fallback' ? 'guided' : 'free',
+      } as unknown as Record<string, unknown>);
+      for (const s of selected.filter(s => s.quantityKg > 0)) {
+        await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
+          formulation_id: tempId,
+          category: s.ingredient.category,
+          name: s.ingredient.name,
+          quantity_kg: s.quantityKg,
+          unit_price_pesewas: Math.round(s.unitPrice * 100),
+          total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
+          ...(s.stockItemId ? { stock_item_id: s.stockItemId } : {}),
+        } as unknown as Record<string, unknown>);
+      }
+      toast.success('Formulation saved (offline — will sync)');
+      setSaving(false);
+      onDone();
+      return;
+    }
+
     const { data: formulation, error } = await supabase.from('feed_formulations').insert({
       farm_id: farmId,
       batch_id: batch.id,

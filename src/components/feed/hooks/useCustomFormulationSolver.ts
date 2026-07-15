@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { type FeedPhase, normalizeIngredient, type Ingredient } from '@/lib/feed-data';
 import { preprocessFormulation } from '@/lib/feed-safety';
 import { solveFeedLP, type InfeasibilityAdvice } from '@/lib/feed-lp';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 interface SelectedIngredient {
@@ -151,7 +152,7 @@ export const useCustomFormulationSolver = (
     const { data: farm } = await supabase.from('farms').select('id').eq('user_id', profile.user.id).limit(1).single();
     if (!farm) return;
 
-    const { error } = await supabase.from('feed_recipes').insert({
+    const recipeData = {
     farm_id: farm.id,
     name,
     description,
@@ -163,7 +164,16 @@ export const useCustomFormulationSolver = (
       category: s.ingredient.category
     })),
     nutritional_profile: nutrition
-    } as Database['public']['Tables']['feed_recipes']['Insert']);
+    } as Database['public']['Tables']['feed_recipes']['Insert'];
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('feed_recipes', 'insert', tempId, recipeData as unknown as Record<string, unknown>);
+      toast.success('Recipe saved (offline — will sync)');
+      return;
+    }
+
+    const { error } = await supabase.from('feed_recipes').insert(recipeData);
 
     if (error) { toast.error(error.message); return; }
     toast.success('Recipe saved to library!');

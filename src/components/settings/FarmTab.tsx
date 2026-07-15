@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Home, Plus, Pencil, Trash2, Warehouse, Loader2, CheckCircle2, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { GHANA_REGIONS, DISTRICTS_BY_REGION } from '@/lib/ghana-regions';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Farm = Database['public']['Tables']['farms']['Row'];
@@ -111,6 +112,24 @@ export default function FarmTab({
     const capacity = parseInt(houseCapacity) || 0;
     setHouseSaving(true);
 
+    if (isOffline()) {
+      if (editingHouse) {
+        await queueWrite('houses', 'update', editingHouse.id, { name: houseName.trim(), capacity } as unknown as Record<string, unknown>);
+        setHouses(prev => prev.map(h => h.id === editingHouse.id ? { ...h, name: houseName.trim(), capacity } : h));
+        toast.success('House updated (offline — will sync)');
+        setShowHouseDialog(false);
+      } else {
+        const tempId = crypto.randomUUID();
+        await queueWrite('houses', 'insert', tempId, { farm_id: farm.id, name: houseName.trim(), capacity } as unknown as Record<string, unknown>);
+        setHouses(prev => [...prev, { id: tempId, farm_id: farm.id, name: houseName.trim(), capacity } as any]);
+        setStats((prev: any) => ({ ...prev, houses: prev.houses + 1 }));
+        toast.success('House added (offline — will sync)');
+        setShowHouseDialog(false);
+      }
+      setHouseSaving(false);
+      return;
+    }
+
     if (editingHouse) {
       const { error } = await supabase.from('houses').update({ name: houseName.trim(), capacity }).eq('id', editingHouse.id);
       if (error) {
@@ -142,6 +161,16 @@ export default function FarmTab({
   const confirmDeleteHouse = async (houseId: string) => {
     if (!farm) return;
     const house = houses.find(h => h.id === houseId);
+
+    if (isOffline()) {
+      await queueWrite('houses', 'delete', houseId, {} as Record<string, unknown>);
+      setHouses(prev => prev.filter(h => h.id !== houseId));
+      setStats((prev: any) => ({ ...prev, houses: prev.houses - 1 }));
+      toast.success('House deleted (offline — will sync)');
+      setDeleteHouseId(null);
+      return;
+    }
+
     const { error } = await supabase.from('houses').delete().eq('id', houseId);
     if (error) {
       toast.error(error.message);

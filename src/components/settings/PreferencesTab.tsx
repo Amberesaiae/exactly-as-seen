@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
 import { Settings, Lock, Eye, EyeOff, Loader2, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const CURRENCIES = [
@@ -76,21 +77,36 @@ export default function PreferencesTab({
     setPinSaving(true);
     try {
       const hashedPin = await sha256(pin);
-      const { error } = await supabase.from('user_preferences').upsert({
-        user_id: user.id,
-        cost_privacy_pin: hashedPin,
-        cost_privacy_enabled: costPrivacyEnabled,
-        currency,
-        theme,
-      }, { onConflict: 'user_id' });
 
-      if (error) {
-        toast.error(error.message);
-      } else {
+      if (isOffline()) {
+        await queueWrite('user_preferences', 'update', user.id, {
+          user_id: user.id,
+          cost_privacy_pin: hashedPin,
+          cost_privacy_enabled: costPrivacyEnabled,
+          currency,
+          theme,
+        } as unknown as Record<string, unknown>);
         setHasPin(true);
         setPin('');
         setConfirmPin('');
-        toast.success('Privacy PIN set successfully!');
+        toast.success('Privacy PIN set (offline — will sync)');
+      } else {
+        const { error } = await supabase.from('user_preferences').upsert({
+          user_id: user.id,
+          cost_privacy_pin: hashedPin,
+          cost_privacy_enabled: costPrivacyEnabled,
+          currency,
+          theme,
+        }, { onConflict: 'user_id' });
+
+        if (error) {
+          toast.error(error.message);
+        } else {
+          setHasPin(true);
+          setPin('');
+          setConfirmPin('');
+          toast.success('Privacy PIN set successfully!');
+        }
       }
     } catch (e) {
       toast.error('Failed to hash PIN');
@@ -116,22 +132,36 @@ export default function PreferencesTab({
         setPinSaving(false);
         return;
       }
-      
-      const { error } = await supabase.from('user_preferences').upsert({
-        user_id: user.id,
-        cost_privacy_pin: null,
-        cost_privacy_enabled: costPrivacyEnabled,
-        currency,
-        theme,
-      }, { onConflict: 'user_id' });
 
-      if (error) {
-        toast.error(error.message);
-      } else {
+      if (isOffline()) {
+        await queueWrite('user_preferences', 'update', user.id, {
+          user_id: user.id,
+          cost_privacy_pin: null,
+          cost_privacy_enabled: costPrivacyEnabled,
+          currency,
+          theme,
+        } as unknown as Record<string, unknown>);
         setHasPin(false);
         setOldPin('');
         setShowClearPinDialog(false);
-        toast.success('Privacy PIN cleared successfully');
+        toast.success('Privacy PIN cleared (offline — will sync)');
+      } else {
+        const { error } = await supabase.from('user_preferences').upsert({
+          user_id: user.id,
+          cost_privacy_pin: null,
+          cost_privacy_enabled: costPrivacyEnabled,
+          currency,
+          theme,
+        }, { onConflict: 'user_id' });
+
+        if (error) {
+          toast.error(error.message);
+        } else {
+          setHasPin(false);
+          setOldPin('');
+          setShowClearPinDialog(false);
+          toast.success('Privacy PIN cleared successfully');
+        }
       }
     } catch (e) {
       toast.error('Failed to clear PIN');

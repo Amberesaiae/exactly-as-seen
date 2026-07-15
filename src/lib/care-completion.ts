@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { shouldAutoLedger } from '@/lib/production-system';
 import { LEDGER_SOURCES } from '@/lib/canonical';
+import { isOffline, queueWrite } from '@/lib/sync';
 
 /** True when a health task is a vaccination protocol row. */
 export function isVaccinationHealthTask(task: {
@@ -161,48 +162,58 @@ export async function seedPostVaccinationSupplements(
   const tomorrow = format(addDays(new Date(), 1), 'yyyy-MM-dd');
   const dayAfter = format(addDays(new Date(), 2), 'yyyy-MM-dd');
 
+  const supplementRows = [
+    {
+      batch_id: batchId,
+      farm_id: farmId,
+      task_type: 'supplement',
+      product_name: 'Anti-Stress Vitamins',
+      medication_id: 'anti_stress',
+      delivery_method: 'drinking_water',
+      scheduled_date: tomorrow,
+      completed: false,
+      duration_days: 1,
+      withdrawal_meat_days: 0,
+      withdrawal_egg_days: 0,
+    },
+    {
+      batch_id: batchId,
+      farm_id: farmId,
+      task_type: 'supplement',
+      product_name: 'Anti-Stress Vitamins',
+      medication_id: 'anti_stress',
+      delivery_method: 'drinking_water',
+      scheduled_date: dayAfter,
+      completed: false,
+      duration_days: 1,
+      withdrawal_meat_days: 0,
+      withdrawal_egg_days: 0,
+    },
+    {
+      batch_id: batchId,
+      farm_id: farmId,
+      task_type: 'supplement',
+      product_name: 'Multivitamins',
+      medication_id: 'multivitamins',
+      delivery_method: 'drinking_water',
+      scheduled_date: dayAfter,
+      completed: false,
+      duration_days: 1,
+      withdrawal_meat_days: 0,
+      withdrawal_egg_days: 0,
+    },
+  ];
+
+  if (isOffline()) {
+    for (const row of supplementRows) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('health_tasks', 'insert', tempId, row as unknown as Record<string, unknown>);
+    }
+    return;
+  }
+
   const { error } = await supabase.from('health_tasks').upsert(
-    [
-      {
-        batch_id: batchId,
-        farm_id: farmId,
-        task_type: 'supplement',
-        product_name: 'Anti-Stress Vitamins',
-        medication_id: 'anti_stress',
-        delivery_method: 'drinking_water',
-        scheduled_date: tomorrow,
-        completed: false,
-        duration_days: 1,
-        withdrawal_meat_days: 0,
-        withdrawal_egg_days: 0,
-      },
-      {
-        batch_id: batchId,
-        farm_id: farmId,
-        task_type: 'supplement',
-        product_name: 'Anti-Stress Vitamins',
-        medication_id: 'anti_stress',
-        delivery_method: 'drinking_water',
-        scheduled_date: dayAfter,
-        completed: false,
-        duration_days: 1,
-        withdrawal_meat_days: 0,
-        withdrawal_egg_days: 0,
-      },
-      {
-        batch_id: batchId,
-        farm_id: farmId,
-        task_type: 'supplement',
-        product_name: 'Multivitamins',
-        medication_id: 'multivitamins',
-        delivery_method: 'drinking_water',
-        scheduled_date: dayAfter,
-        completed: false,
-        duration_days: 1,
-        withdrawal_meat_days: 0,
-        withdrawal_egg_days: 0,
-      },
-    ],
+    supplementRows,
     { onConflict: 'batch_id,medication_id,scheduled_date', ignoreDuplicates: true }
   );
 

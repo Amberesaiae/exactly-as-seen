@@ -6,6 +6,7 @@
  */
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import { isOffline, queueWrite } from '@/lib/sync';
 
 export type DailyTaskType = 'feed_log' | 'water_log' | 'egg_collection';
 
@@ -85,6 +86,15 @@ export async function ensureDailyBatchTasks(args: {
 
   const rows = buildDailyTaskRows({ farmId, batches, todayStr });
 
+  if (isOffline()) {
+    for (const row of rows) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('batch_tasks', 'insert', tempId, row as unknown as Record<string, unknown>);
+    }
+    console.log('ensureDailyBatchTasks: queued', rows.length, 'tasks offline');
+    return;
+  }
+
   // Unique (batch_id, due_date, task_type) — ignore duplicates
   const { error } = await supabase.from('batch_tasks').upsert(rows, {
     onConflict: 'batch_id,due_date,task_type',
@@ -123,6 +133,20 @@ export async function markBatchTaskComplete(args: {
   if (!mapped) return;
 
   const due = args.date ?? format(new Date(), 'yyyy-MM-dd');
+
+  if (isOffline()) {
+    await queueWrite('batch_tasks', 'update', `${args.batchId}:${due}:${mapped}`, {
+      completed: true,
+      completed_at: new Date().toISOString(),
+      farm_id: args.farmId,
+      batch_id: args.batchId,
+      task_type: mapped,
+      due_date: due,
+    });
+    console.log('markBatchTaskComplete: queued offline');
+    return;
+  }
+
   const { error } = await supabase
     .from('batch_tasks')
     .update({

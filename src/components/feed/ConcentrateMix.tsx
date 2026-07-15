@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { isIntensiveSystem } from '@/lib/production-system';
+import { isOffline, queueWrite } from '@/lib/sync';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { CONCENTRATE_PRODUCTS, type FeedPhase } from '@/lib/feed-data';
@@ -75,6 +76,41 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone, targetKg }:
     if (totalKg <= 0) { toast.error('Set a valid planning target'); return; }
 
     setSaving(true);
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('feed_formulations', 'insert', tempId, {
+        farm_id: farmId,
+        batch_id: batch.id,
+        species: batch.species,
+        phase: phase?.name.toLowerCase() ?? 'unknown',
+        population: batch.current_population,
+        bags_count: parseInt(bagsCount) || 1,
+        bag_size_kg: parseInt(bagSize) || 50,
+        total_kg: totalKg,
+        formulation_type: 'concentrate',
+      } as unknown as Record<string, unknown>);
+      await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
+        formulation_id: tempId,
+        category: 'supplement',
+        name: selectedProduct.name,
+        quantity_kg: concentrateKg,
+        unit_price_pesewas: Math.round(concPriceNum * 100),
+        total_cost_pesewas: Math.round(concentrateKg * concPriceNum * 100),
+      } as unknown as Record<string, unknown>);
+      await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
+        formulation_id: tempId,
+        category: 'energy',
+        name: grainName,
+        quantity_kg: grainKg,
+        unit_price_pesewas: Math.round(grainPriceNum * 100),
+        total_cost_pesewas: Math.round(grainKg * grainPriceNum * 100),
+      } as unknown as Record<string, unknown>);
+      toast.success('Mix saved (offline — will sync)');
+      setSaving(false);
+      return;
+    }
+
     const { data: formulation, error } = await supabase.from('feed_formulations').insert({
       farm_id: farmId,
       batch_id: batch.id,

@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, useRef, type ReactNode 
 import { supabase } from '@/integrations/supabase/client';
 import { selectPrimaryFarm } from '@/lib/canonical';
 import { useAppStore } from '@/stores/useAppStore';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { User, Session } from '@supabase/supabase-js';
 
 interface AuthContextType {
@@ -61,13 +62,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!VALID_CURRENCIES.includes(finalCurrency)) {
         finalCurrency = 'GHS';
-        // Best-effort non-blocking update to normalize stored value
-        supabase.from('user_preferences')
-          .update({ currency: 'GHS' })
-          .eq('user_id', userId)
-          .then(({ error }) => {
-            if (error) console.error('Failed to normalize currency in DB:', error);
-          });
+        if (!isOffline()) {
+          // Best-effort non-blocking update to normalize stored value
+          supabase.from('user_preferences')
+            .update({ currency: 'GHS' })
+            .eq('user_id', userId)
+            .then(({ error }) => {
+              if (error) console.error('Failed to normalize currency in DB:', error);
+            });
+        } else {
+          queueWrite('user_preferences', 'update', userId, { currency: 'GHS' });
+        }
       }
 
       setCurrency(finalCurrency);
@@ -86,6 +91,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setFarmId(existingFarm.id);
       setFarmName(existingFarm.name);
       setFarmReady(!!existingFarm.setup_complete);
+      return;
+    }
+
+    if (isOffline()) {
+      const tempFarmId = crypto.randomUUID();
+      await queueWrite('farms', 'insert', tempFarmId, {
+        user_id: userId,
+        name: farmNameArg || 'My Farm',
+        farm_type: 'poultry',
+        setup_complete: false,
+      } as unknown as Record<string, unknown>);
+      await queueWrite('user_preferences', 'insert', userId, {
+        user_id: userId,
+        cost_privacy_enabled: true,
+        theme: 'light',
+        currency: 'GHS',
+      } as unknown as Record<string, unknown>);
+      setFarmId(tempFarmId);
+      setFarmName(farmNameArg || 'My Farm');
+      setFarmReady(false);
       return;
     }
 

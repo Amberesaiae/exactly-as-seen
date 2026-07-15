@@ -8,6 +8,8 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAppStore } from '@/stores/useAppStore';
 import { db } from '@/lib/db';
+import { supabase } from '@/integrations/supabase/client';
+import { isOffline, queueWrite } from '@/lib/sync';
 import {
   Sidebar,
   SidebarContent,
@@ -71,6 +73,10 @@ export function AppSidebar() {
     const newVal = !costPrivacyEnabled;
     toggleCostPrivacy();
     if (user) {
+      if (isOffline()) {
+        await queueWrite('user_preferences', 'update', user.id, { user_id: user.id, cost_privacy_enabled: newVal } as unknown as Record<string, unknown>);
+        return;
+      }
       await supabase.from('user_preferences').upsert({
         user_id: user.id,
         cost_privacy_enabled: newVal

@@ -9,8 +9,8 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { autoCreateExpense } from '@/lib/synergy';
-import { shouldAutoLedger } from '@/lib/production-system';
 import { LEDGER_SOURCES } from '@/lib/canonical';
+import { isOffline, queueWrite } from '@/lib/sync';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { COMMERCIAL_FEED_TYPES } from '@/lib/feed-data';
@@ -71,6 +71,24 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
     }
     setSaving(true);
 
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('feed_formulations', 'insert', tempId, {
+        farm_id: farmId,
+        batch_id: batch.id,
+        species: batch.species,
+        phase: phase?.name.toLowerCase() ?? 'unknown',
+        population: batch.current_population,
+        bags_count: parseInt(bags) || 1,
+        bag_size_kg: parseInt(bagSizeKg) || 50,
+        total_kg: totalKg,
+        formulation_type: 'ready_made',
+      } as unknown as Record<string, unknown>);
+      toast.success('Feed purchase saved (offline — will sync)');
+      setSaving(false);
+      return;
+    }
+
     // Save formulation record
     const { data: formulation, error } = await supabase.from('feed_formulations').insert({
       farm_id: farmId,
@@ -86,8 +104,8 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
 
     if (error) { toast.error(error.message); setSaving(false); return; }
 
-    // Dual pattern: intensive → auto expense; flexible → formulation only (manual finance later)
-    if (totalCost > 0 && shouldAutoLedger(batch.production_system)) {
+    // Purchase class: always ledger expense (dual pattern applies only to consumption)
+    if (totalCost > 0) {
       await autoCreateExpense({
         farmId,
         batchId: batch.id,
@@ -107,9 +125,9 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
     });
 
     toast.success(
-      shouldAutoLedger(batch.production_system)
+      totalCost > 0
         ? 'Feed purchase recorded (expense logged)'
-        : 'Formulation saved — record expense manually (flexible system)'
+        : 'Formulation saved'
     );
     setSaving(false);
     onDone();

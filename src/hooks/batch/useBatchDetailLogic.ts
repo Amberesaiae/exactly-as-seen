@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -39,7 +40,15 @@ export function useBatchDetailLogic(id: string | undefined) {
     const newNotes = batch.notes
       ? `${batch.notes}\n\n[${timestamp}]\n${noteText}`
       : `[${timestamp}]\n${noteText}`;
-    
+
+    if (isOffline()) {
+      await queueWrite('batches', 'update', batch.id, { notes: newNotes } as unknown as Record<string, unknown>);
+      setBatch({ ...batch, notes: newNotes });
+      setNoteText('');
+      toast.success('Note added (offline — will sync)');
+      return;
+    }
+
     const { error } = await supabase.from('batches').update({ notes: newNotes }).eq('id', batch.id);
     if (error) toast.error(error.message);
     else {

@@ -3,6 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format, addDays, isBefore, isToday } from 'date-fns';
 import { getBatchAge } from '@/lib/batch-utils';
+import { isOffline, queueWrite } from '@/lib/sync';
 import { useHealthBaseData } from './health/useHealthBaseData';
 import { useHealthBatchStatus } from './health/useHealthBatchStatus';
 import { useVaccinationLogic } from './health/useVaccinationLogic';
@@ -76,6 +77,14 @@ export function useHealthData() {
 
   const updateWaterRate = async (rate: number | null) => {
     if (!farmId) return;
+
+    if (isOffline()) {
+      await queueWrite('farms', 'update', farmId, { water_rate_per_liter_pesewas: rate } as unknown as Record<string, unknown>);
+      setWaterRatePesewas(rate);
+      toast.success('Water utility rate updated (offline — will sync)');
+      return;
+    }
+
     const { error } = await supabase.from('farms').update({ water_rate_per_liter_pesewas: rate }).eq('id', farmId);
     if (error) { toast.error(error.message); return; }
     setWaterRatePesewas(rate);

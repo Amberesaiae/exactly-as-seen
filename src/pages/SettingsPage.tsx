@@ -103,6 +103,15 @@ export default function SettingsPage() {
   const saveProfile = async () => {
     if (!user) return;
     setSaving('profile');
+
+    if (isOffline()) {
+      await queueWrite('profiles', 'update', user.id, { full_name: fullName } as unknown as Record<string, unknown>);
+      toast.success('Profile updated (offline — will sync)');
+      showSaved('profile');
+      setSaving(null);
+      return;
+    }
+
     const { error } = await supabase.from('profiles').update({ full_name: fullName }).eq('user_id', user.id);
     if (error) toast.error(error.message);
     else { toast.success('Profile updated'); showSaved('profile'); }
@@ -177,6 +186,10 @@ export default function SettingsPage() {
   const togglePrivacy = async (val: boolean) => {
     setCostPrivacy(val);
     if (user) {
+      if (isOffline()) {
+        await queueWrite('user_preferences', 'update', user.id, { user_id: user.id, cost_privacy_enabled: val, currency, theme } as unknown as Record<string, unknown>);
+        return;
+      }
       await supabase.from('user_preferences').upsert({ user_id: user.id, cost_privacy_enabled: val, currency, theme }, { onConflict: 'user_id' });
     }
   };
@@ -185,6 +198,10 @@ export default function SettingsPage() {
     setTheme(val);
     document.documentElement.classList.toggle('dark', val === 'dark');
     if (user) {
+      if (isOffline()) {
+        await queueWrite('user_preferences', 'update', user.id, { user_id: user.id, theme: val, cost_privacy_enabled: costPrivacyEnabled, currency } as unknown as Record<string, unknown>);
+        return;
+      }
       await supabase.from('user_preferences').upsert({ user_id: user.id, theme: val, cost_privacy_enabled: costPrivacyEnabled, currency }, { onConflict: 'user_id' });
     }
   };

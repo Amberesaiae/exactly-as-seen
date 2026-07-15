@@ -5,6 +5,7 @@ import { Settings, Lightbulb } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 
 interface SettingsTabProps {
   batch: any;
@@ -29,6 +30,12 @@ export function SettingsTab({ batch, setBatch }: SettingsTabProps) {
               <Select 
                 value={batch.production_system} 
                 onValueChange={async (val) => {
+                  if (isOffline()) {
+                    await queueWrite('batches', 'update', batch.id, { production_system: val } as unknown as Record<string, unknown>);
+                    setBatch({ ...batch, production_system: val });
+                    toast.success('Production system updated (offline — will sync)');
+                    return;
+                  }
                   const { error } = await supabase.from('batches').update({ production_system: val }).eq('id', batch.id);
                   if (!error) {
                     setBatch({ ...batch, production_system: val });

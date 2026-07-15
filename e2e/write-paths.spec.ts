@@ -405,6 +405,138 @@ test.describe('K: Settings page loads', () => {
   });
 });
 
+// ─── E: Plan/buy Feed ───────────────────────────────────────────────────────
+
+test.describe('E — Plan/buy feed', () => {
+  skipIfAnon();
+
+  test('feed page loads with batch context', async ({ page }) => {
+    await login(page);
+    await page.goto('/feed');
+    await page.waitForLoadState('networkidle');
+
+    const heading = page.locator('h1, h2, [role="heading"]').first();
+    await expect(heading).toBeVisible({ timeout: 15_000 });
+
+    // Feed page shows "Feed Lab" heading or a batch context badge/selector
+    await expect(page.locator('text=Feed Lab').first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('feed formulation page loads with method picker', async ({ page }) => {
+    await login(page);
+    await page.goto('/feed/formulate');
+    await page.waitForLoadState('networkidle');
+
+    const heading = page.locator('h1, h2, [role="heading"]').first();
+    await expect(heading).toBeVisible({ timeout: 15_000 });
+
+    // Formulation page should show method cards (Ready-Made, Custom, Concentrate)
+    // or "No active batches" empty state
+    const methodPicker = page.locator('text=/ready.?made|custom|concentrate|no active batch/i');
+    await expect(methodPicker.first()).toBeVisible({ timeout: 10_000 });
+  });
+});
+
+// ─── H: Mortality / bird sale ───────────────────────────────────────────────
+
+test.describe('H — Mortality / bird sale', () => {
+  skipIfAnon();
+
+  test('mortality dialog opens from batch detail', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches');
+    await page.waitForLoadState('networkidle');
+
+    // Click first batch link if available
+    const batchLink = page.locator('a[href^="/batches/"]').first();
+    const hasBatch = await batchLink.isVisible().catch(() => false);
+    if (!hasBatch) return;
+
+    await batchLink.click();
+    await page.waitForLoadState('networkidle');
+
+    // Find "Record Mortality" button on overview tab
+    const mortalityBtn = page.getByRole('button', { name: /record mortality/i }).first();
+    const hasMortality = await mortalityBtn.isVisible().catch(() => false);
+    if (!hasMortality) return;
+
+    await mortalityBtn.click();
+
+    // Dialog should open with mortality form fields
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await expect(dialog.locator('text=Record Mortality')).toBeVisible();
+    await expect(dialog.locator('input#count')).toBeVisible();
+
+    // Close dialog
+    await page.keyboard.press('Escape');
+  });
+
+  test('bird sale dialog opens from batch detail', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches');
+    await page.waitForLoadState('networkidle');
+
+    const batchLink = page.locator('a[href^="/batches/"]').first();
+    const hasBatch = await batchLink.isVisible().catch(() => false);
+    if (!hasBatch) return;
+
+    await batchLink.click();
+    await page.waitForLoadState('networkidle');
+
+    // Find "Sell Birds" button on overview tab
+    const sellBtn = page.getByRole('button', { name: /sell birds/i }).first();
+    const hasSell = await sellBtn.isVisible().catch(() => false);
+    if (!hasSell) return;
+
+    await sellBtn.click();
+
+    // Dialog should open with sale form fields
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await expect(dialog.locator('text=Record Bird Sale')).toBeVisible();
+    await expect(dialog.locator('input#sale-qty')).toBeVisible();
+
+    // Close dialog
+    await page.keyboard.press('Escape');
+  });
+});
+
+// ─── I: Terminate ───────────────────────────────────────────────────────────
+
+test.describe('I — Terminate', () => {
+  skipIfAnon();
+
+  test('termination dialog opens from batch detail', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches');
+    await page.waitForLoadState('networkidle');
+
+    const batchLink = page.locator('a[href^="/batches/"]').first();
+    const hasBatch = await batchLink.isVisible().catch(() => false);
+    if (!hasBatch) return;
+
+    await batchLink.click();
+    await page.waitForLoadState('networkidle');
+
+    // Find "Terminate Batch" button on overview tab
+    const terminateBtn = page.getByRole('button', { name: /terminate batch/i }).first();
+    const hasTerminate = await terminateBtn.isVisible().catch(() => false);
+    if (!hasTerminate) return;
+
+    await terminateBtn.click();
+
+    // Dialog should open with termination form
+    const dialog = page.locator('[role="dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5_000 });
+    await expect(dialog.locator('text=Terminate Batch')).toBeVisible();
+    await expect(dialog.locator('text=Termination Mode')).toBeVisible();
+
+    // Close dialog
+    await page.keyboard.press('Escape');
+  });
+});
+
 // ─── J: 404 Page ────────────────────────────────────────────────────────────
 
 test.describe('J: 404 page renders', () => {
