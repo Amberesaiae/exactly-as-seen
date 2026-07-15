@@ -82,7 +82,7 @@ export default function BatchCreate() {
               {species === 'duck' && (
                 <div className="space-y-2">
                   <Label>Duck Type</Label>
-                  <Select value={duckType || ''} onValueChange={v => setDuckType(v as any)}>
+                  <Select value={duckType || ''} onValueChange={v => setDuckType(v as 'meat' | 'layer')}>
                     <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="meat">Meat Purpose</SelectItem>

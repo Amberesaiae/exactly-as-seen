@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useBatchDetailLogic } from '@/hooks/batch/useBatchDetailLogic';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -155,7 +155,7 @@ export default function BatchDetail() {
       </Tabs>
 
       <MortalityDialog
-        batch={isMortalityDialogOpen ? { id: batch.id, name: batch.name, current_population: batch.current_population, species: batch.species } as any : null}
+        batch={isMortalityDialogOpen ? { id: batch.id, name: batch.name, current_population: batch.current_population, species: batch.species } : null}
         farmId={batch.farm_id}
         onClose={() => setIsMortalityDialogOpen(false)}
         onSuccess={handleMortalitySuccess}

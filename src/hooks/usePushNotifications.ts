@@ -97,11 +97,11 @@ export function usePushNotifications(userId?: string) {
 
       // Persist to Supabase (best-effort; table may not exist in all envs)
       try {
-        await supabase.from('push_subscriptions' as any).upsert({
+        await supabase.from('push_subscriptions').upsert({
           user_id: userId,
           endpoint: subJson.endpoint,
-          p256dh: (subJson.keys as any)?.p256dh ?? null,
-          auth: (subJson.keys as any)?.auth ?? null,
+          p256dh: (subJson.keys as { p256dh?: string })?.p256dh ?? null,
+          auth: (subJson.keys as { auth?: string })?.auth ?? null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
       } catch { /* ignore if table missing */ }
@@ -125,7 +125,7 @@ export function usePushNotifications(userId?: string) {
       if (sub) {
         await sub.unsubscribe();
         if (userId) {
-          await supabase.from('push_subscriptions' as any).delete().eq('user_id', userId);
+          await supabase.from('push_subscriptions').delete().eq('user_id', userId);
         }
       }
       setIsSubscribed(false);

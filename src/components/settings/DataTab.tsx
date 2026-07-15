@@ -85,11 +85,11 @@ export default function DataTab({ farm, signOut }: DataTabProps) {
 
       let csv = 'Type,Date,Category,Description,Amount,Buyer\n';
       (revenueRes.data ?? []).forEach(r => {
-        const amt = Number((r as any).amount_pesewas ?? 0) / 100;
-        csv += `Revenue,${r.date},${r.category},"${r.description}",${amt},${(r as any).buyer || ''}\n`;
+        const amt = Number(r.amount_pesewas ?? 0) / 100;
+        csv += `Revenue,${r.date},${r.category},"${r.description}",${amt},${r.buyer || ''}\n`;
       });
       (expensesRes.data ?? []).forEach(e => {
-        const amt = Number((e as any).amount_pesewas ?? 0) / 100;
+        const amt = Number(e.amount_pesewas ?? 0) / 100;
         csv += `Expense,${e.date},${e.category},"${e.description}",-${amt},\n`;
       });
 

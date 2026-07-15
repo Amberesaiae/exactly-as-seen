@@ -12,6 +12,9 @@ import { cleanupBatchCompletion } from '@/lib/batch-utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { canTerminateNormal } from '@/lib/safety-gates';
+import type { Database } from '@/integrations/supabase/types';
+
+type TerminateBatchReturn = Database['public']['Functions']['terminate_batch']['Returns'];
 
 interface TerminationDialogProps {
   open: boolean;
@@ -58,7 +61,7 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
     }
 
     // Prefer atomic RPC (status + house release + revenue + cleanup)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('terminate_batch' as any, terminateArgs);
+    const { data: rpcData, error: rpcError } = await supabase.rpc('terminate_batch', terminateArgs);
 
     if (rpcError) {
       console.warn('terminate_batch RPC failed, client fallback:', rpcError.message);
@@ -113,7 +116,7 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
         event_type: 'batch_completed',
         description: `Flock "${batch.name}" terminated (${terminationMode} mode)${revenueAmt > 0 ? ` for ${currency} ${revenueAmt.toFixed(2)}` : ''}`,
       });
-    } else if ((rpcData as any)?.ok === false) {
+    } else if ((rpcData as TerminateBatchReturn)?.ok === false) {
       toast.error('Terminate failed');
       setCompleting(false);
       return;

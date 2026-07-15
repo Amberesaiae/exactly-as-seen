@@ -135,10 +135,10 @@ export function useFinanceData() {
     }).sort((a, b) => (a.status === 'active' ? -1 : 1));
   }, [batches, expenses, revenue]);
 
-  const addExpense = async (data: Partial<Expense>) => {
+  const addExpense = async (data: Partial<Expense> & { amount?: number }) => {
     if (!farmId) return;
     setSubmitting(true);
-    const major = Number((data as any).amount ?? fromPesewas(data.amount_pesewas));
+    const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
     const { data: entry, error } = await supabase.from('expenses').insert({
       amount_pesewas: toPesewas(major),
       category: data.category,
@@ -166,10 +166,10 @@ export function useFinanceData() {
     toast.success('Expense recorded');
   };
 
-  const addRevenue = async (data: Partial<Revenue>) => {
+  const addRevenue = async (data: Partial<Revenue> & { amount?: number }) => {
     if (!farmId) return;
     setSubmitting(true);
-    const major = Number((data as any).amount ?? fromPesewas(data.amount_pesewas));
+    const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
     const { data: entry, error } = await supabase.from('revenue').insert({
       amount_pesewas: toPesewas(major),
       category: data.category,

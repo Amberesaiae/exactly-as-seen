@@ -265,6 +265,40 @@ const LAYER_COURSES: ProtocolCourse[] = [
     indication: 'Post Fowl Pox',
     priority: 'high',
   }),
+  // W9-10: Mon/Wed/Fri Coccidiostat
+  ...[63, 65, 67, 70, 72].map((d) =>
+    c('layer', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 9-10 M/W/F cocci prevention',
+      priority: 'medium',
+    })
+  ),
+  // W11-12: Mon/Wed/Fri Coccidiostat
+  ...[77, 79, 81, 83, 84].map((d) =>
+    c('layer', {
+      product_name: 'Coccidiostat (Prevention)',
+      task_type: 'medication',
+      startDay: d,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: 'Week 11-12 M/W/F cocci prevention',
+      priority: 'medium',
+    })
+  ),
+  // W13: Anti-stress pre-deworm
+  c('layer', {
+    product_name: 'Anti-Stress',
+    task_type: 'supplement',
+    startDay: 85,
+    durationDays: 3,
+    delivery_method: 'drinking_water',
+    indication: 'Pre-deworm (W13)',
+    priority: 'high',
+  }),
   c('layer', {
     product_name: 'Calcium Supplement (Pre-lay)',
     task_type: 'supplement',
@@ -301,6 +335,18 @@ const LAYER_COURSES: ProtocolCourse[] = [
       }),
     ];
   }).flat(),
+  // Quarterly Newcastle booster (months 3, 6, 9, 12 in production phase)
+  ...[3, 6, 9, 12].map((m) =>
+    c('layer', {
+      product_name: 'Newcastle Vaccine (Quarterly Booster)',
+      task_type: 'checkpoint',
+      startDay: (18 + m * 4) * 7,
+      durationDays: 1,
+      delivery_method: 'drinking_water',
+      indication: `Quarterly Newcastle booster — month ${m}`,
+      priority: 'high',
+    })
+  ),
 ];
 
 // ─── DUCK meat (research DUCK.md 8 weeks) ───────────────────────────────────

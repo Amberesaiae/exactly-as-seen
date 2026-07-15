@@ -6,6 +6,13 @@
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+declare module 'jspdf' {
+  interface jsPDF {
+    lastAutoTable?: { finalY: number };
+  }
+}
+
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
@@ -33,7 +40,7 @@ interface ReportOptions {
   farmName?: string;
 }
 
-interface BatchRow {
+export interface BatchRow {
   id: string;
   name: string;
   species: string;
@@ -238,7 +245,7 @@ export async function generateBatchPDF(
         alternateRowStyles: { fillColor: C.light },
         theme: 'plain',
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
     }
 
     // ── Feed schedule table (week/day/total_amount_kg/completed) ──────
@@ -260,7 +267,7 @@ export async function generateBatchPDF(
         alternateRowStyles: { fillColor: C.light },
         theme: 'plain',
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
     }
 
     // ── Health tasks table (scheduled_date, task_type, product_name) ──
@@ -283,7 +290,7 @@ export async function generateBatchPDF(
         alternateRowStyles: { fillColor: C.light },
         theme: 'plain',
       });
-      y = (doc as any).lastAutoTable.finalY + 6;
+      y = (doc.lastAutoTable?.finalY ?? y) + 6;
     }
 
     // ── Financial tables ───────────────────────────────────────────────
@@ -306,7 +313,7 @@ export async function generateBatchPDF(
           alternateRowStyles: { fillColor: C.light },
           theme: 'plain',
         });
-        y = (doc as any).lastAutoTable.finalY + 6;
+        y = (doc.lastAutoTable?.finalY ?? y) + 6;
       }
 
       if (bRev.length > 0) {
@@ -328,7 +335,7 @@ export async function generateBatchPDF(
           alternateRowStyles: { fillColor: C.light },
           theme: 'plain',
         });
-        y = (doc as any).lastAutoTable.finalY + 6;
+        y = (doc.lastAutoTable?.finalY ?? y) + 6;
       }
     }
 

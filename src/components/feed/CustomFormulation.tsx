@@ -21,6 +21,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
 import { isIntensiveSystem } from '@/lib/production-system';
+import type { Database } from '@/integrations/supabase/types';
+
+type FeedIngredientInsert = Database['public']['Tables']['feed_ingredients']['Insert'];
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PrivacyMask } from '@/components/ui/PrivacyMask';
@@ -160,7 +163,7 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
         unit_price_pesewas: Math.round(s.unitPrice * 100),
         total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
         ...(s.stockItemId ? { stock_item_id: s.stockItemId } : {}),
-      })) as any
+      })) as FeedIngredientInsert[]
     );
 
     const isIntensive = isIntensiveSystem(batch.production_system);

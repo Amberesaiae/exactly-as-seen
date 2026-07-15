@@ -31,8 +31,8 @@ export async function syncScheduleFromHealthTask(params: {
     .from('vaccination_schedule')
     .update({
       administered: true,
-      administered_at: completedAt,
-    } as any)
+      administered_at: completedAt ?? new Date().toISOString(),
+    })
     .eq('batch_id', batchId)
     .eq('vaccine_name', productName)
     .eq('administered', false)
@@ -96,7 +96,7 @@ export async function syncScheduleForCompletedVaccinationTasks(batchId: string):
     .update({
       administered: true,
       administered_at: new Date().toISOString(),
-    } as any)
+    })
     .eq('batch_id', batchId)
     .eq('administered', false)
     .in('vaccine_name', names);

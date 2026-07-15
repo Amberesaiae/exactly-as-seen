@@ -8,7 +8,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import type { Database } from '@/integrations/supabase/types';
 import type { BatchPerformance } from '@/hooks/useRecordsPerformance';
-import { generateBatchPDF } from '@/lib/pdf-report';
+import { generateBatchPDF, type BatchRow } from '@/lib/pdf-report';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 
@@ -106,7 +106,7 @@ export default function DataExportsTab({
     try {
       await generateBatchPDF(
         selectedIds,
-        listToExport as any,
+        listToExport as BatchRow[],
         { currency, maskFinancials: costPrivacyEnabled }
       );
       toast.success('PDF report downloaded successfully!');

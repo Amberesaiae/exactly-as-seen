@@ -1,5 +1,8 @@
 import { differenceInDays } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
+
+type RecordMortalityReturn = Database['public']['Functions']['record_mortality']['Returns'];
 
 /** Species-specific phase definitions */
 const PHASE_DEFINITIONS: Record<string, { name: string; weekEnd: number }[]> = {
@@ -90,7 +93,7 @@ export async function recordMortality(params: {
   }
 
   // Prefer atomic RPC (mortality + population + activity)
-  const { data: rpcData, error: rpcError } = await supabase.rpc('record_mortality' as any, {
+  const { data: rpcData, error: rpcError } = await supabase.rpc('record_mortality', {
     p_farm_id: farmId,
     p_batch_id: batchId,
     p_count: count,
@@ -98,8 +101,8 @@ export async function recordMortality(params: {
     p_notes: notes || null,
   });
 
-  if (!rpcError && rpcData && (rpcData as any).ok) {
-    return Number((rpcData as any).new_population);
+  if (!rpcError && rpcData && (rpcData as RecordMortalityReturn).ok) {
+    return Number((rpcData as RecordMortalityReturn).new_population);
   }
 
   if (rpcError) {

@@ -84,7 +84,7 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const targetUrl: string = (event.notification.data as any)?.url ?? '/';
+  const targetUrl: string = (event.notification.data as Record<string, unknown>)?.url as string ?? '/';
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {

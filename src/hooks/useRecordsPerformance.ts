@@ -29,7 +29,7 @@ export function useRecordsPerformance(batchIds: string[], farmId: string | null)
       const currentFetchId = ++fetchCount.current;
       setLoading(true);
 
-      const { data: resData, error } = await (supabase as any).rpc('get_batch_record_summary', {
+      const { data: resData, error } = await supabase.rpc('get_batch_record_summary', {
         p_farm_id: farmId,
         p_batch_ids: batchIds,
       });

@@ -6,6 +6,9 @@ import { getBatchAge } from '@/lib/batch-utils';
 import { getCurrentPhase } from '@/lib/feed-data';
 import { getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
 import { isSemiIntensiveSystem } from '@/lib/production-system';
+import type { Database } from '@/integrations/supabase/types';
+
+type ConfirmDayFeedReturn = Database['public']['Functions']['confirm_day_feed']['Returns'];
 import { toast } from 'sonner';
 
 /**
@@ -152,7 +155,7 @@ export function useFeedData() {
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
       const { pickPreferredFeedStock } = await import('@/lib/stock-match');
 
-      const system = batch.production_system as any;
+      const system = batch.production_system as string;
       const deductStock = shouldDeductStockOnConsumption(system);
       const expenseConsumption = shouldExpenseConsumption(system);
       const qty = feedTask.amount;
@@ -194,7 +197,7 @@ export function useFeedData() {
       }
 
       const ledger = deductStock && !!feedStock;
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed' as any, {
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
         p_quantity_kg: qty,
@@ -235,7 +238,7 @@ export function useFeedData() {
             });
           }
         }
-      } else if ((rpcData as any)?.already_logged) {
+      } else if ((rpcData as ConfirmDayFeedReturn)?.already_logged) {
         toast.error('Feed already logged for today');
         setFeedLogs(prev => (prev.some(f => f.date === todayStr) ? prev : [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev]));
         return;

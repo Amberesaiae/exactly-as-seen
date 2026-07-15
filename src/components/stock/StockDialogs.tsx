@@ -53,11 +53,13 @@ export function StockDialogs({
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     await onAddItem({
-      ...newItem,
+      name: newItem.name,
+      category: newItem.category,
+      unit: newItem.unit,
       current_quantity: parseFloat(newItem.current_quantity),
       reorder_threshold: parseFloat(newItem.reorder_threshold),
-      unit_price: parseFloat(newItem.unit_price)
-    });
+      unit_price_pesewas: Math.round(parseFloat(newItem.unit_price) * 100),
+    } as Partial<StockItem>);
     setItemDialogOpen(false);
     setNewItem({ name: '', category: 'feed_ingredient', unit: 'kg', current_quantity: '0', reorder_threshold: '10', unit_price: '0' });
   };

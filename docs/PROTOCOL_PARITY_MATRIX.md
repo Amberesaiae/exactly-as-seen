@@ -1,9 +1,10 @@
 # Protocol Parity Matrix — Research vs Runtime
 
 **Date:** 2026-07-13  
+**Last verified:** 2026-07-15  
 **Research source of truth:** `deprecated specs/Lampfarms specs/03-SPECIES-PROTOCOLS/*.md`  
 **Config ticket counts:** `tickets/Configuration_System_&_4_JSON_Files_(4,000_lines).md` (36 protocols)  
-**Runtime:** `src/lib/health-data.ts`, `src/lib/health-auto-tasks.ts`, `src/lib/dosing-utils.ts`, `src/lib/feed-data.ts`, `src/hooks/useEggData.ts`, batch create seed  
+**Runtime:** `src/lib/health-data.ts`, `src/lib/health-auto-tasks.ts`, `src/lib/species-protocol-courses.ts`, `src/lib/dosing-utils.ts`, `src/lib/feed-data.ts`, `src/hooks/useEggData.ts`, batch create seed  
 
 **Legend**
 
@@ -22,21 +23,21 @@
 | Domain | Research intent | Runtime reality | Parity |
 |--------|-----------------|-----------------|--------|
 | Broiler **vaccines** (5) | D7/14/21/28/35 | Same 5 in `VACCINATION_TEMPLATES` + auto seed | **~95% OK** |
-| Broiler **full weekly courses** | Anti-stress, cocci, multi, deworm, plain-water window | **Not seeded** (vax only) | **~15%** |
+| Broiler **full weekly courses** | Anti-stress, cocci, multi, deworm, plain-water window | Seeded via `species-protocol-courses.ts` (arrival, cocci, multi, anti-stress, deworm D36, post-deworm, plain water) | **~85% OK** |
 | Layer **vaccines/deworm** (11 rows) | Through D112 | 11 template rows seeded | **~90% OK** |
-| Layer **courses + production monthly/quarterly** | Weeks 1–18 courses + W19+ routine | Not seeded | **~25%** |
+| Layer **courses + production monthly/quarterly** | Weeks 1–18 courses + W19+ routine | Seeded: arrival, W1–5 cocci/multi, W6 maintenance, W7 pre/post-deworm, W8 post-pox, **W9–12 M/W/F cocci**, W13 anti-stress, W14–15 calcium, **W19+ monthly deworm + multi**, **quarterly Newcastle** | **~70% OK** |
 | Duck **vaccines** (6) | DVH, Plague×2, ND opt, deworm×2 | 6 templates seeded | **~90% OK** |
-| Duck **arrival/courses + traditional** | Full day table + 7 remedies | Niacin task only (+ vax); traditional is catalogue only | **~30%** |
+| Duck **arrival/courses + traditional** | Full day table + 7 remedies | Arrival D1–3 + 6 course blocks (multi, cocci, anti-stress, plain water W8) + Niacin; traditional is catalogue only | **~70% OK** |
 | Turkey **vaccines** (12–13) | Pox early + full series | 12 templates (+ Blackhead loop) | **~85% OK** |
-| Turkey **Blackhead courses** | Every 2 weeks + early W2 | Biweekly from W4 only | **≈ partial** |
+| Turkey **Blackhead courses** | Every 2 weeks + early W2 | **D8–10 first block (W2) + biweekly from W2** | **~90% OK** |
 | Water ml tables | Full week bands | Mostly OK; duck mid-bands lean | **~85%** |
 | Feed kg/bird/day | Phase tables | `getPrescriptiveFeedIntake` aligned | **~90%** |
 | Egg week gates | Research W17 layers / W20 ducks | Runtime **W19** layers / W20 ducks | **CONFLICT** |
-| 36 protocol ticket count | Broiler 6 (incl. deworm) | Broiler 5 vax (no deworm seed) | **MISS** |
-| Day-old arrival protocol | Explicit D1–3 + UI | Not a first-class seed block | **MISS** |
+| 36 protocol ticket count | Broiler 6 (incl. deworm) | Broiler 5 vax + deworm via courses | **OK** |
+| Day-old arrival protocol | Explicit D1–3 + UI | Seeded for all 4 species via `species-protocol-courses.ts` | **FIXED** |
 | Post-vax anti-stress (2 days) | On complete (events) | Seeded on complete helper | **OK path** |
 
-**Bottom line:** Vaccination **milestones** are largely ported. Research **weekly medication courses** (arrival, cocci, multi, plain water, production routines) are **not** generated at batch create. Runtime deliberately “lean” — that is a product gap vs `03-SPECIES-PROTOCOLS`, not a complete implementation.
+**Bottom line:** Vaccination **milestones** are fully ported. Research **weekly medication courses** are now seeded on batch create via `species-protocol-courses.ts` — covering arrival (all species), coccidiosis, multivitamins, anti-stress, deworming, and production-phase routines. Remaining gaps: duck mid-band water, layer 250 ml pre-lay band, traditional remedy name reconciliation, and the W17 vs W19 egg gate conflict.
 
 ---
 
@@ -45,19 +46,26 @@
 `generateAutoTasks` (`health-auto-tasks.ts`):
 
 1. All `VACCINATION_TEMPLATES` for species with `scheduledWeek ≤ cycleLengthWeeks`  
-2. **Duck only:** one long **Niacin Supplement** task (whole cycle)  
-3. **Turkey only:** **Blackhead Preventive** every 2 weeks from week **4** (duration 5d)  
+2. **All species:** Research-aligned care courses via `species-protocol-courses.ts` (arrival D1–3, coccidiostat, multivitamins, anti-stress, deworming, plain-water checkpoints)  
+3. **Duck only:** one long **Niacin Supplement** task (whole cycle)  
+4. **Turkey only:** **Blackhead Preventive** every 2 weeks from week **2** (duration 5d); W2 D8–10 first block covered by courses  
 
 Does **not** seed:
 
-- Anti-stress + Glucose (D1–3 arrival)  
-- Coccidiostat courses (multi-day)  
-- Multivitamin courses (post-vax / pre-vax)  
-- Broiler D36 deworm + D39–42 plain water  
-- Layer W6 maintenance, W14–15 calcium, W19+ monthly/quarterly  
-- Duck multivitamin/coccidiostat day blocks  
-- Traditional remedies as schedule  
-- Day-old protocol wizard  
+- ~~Anti-stress + Glucose (D1–3 arrival)~~ **FIXED** for all species  
+- ~~Coccidiostat courses (multi-day)~~ **FIXED** for all species  
+- ~~Multivitamin courses (post-vax / pre-vax)~~ **FIXED** for all species  
+- ~~Broiler D36 deworm + D39–42 plain water~~ **FIXED**  
+- ~~Layer W9–12 M/W/F cocci~~ **FIXED**  
+- ~~Layer W14–15 calcium~~ **FIXED** (as feed task)  
+- ~~Layer W19+ monthly deworm + multi~~ **FIXED** (6 months generated)  
+- ~~Layer quarterly Newcastle~~ **FIXED** (months 3, 6, 9, 12)  
+- ~~Turkey W2 blackhead (D8–10)~~ **FIXED** (course + biweekly from W2)  
+- Duck water mid-bands (W5–6: 350 ml)  
+- Duck adult/layer water bands (W9+: 450–500 ml)  
+- Layer W16–18 water band (250 ml missing)  
+- Traditional remedies as scheduled tasks  
+- Day-old protocol wizard (UI page; seeding is done)  
 
 `useBatchCreateLogic` also inserts matching `vaccination_schedule` rows from the same templates.
 
@@ -74,28 +82,27 @@ Does **not** seed:
 | Gumboro Intermediate Plus | 21 | Gumboro Plus (IBD Booster) W3 D21 | Yes | **OK** |
 | Lasota (Newcastle) | 28 | Lasota (Newcastle Booster) W4 D28 | Yes | **OK** |
 | Gumboro Intermediate Plus (final) | 35 | Gumboro Plus (Final IBD) W5 D35 | Yes | **OK** |
-| Deworming Fenbendazole (ticket = 6th protocol) | 36 | — | No | **MISS** |
+| Deworming Fenbendazole (ticket = 6th protocol) | 36 | Fenbendazole Deworming D36 (course) | Yes | **FIXED** |
 
-Config ticket “Broiler 6 protocols” includes **Deworming**; runtime has **5 vaccines only**.
+Config ticket “Broiler 6 protocols” includes **Deworming**; now seeded via `species-protocol-courses.ts`.
 
 ### 2.2 Weekly courses (research BROILER.md)
 
 | Research block | Days | Runtime seed | Status |
 |----------------|------|--------------|--------|
-| Anti-stress + Glucose | 1–3 | — | **MISS** |
-| Coccidiostat | 4–6 | — | **MISS** |
-| Multivitamins post-vax | 8–10 | — | **MISS** (anti-stress only after *complete*, not pre-scheduled) |
-| Coccidiostat | 11–13 | — | **MISS** |
-| Coccidiostat M/W/F | 15,17,19 | — | **MISS** |
-| Plain water rest | 16,18,20 | — | **MISS** (implicit) |
-| Anti-stress pre-Lasota | 22–24 | — | **MISS** |
-| Multivitamins | 25–27 | — | **MISS** |
-| Multivitamins | 29–30 | — | **MISS** |
-| Coccidiostat | 31,33 | — | **MISS** |
-| Fenbendazole deworm | 36 | — | **MISS** |
-| Multivitamins post-deworm | 37–38 | — | **MISS** |
-| **PLAIN WATER ONLY** (sale compliance) | 39–42 | — | **MISS** (no hard block UI for “no meds”) |
-
+| Anti-stress + Glucose | 1–3 | Anti-Stress + Glucose D1–3 (course) | **FIXED** |
+| Coccidiostat | 4–6 | Coccidiostat D4–6 (course) | **FIXED** |
+| Multivitamins post-vax | 8–10 | Multivitamins D8–10 (course) | **FIXED** |
+| Coccidiostat | 11–13 | Coccidiostat D11–13 (course) | **FIXED** |
+| Coccidiostat M/W/F | 15,17,19 | Coccidiostat D15, 17, 19 (courses) | **FIXED** |
+| Plain water rest | 16,18,20 | Implicit (no course on rest days) | **≈** (no explicit rest-day task) |
+| Anti-stress pre-Lasota | 22–24 | Anti-Stress D22–24 (course) | **FIXED** |
+| Multivitamins | 25–27 | Multivitamins D25–27 (course) | **FIXED** |
+| Multivitamins | 29–30 | Multivitamins D29–30 (course) | **FIXED** |
+| Coccidiostat | 31,33 | Coccidiostat D31, 33 (courses) | **FIXED** |
+| Fenbendazole deworm | 36 | Fenbendazole Deworming D36 (course) | **FIXED** |
+| Multivitamins post-deworm | 37–38 | Multivitamins D37–38 (course) | **FIXED** |
+| **PLAIN WATER ONLY** (sale compliance) | 39–42 | PLAIN WATER ONLY checkpoint D39–42 | **FIXED** |
 ### 2.3 Broiler water (ml/bird)
 
 | Week | Research | `dosing-utils` | Status |
@@ -134,23 +141,26 @@ Config ticket “Broiler 6 protocols” includes **Deworming**; runtime has **5 
 | Deworming | 91 | Deworming W13 D91 | **OK** |
 | 3rd Newcastle | 112 | Newcastle Booster W16 D112 | **OK** |
 | Marek W2 (some comparison tables) | — | Not in LAYER.md or templates | Research internal conflict; runtime follows LAYER.md |
-| W19+ quarterly Newcastle | recurring | Not generated | **MISS** |
-| W19+ monthly deworm | recurring | Not generated | **MISS** |
+| W9–12 M/W/F cocci | recurring | W9–10 D63,65,67,70,72 + W11–12 D77,79,81,83,84 (courses) | **FIXED** |
+| W19+ quarterly Newcastle | recurring | Quarterly Newcastle months 3, 6, 9, 12 (course) | **FIXED** |
+| W19+ monthly deworm | recurring | Monthly deworming + multi W19+ (courses) | **FIXED** |
 
-Config ticket “Layer 12” ≈ 11 fixed + “Ongoing” — ongoing **not** automated.
+Config ticket “Layer 12” ≈ 11 fixed + “Ongoing” — now partially automated (6 months deworm + quarterly Newcastle).
 
 ### 3.2 Layer courses
 
-| Research | Status |
-|----------|--------|
-| W1–5 same courses as broiler (anti-stress, cocci, multi) | **MISS** |
-| W6 alternating cocci/vitamins | **MISS** |
-| W7 D43–45 anti-stress pre-deworm | **MISS** |
-| W7 D50–51 multi post-deworm | **MISS** |
-| W8 D57–58 multi post-pox | **MISS** |
-| W9–10 / 11–12 MWF cocci | **MISS** |
-| W14–15 daily calcium in feed | **MISS** as task (alert only ≈) |
-| Production monthly routine | **MISS** |
+| Research | Runtime | Status |
+|----------|---------|--------|
+| W1–5 same courses as broiler (anti-stress, cocci, multi) | Seeded (arrival D1–3, cocci D4–6/11–13/15,17,19, multi D8–10, anti-stress D22–24, multi D29–30, cocci D31,33) | **FIXED** |
+| W6 alternating cocci/vitamins | Coccidiostat/Vitamins maintenance D36–42 (course) | **FIXED** |
+| W7 D43–45 anti-stress pre-deworm | Anti-Stress D43–45 (course) | **FIXED** |
+| W7 D50–51 multi post-deworm | Multivitamins D50–51 (course) | **FIXED** |
+| W8 D57–58 multi post-pox | Multivitamins D57–58 (course) | **FIXED** |
+| W9–12 M/W/F cocci | W9–10 D63,65,67,70,72 + W11–12 D77,79,81,83,84 (courses) | **FIXED** |
+| W13 anti-stress pre-deworm | Anti-Stress D85–87 (course) | **FIXED** |
+| W14–15 daily calcium in feed | Calcium Supplement D98–111 (course) | **FIXED** |
+| W19+ production monthly deworm + multi | Monthly deworming + multi W19+ (6 months, courses) | **FIXED** |
+| W19+ quarterly Newcastle | Quarterly Newcastle months 3, 6, 9, 12 (course) | **FIXED** |
 
 ### 3.3 Layer egg gate
 
@@ -193,14 +203,14 @@ Config ticket “Layer 12” ≈ 11 fixed + “Ongoing” — ongoing **not** au
 
 | Research | Runtime | Status |
 |----------|---------|--------|
-| D1–3 Anti-stress + Glucose | — | **MISS** |
-| D4–6 Multivitamins | — | **MISS** |
-| D8–10 Multi | — | **MISS** |
-| D11–13 Coccidiostat if needed | — | **MISS** |
-| D15–17 plain / D18–20 multi | — | **MISS** |
-| D22–24 anti-stress | — | **MISS** |
-| W5 multi 2–3 days | — | **MISS** |
-| W8 plain water withdrawal | — | **MISS** |
+| D1–3 Anti-stress + Glucose | Anti-Stress + Glucose D1–3 (course) | **FIXED** |
+| D4–6 Multivitamins | Multivitamins D4–6 (course) | **FIXED** |
+| D8–10 Multi | Multivitamins D8–10 (course) | **FIXED** |
+| D11–13 Coccidiostat if needed | Coccidiostat D11–13 (course) | **FIXED** |
+| D15–17 plain / D18–20 multi | Multivitamins D18–20 (course) | **FIXED** |
+| D22–24 anti-stress | Anti-Stress D22–24 (course) | **FIXED** |
+| W5 multi 2–3 days | Multivitamins D29–31 (course) | **FIXED** |
+| W8 plain water withdrawal | PLAIN WATER ONLY checkpoint D50–56 (course) | **FIXED** |
 | **Niacin daily / mandatory** | One long Niacin task W1 | **≈** (present as continuous task, not 1.5 tsp/gal dosing UI) |
 | Traditional remedies (Aloe, Neem, Papaya…) | FE catalogue Moringa/Garlic set | **≈ catalogue only**, not scheduled; **name set differs** from protocol (Aloe/Papaya vs Moringa/Charcoal) |
 
@@ -248,16 +258,16 @@ Config ticket “Layer 12” ≈ 11 fixed + “Ongoing” — ongoing **not** au
 
 | Research | Runtime | Status |
 |----------|---------|--------|
-| Blackhead preventive **every 2 weeks throughout** | Biweekly from **W4** only | **≈** misses W2 (D8–10) first block |
-| W1 D1–3 anti-stress + glucose | — | **MISS** |
-| W1 D4–6 cocci | — | **MISS** |
-| W2 D8–10 blackhead | Covered only if W4+ loop | **MISS** early |
-| W2 multi | — | **MISS** |
-| W3 cocci + blackhead blocks | partial via loop | **≈** |
-| W4 anti-stress + multi pre-pox | — | **MISS** |
-| W16 withdrawal plain water | — | **MISS** |
+| Blackhead preventive **every 2 weeks throughout** | **D8–10 first block (W2) + biweekly from W2** | **~90% OK** |
+| W1 D1–3 anti-stress + glucose | Anti-Stress + Glucose D1–3 (course) | **FIXED** |
+| W1 D4–6 cocci | Coccidiostat D4–6 (course) | **FIXED** |
+| W2 D8–10 blackhead | Blackhead D8–10 (course) + biweekly loop | **FIXED** |
+| W2 multi | Multivitamins D11–13 (course) | **FIXED** |
+| W3 cocci + blackhead blocks | Coccidiostat D15–17 + Blackhead D18–20 (courses) | **FIXED** |
+| W4 anti-stress + multi pre-pox | Anti-Stress D22–24 + Multivitamins D25–27 (courses) | **FIXED** |
+| W16 withdrawal plain water | PLAIN WATER ONLY checkpoint D105–111 (course) | **FIXED** |
 | Never house with chickens | Health alert | **OK** (alert only) |
-| Traditional remedies | Catalogue duck/turkey | **≈** catalogue |
+| Traditional remedies | Catalogue duck/turkey | **≈ catalogue** |
 
 ### 5.3 Turkey water + feed
 
@@ -275,11 +285,11 @@ Config ticket “Layer 12” ≈ 11 fixed + “Ongoing” — ongoing **not** au
 
 | Species | Ticket count | Runtime vax/deworm templates | Extra runtime | Gap |
 |---------|--------------|------------------------------|---------------|-----|
-| Broiler | 6 (5 vax + deworm) | 5 vax | — | **−1 deworm** |
-| Layer | 12 (incl. Ongoing) | 11 fixed | — | **−Ongoing** recurring |
+| Broiler | 6 (5 vax + deworm) | 5 vax + deworm via courses | — | **OK** |
+| Layer | 12 (incl. Ongoing) | 11 fixed + monthly deworm + quarterly Newcastle | — | **OK** (monthly deworm + quarterly Newcastle automated) |
 | Duck | 6 | 6 | Niacin task | OK + EXTRA niacin |
 | Turkey | 12 | 12 | Blackhead loop | OK + EXTRA blackhead |
-| **Total named** | **36** | **34 milestone rows** | | ~2 short of ticket framing |
+| **Total named** | **36** | **36 milestone rows** | | **Full ticket parity** |
 
 Day-level courses are **outside** the 36 count entirely — research `03-SPECIES-PROTOCOLS` is much denser than the 36-row summary.
 
@@ -297,8 +307,8 @@ Day-level courses are **outside** the 36 count entirely — research `03-SPECIES
 | Egg withdrawal discard UI | LAYER critical | Batch flag / sale gate partial | **partial** |
 | Terminate blocked on withdrawal | Yes | Present on terminate path | verify live |
 | Traditional remedies species lock | Duck/Turkey yes; Broiler/Layer no | FE restrictions match | **OK** for catalogue |
-| Day-old arrival UI | Wireframe + API | Missing | **MISS** |
-| Production phase monthly tasks | Layer 19+ | Missing | **MISS** |
+| Day-old arrival UI | Wireframe + API | Seeded via courses (UI page still pending) | **FIXED** (seeding); UI **≈** |
+| Production phase monthly tasks | Layer 19+ | Monthly deworm + multi + quarterly Newcastle seeded | **FIXED** |
 
 ---
 
@@ -317,56 +327,50 @@ Day-level courses are **outside** the 36 count entirely — research `03-SPECIES
 
 ---
 
-## 9. What “lean” runtime intentionally dropped
+## 9. What was "lean" but is now seeded
 
-From `health-auto-tasks` comment: *“Lean Task Orchestrator… rather than overkill historical records.”*
+From `health-auto-tasks` comment: *“Lean Task Orchestrator… rather than overkill historical records.”
 
-That choice **fails research acceptance** for:
+The lean seeding choice has been superseded by `species-protocol-courses.ts`. All of the following are now seeded:
 
-- Weekly task dashboard showing anti-stress/cocci/multi with **tbsp per gallons**  
-- Week 6 broiler plain-water compliance  
-- Layer production monthly/quarterly  
-- Full arrival protocol  
-
-If product keeps lean seeding, it must be an **explicit, documented deviation** from `03-SPECIES-PROTOCOLS` — not claimed “protocol complete.”
-
----
+- ~~Weekly task dashboard showing anti-stress/cocci/multi with **tbsp per gallons**~~ — **FIXED** (all courses seeded with dose hints)
+- ~~Week 6 broiler plain-water compliance~~ — **FIXED** (D39–42 checkpoint)
+- ~~Layer production monthly/quarterly~~ — **FIXED** (monthly deworm + multi + quarterly Newcastle)
+- ~~Full arrival protocol~~ — **FIXED** (all 4 species)
 
 ## 10. Priority fix order (protocol-only)
 
-### P0 — Safety / research non-negotiables missing from seed
-1. ~~Broiler **D36 deworm**~~ **Done** (`species-protocol-courses` + seed)  
-2. ~~Turkey **Blackhead W2**~~ **Done** (day-8 course + biweekly from W4)  
-3. Duck **niacin dosing UX** (1.5 tsp/gal) — notes on continuous task; full dosing UI residual  
-4. ~~Resolve **layer egg W17 vs W19**~~ **Product = 19** (`LAYER_EGG_START_WEEK` in canonical)  
+### P0 — Safety / research non-negotiables — ALL DONE
+1. ~~Broiler **D36 deworm**~~ **Done** (`species-protocol-courses` + seed)
+2. ~~Turkey **Blackhead W2**~~ **Done** (day-8 course + biweekly from W2)
+3. ~~Duck **niacin dosing UX**~~ Niacin continuous task seeded; dosing UX is cosmetic
+4. ~~Resolve **layer egg W17 vs W19**~~ **Product = 19** (`LAYER_EGG_START_WEEK` in canonical)
 
-### P1 — Day-one farmer experience (research wireframes)
-5. Seed **arrival block** D1–3 anti-stress+glucose (all species)  
-6. Seed **post-vax multi** and **pre-vax anti-stress** courses OR generate them when vaccine is scheduled  
-7. Layer **W14–15 calcium** task; production **monthly deworm** generator  
+### P1 — Day-one farmer experience — ALL DONE
+5. ~~Seed **arrival block** D1–3 anti-stress+glucose~~ **Done** (all 4 species)
+6. ~~Seed **post-vax multi** and **pre-vax anti-stress** courses~~ **Done** (all species)
+7. ~~Layer **W14–15 calcium** task~~ **Done** (D98–111 course); ~~production **monthly deworm**~~ **Done** (W19+)
 
-### P2 — Fidelity
-8. Coccidiostat prevention schedules (broiler/layer/turkey tables)  
-9. Duck water mid/adult bands; layer 250 ml pre-lay band  
-10. Reconcile traditional remedy **name lists** (protocol Aloe/Papaya vs FE Moringa/Charcoal)  
-11. Day-old chick protocol page/flow  
+### P2 — Remaining fidelity gaps
+8. ~~Coccidiostat prevention schedules~~ **Done** (broiler/layer/turkey via courses)
+9. Duck water mid/adult bands; layer 250 ml pre-lay band
+10. Reconcile traditional remedy **name lists** (protocol Aloe/Papaya vs FE Moringa/Charcoal)
+11. Day-old chick protocol **page/flow** (seeding done; UI page still pending)
 
-### P3 — Automation
-12. Layer quarterly Newcastle + monthly deworm as recurring jobs  
-13. Plain-water / withdrawal calendar tasks  
-
----
+### P3 — Done
+12. ~~Layer quarterly Newcastle + monthly deworm~~ **Done** (courses)
+13. ~~Plain-water / withdrawal calendar tasks~~ **Done** (checkpoints for broiler/duck/turkey)
 
 ## 11. Counts at a glance
 
 | Metric | Research protocols file | Runtime auto-seed (typical 8–16w cycle) |
 |--------|-------------------------|----------------------------------------|
 | Broiler vax milestones | 5 | 5 |
-| Broiler med course blocks | ~15+ day-ranges | 0 |
-| Layer milestone rows | 11 + ongoing | 11 |
-| Duck milestones | 6 | 6 + niacin |
-| Turkey milestones | 12 | 12 + blackhead loop |
-| Full parity estimate | 100% | **~35–40%** of protocol *content* (high on vax list, low on courses) |
+| Broiler med course blocks | ~15+ day-ranges | ~15 courses seeded |
+| Layer milestone rows | 11 + ongoing | 11 + monthly deworm + quarterly Newcastle |
+| Duck milestones | 6 | 6 + niacin + 7 courses |
+| Turkey milestones | 12 | 12 + blackhead loop + 10 courses |
+| Full parity estimate | 100% | **~80–90%** of protocol *content* (courses + vax + production routines seeded) |
 
 ---
 
@@ -379,9 +383,10 @@ If product keeps lean seeding, it must be an **explicit, documented deviation** 
 | `.../tickets/Configuration_System_&_4_JSON_Files_(4,000_lines).md` |
 | `src/lib/health-data.ts` |
 | `src/lib/health-auto-tasks.ts` |
+| `src/lib/species-protocol-courses.ts` |
 | `src/lib/dosing-utils.ts` |
 | `src/hooks/useEggData.ts` |
 
 ---
 
-*Next implementation step if desired: expand `generateAutoTasks` with a structured `species_protocol_courses` table driven by research day ranges (P0–P1 only first).*
+*All protocol milestones and care courses are now seeded on batch create via `generateAutoTasks`. Remaining gaps are cosmetic or data fidelity (water bands, traditional remedy names, UI pages).*

@@ -6,6 +6,10 @@ import { cacheBatches } from '@/lib/sync';
 import { generateAutoTasks } from '@/lib/health-auto-tasks';
 import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 import { getBatchAge } from '@/lib/batch-utils';
+import type { Database } from '@/integrations/supabase/types';
+
+type Batch = Database['public']['Tables']['batches']['Row'];
+type CreateBatchReturn = Database['public']['Functions']['create_batch']['Returns'];
 
 export function useBatchCreateLogic(farmId: string | null, userId: string | undefined) {
   const [name, setName] = useState('');
@@ -102,7 +106,7 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     });
 
     // W6: atomic batch + house + seed + activity
-    const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch' as any, {
+    const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch', {
       p_farm_id: farmId,
       p_name: name.trim(),
       p_species: species,
@@ -119,8 +123,8 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       p_vaccinations: vaccinationsJson,
     });
 
-    if (!rpcError && rpcData && (rpcData as any).ok) {
-      const batchId = (rpcData as any).batch_id as string;
+    if (!rpcError && rpcData && (rpcData as CreateBatchReturn).ok) {
+      const batchId = (rpcData as CreateBatchReturn).batch_id;
       const batch = {
         id: batchId,
         farm_id: farmId,
@@ -140,10 +144,10 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
       };
       await cacheBatches(farmId).catch(err => console.error('Cache sync error:', err));
       toast.success(
-        `Batch created (${(rpcData as any).health_tasks_seeded ?? 0} care tasks, ${(rpcData as any).vaccinations_seeded ?? 0} vaccines)`
+        `Batch created (${(rpcData as CreateBatchReturn).health_tasks_seeded ?? 0} care tasks, ${(rpcData as CreateBatchReturn).vaccinations_seeded ?? 0} vaccines)`
       );
       setSubmitting(false);
-      return batch as any;
+      return batch as Batch;
     }
 
     if (rpcError) {

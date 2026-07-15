@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { type FeedPhase, normalizeIngredient, type Ingredient } from '@/lib/feed-data';
 import { preprocessFormulation } from '@/lib/feed-safety';
 import { solveFeedLP, type InfeasibilityAdvice } from '@/lib/feed-lp';
+import type { Database } from '@/integrations/supabase/types';
 
 interface SelectedIngredient {
   ingredient: Ingredient;
@@ -162,7 +163,7 @@ export const useCustomFormulationSolver = (
       category: s.ingredient.category
     })),
     nutritional_profile: nutrition
-    } as any);
+    } as Database['public']['Tables']['feed_recipes']['Insert']);
 
     if (error) { toast.error(error.message); return; }
     toast.success('Recipe saved to library!');
