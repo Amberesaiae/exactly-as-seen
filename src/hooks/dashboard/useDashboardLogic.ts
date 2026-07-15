@@ -1,10 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { getBatchAge } from '@/lib/batch-utils';
-import { getWaterPrescription, getRegionalTemperature } from '@/lib/dosing-utils';
-import { getPrescriptiveFeedIntake, getForagingModifier } from '@/lib/health-data';
-import { isSemiIntensiveSystem } from '@/lib/production-system';
 import { format } from 'date-fns';
 import { buildTodayChecklist } from '@/lib/today-tasks';
 
@@ -19,7 +15,7 @@ export function useDashboardLogic() {
   const hasLoadedRef = useRef(false);
   const fetchGenRef = useRef(0);
 
-  const fetchDashboardData = useCallback(async (opts?: { soft?: boolean }) => {
+    const fetchDashboardData = useCallback(async (opts?: { soft?: boolean }) => {
     if (!farmId) return;
     const soft = opts?.soft ?? hasLoadedRef.current;
     // Soft refresh: never blank the whole page (stops skeleton flicker)
@@ -29,7 +25,7 @@ export function useDashboardLogic() {
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
     try {
-      const [batchesRes, tasksRes, invRes, revRes, waterRes, farmRes, feedRes] = await Promise.all([
+      const [batchesRes, tasksRes, invRes, revRes, batchTasksRes, farmRes] = await Promise.all([
         supabase.from('batches').select('*').eq('farm_id', farmId).eq('status', 'active').order('start_date', { ascending: false }),
         supabase
           .from('health_tasks')
@@ -41,71 +37,23 @@ export function useDashboardLogic() {
           .limit(24),
         supabase.from('stock_items').select('*').eq('farm_id', farmId),
         supabase.rpc('get_farm_financial_stats', { p_farm_id: farmId }),
-        supabase.from('water_records').select('batch_id, date').eq('farm_id', farmId).eq('date', todayStr),
+        supabase
+          .from('batch_tasks')
+          .select('*, batches(name)')
+          .eq('farm_id', farmId)
+          .order('due_date', { ascending: true }),
         supabase.from('farms').select('location_region, water_rate_per_liter_pesewas').eq('id', farmId).maybeSingle(),
-        supabase.from('feed_logs').select('batch_id').eq('farm_id', farmId).eq('date', todayStr),
       ]);
 
       if (gen !== fetchGenRef.current) return;
 
       const activeBatches = batchesRes.data ?? [];
-      const todayWaterRecords = waterRes.data ?? [];
-      const todayFeedLogs = feedRes.data ?? [];
-
-      // Virtual ops (stable ids: type:batch:date)
-      const opTasks: any[] = [];
-      const farmRegion = farmRes.data?.location_region ?? null;
-      const waterRate = farmRes.data?.water_rate_per_liter_pesewas;
-      const ambientTemp = getRegionalTemperature(farmRegion);
-
-      activeBatches.forEach((b) => {
-        const age = getBatchAge(b.start_date, b.species);
-
-        if (!todayWaterRecords.some((w) => w.batch_id === b.id)) {
-          const pres = getWaterPrescription({
-            species: b.species,
-            duckType: b.duck_type,
-            week: age.week,
-            population: b.current_population,
-            temperatureC: ambientTemp,
-          });
-          opTasks.push({
-            id: `water:${b.id}:${todayStr}`,
-            batch_id: b.id,
-            batch_name: b.name,
-            task_type: 'hydration',
-            title: 'Daily Hydration',
-            description: `Provide ${pres.gallons} gal water`,
-            amount: pres.gallons,
-            unit: 'gal',
-            estimated_cost: waterRate ? (pres.liters * waterRate) / 100 : 0,
-          });
-        }
-
-        if (!todayFeedLogs.some((f) => f.batch_id === b.id)) {
-          let kgPerBird = getPrescriptiveFeedIntake(b.species, age.week);
-          const foragingMod = getForagingModifier(b.species, age.week);
-          if (isSemiIntensiveSystem(b.production_system) && foragingMod > 0) {
-            kgPerBird = kgPerBird * (1 - foragingMod);
-          }
-          const totalKg = b.current_population * kgPerBird;
-          opTasks.push({
-            id: `feed:${b.id}:${todayStr}`,
-            batch_id: b.id,
-            batch_name: b.name,
-            task_type: 'feeding',
-            title: 'Daily Feeding',
-            description: `Provide ${totalKg.toFixed(1)}kg of ${b.species} feed`,
-            amount: totalKg,
-            unit: 'kg',
-          });
-        }
-      });
+      const batchTasks = batchTasksRes.data ?? [];
 
       const combinedTasks = buildTodayChecklist({
         todayStr,
         maxItems: 24,
-        virtualOps: opTasks,
+        batchTasks,
         healthTasks: tasksRes.data ?? [],
       });
 

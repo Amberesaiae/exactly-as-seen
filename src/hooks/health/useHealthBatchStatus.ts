@@ -12,8 +12,9 @@ type WaterRecord = Database['public']['Tables']['water_records']['Row'];
 type FeedLog = Database['public']['Tables']['feed_logs']['Row'];
 
 /**
- * Health Status Orchestrator (Spec-Aligned)
- * Calculates projections and Virtual House Tasks based on 100% accurate spec logic.
+ * Health Status Orchestrator
+ * Computes prescriptions, projections, and alerts.
+ * Operational tasks are sourced from batch_tasks DB rows — not computed here.
  */
 export function useHealthBatchStatus(
   batch: Batch | undefined, 
@@ -24,17 +25,15 @@ export function useHealthBatchStatus(
   waterRatePesewas: number | null = null,
   feedLogs: FeedLog[] = []
 ) {
-  // Stable day key — never put `new Date()` object in useMemo deps (causes thrash)
   const todayStr = format(new Date(), 'yyyy-MM-dd');
 
   const latestTemp = useMemo(() => {
     if (!waterRecords.length) return null;
-    // Prefer today's log temp, else most recent
     const todayRec = waterRecords.find(w => w.date === todayStr);
     return (todayRec ?? waterRecords[0])?.temperature_c ?? null;
   }, [waterRecords, todayStr]);
 
-  // 1. Water Cost Synergy
+  // Water Cost Synergy
   const totalWaterCostPesewas = useMemo(() => {
     if (!waterRatePesewas || !waterRecords.length) return 0;
     return waterRecords.reduce((acc, w) => {
@@ -43,7 +42,7 @@ export function useHealthBatchStatus(
     }, 0);
   }, [waterRecords, waterRatePesewas]);
 
-  // 2. Withdrawal Period Verification
+  // Withdrawal Period Verification
   const activeWithdrawals = useMemo(() => {
     const now = new Date();
     return healthTasks.filter(t =>
@@ -70,7 +69,6 @@ export function useHealthBatchStatus(
       0,
       Math.ceil((furthestDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
     );
-    // Rough estimate: layers ~0.8 egg/bird/day when production; 0 if unknown pop
     const pop = batch?.current_population ?? 0;
     const estimatedEggs =
       batch?.species === 'layer' || (batch?.species === 'duck' && batch?.duck_type === 'layer')
@@ -86,9 +84,8 @@ export function useHealthBatchStatus(
     };
   }, [activeWithdrawals, todayStr, batch]);
 
-  // 3. Species-Specific Projections (Tool Effect)
+  // Species-Specific Projections
   const todayTemp = useMemo(() => {
-    // Prefer last water-log sensor; else regional climatology (not always 28°C)
     return resolveAmbientTempC(latestTemp != null ? Number(latestTemp) : null, farmRegion);
   }, [latestTemp, farmRegion]);
 
@@ -103,58 +100,18 @@ export function useHealthBatchStatus(
     });
   }, [batch, batchAge, todayTemp]);
 
-  // 4. Operational Task Orchestrator (Spec-Aligned)
-  const dailyOperationalTasks = useMemo(() => {
-    if (!batch || !batchAge) return [];
-    
-    const tasks = [];
-    
-    // 🚿 Hydration House Task
-    if (waterPrescription) {
-      const alreadyDone = waterRecords.some(w => w.date === todayStr);
-      if (!alreadyDone) {
-        tasks.push({
-          id: `water:${batch.id}:${todayStr}`,
-          batch_id: batch.id,
-          task_type: 'hydration',
-          title: 'Daily Hydration Protocol',
-          description: `Provide ${waterPrescription.gallons} gal of water`,
-          amount: waterPrescription.gallons,
-          unit: 'gal',
-          estimated_cost: waterRatePesewas ? (waterPrescription.liters * waterRatePesewas) / 100 : 0,
-          batch_name: batch.name
-        });
-      }
+  // Informational: feed amount based on batch age (not a task source)
+  const feedAmountKg = useMemo(() => {
+    if (!batch || !batchAge) return null;
+    let kgPerBird = getPrescriptiveFeedIntake(batch.species, batchAge.week);
+    const foragingMod = getForagingModifier(batch.species, batchAge.week);
+    if (isSemiIntensiveSystem(batch.production_system) && foragingMod > 0) {
+      kgPerBird = kgPerBird * (1 - foragingMod);
     }
-    
-    // 🍲 Feeding House Task — single prescription: getPrescriptiveFeedIntake (+ foraging)
-    const feedLoggedToday = feedLogs.some(f => f.date === todayStr);
-    if (!feedLoggedToday) {
-       let kgPerBird = getPrescriptiveFeedIntake(batch.species, batchAge.week);
-       const foragingMod = getForagingModifier(batch.species, batchAge.week);
+    return batch.current_population * kgPerBird;
+  }, [batch, batchAge]);
 
-       if (isSemiIntensiveSystem(batch.production_system) && foragingMod > 0) {
-         kgPerBird = kgPerBird * (1 - foragingMod);
-       }
-
-       const totalKg = batch.current_population * kgPerBird;
-       
-       tasks.push({
-         id: `feed:${batch.id}:${todayStr}`,
-         batch_id: batch.id,
-         task_type: 'feeding',
-         title: 'Daily Feeding Protocol',
-         description: `Provide ${totalKg.toFixed(1)} kg of ${batch.species} feed`,
-         amount: totalKg,
-         unit: 'kg',
-         batch_name: batch.name
-       });
-    }
-    
-    return tasks;
-  }, [batch, batchAge, waterPrescription, waterRecords, waterRatePesewas, feedLogs, todayStr]);
-
-  // 5. Feed-to-Water Ratio Logic (Lean Guidance)
+  // Feed-to-Water Ratio Logic
   const fwRatioInfo = useMemo(() => {
     if (!waterRecords.length || !feedLogs.length) return null;
     
@@ -220,6 +177,6 @@ export function useHealthBatchStatus(
     waterChartData,
     totalWaterCostPesewas,
     fwRatioInfo,
-    dailyOperationalTasks,
+    feedAmountKg,
   };
 }

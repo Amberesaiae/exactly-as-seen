@@ -351,15 +351,7 @@ export function useEggData() {
       return;
     }
 
-    if (rpcError) {
-      const msg = rpcError.message || '';
-      if (/withdrawal|insufficient/i.test(msg)) {
-        toast.error(msg);
-        setSaleSubmitting(false);
-        return;
-      }
-      console.warn('record_egg_sale RPC failed, client fallback:', msg);
-    }
+    if (rpcError) throw rpcError;
 
     const { data: sale, error } = await supabase.from('egg_sales').insert({
       farm_id: farmId,

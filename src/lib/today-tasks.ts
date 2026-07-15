@@ -1,6 +1,6 @@
 /**
- * Unified Today checklist — pure merge of virtual ops + due care.
- * Fixes dashboard glitch: no blanket task_type: 'medication' relabel.
+ * Unified Today checklist — single source of truth: batch_tasks (DB) + due care (health_tasks).
+ * operationalTasks come from batch_tasks table; healthTasks are medications/vaccinations.
  */
 
 export type ChecklistItem = {
@@ -16,6 +16,18 @@ export type ChecklistItem = {
   amount?: number;
   unit?: string;
   estimated_cost?: number;
+  [key: string]: unknown;
+};
+
+type BatchTaskRow = {
+  id: string;
+  batch_id: string;
+  task_type: string;
+  title?: string | null;
+  description?: string | null;
+  due_date?: string | null;
+  completed?: boolean | null;
+  batch_name?: string | null;
   [key: string]: unknown;
 };
 
@@ -50,13 +62,28 @@ export function filterDueHealthTasks<T extends {
 }
 
 export function buildTodayChecklist(args: {
-  virtualOps: ChecklistItem[];
+  batchTasks?: BatchTaskRow[];
   healthTasks: Parameters<typeof filterDueHealthTasks>[0];
   todayStr: string;
   maxItems?: number;
 }): ChecklistItem[] {
   const dueCare = filterDueHealthTasks(args.healthTasks, args.todayStr);
-  const combined = [...args.virtualOps, ...dueCare];
+
+  // Map batch_tasks rows → ChecklistItem (only incomplete operational tasks)
+  const operationalItems: ChecklistItem[] = (args.batchTasks ?? [])
+    .filter(t => !t.completed && t.due_date && t.due_date <= args.todayStr)
+    .map(t => ({
+      id: t.id,
+      batch_id: t.batch_id,
+      batch_name: t.batch_name ?? undefined,
+      task_type: t.task_type,
+      title: t.title ?? undefined,
+      description: t.description ?? undefined,
+      scheduled_date: t.due_date ?? undefined,
+      completed: false,
+    }));
+
+  const combined = [...operationalItems, ...dueCare];
   if (args.maxItems != null && args.maxItems > 0) {
     return combined.slice(0, args.maxItems);
   }

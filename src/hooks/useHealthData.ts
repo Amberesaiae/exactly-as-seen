@@ -99,7 +99,7 @@ export function useHealthData() {
     waterChartData,
     totalWaterCostPesewas,
     fwRatioInfo,
-    dailyOperationalTasks,
+    feedAmountKg,
   } = useHealthBatchStatus(batch, batchAge, healthTasks, waterRecords, farmRegion, waterRatePesewas, feedLogs);
 
   // Load batch-specific data — paint first, ensure/reconcile in background (no list thrash)
@@ -285,7 +285,7 @@ export function useHealthData() {
       } = await import('@/lib/ledger-policy');
       const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
-      const { queueWrite } = await import('@/lib/sync');
+      const { queueRpc } = await import('@/lib/sync');
       const active = batches.find(b => b.id === selectedBatch);
       const system = active?.production_system as string | null;
       const deductStock = shouldDeductStockOnConsumption(system);
@@ -315,14 +315,20 @@ export function useHealthData() {
       }
       const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
 
+      const ledger = deductStock && !!feedStock;
+
       // Offline: queue payload for later flush
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await queueWrite('feed_logs', 'insert', crypto.randomUUID(), {
-          farm_id: farmId,
-          batch_id: selectedBatch,
-          quantity_kg: task.amount,
-          feed_type: feedName,
-          date: todayStr,
+        await queueRpc('confirm_day_feed', {
+          p_farm_id: farmId,
+          p_batch_id: selectedBatch,
+          p_quantity_kg: task.amount,
+          p_feed_type: feedName,
+          p_date: todayStr,
+          p_ledger: ledger && expenseConsumption,
+          p_stock_item_id: feedStock?.id ?? null,
+          p_unit_price_pesewas: unitPricePesewas,
+          p_skip_expense: skipExpense || !expenseConsumption,
         });
         toast.warning('Offline — feed queued; will sync when online');
         setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as any, ...prev]);
@@ -330,7 +336,6 @@ export function useHealthData() {
       }
 
       // Atomic RPC preferred
-      const ledger = deductStock && !!feedStock;
       const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
@@ -343,35 +348,9 @@ export function useHealthData() {
         p_skip_expense: skipExpense || !expenseConsumption,
       });
 
-      if (rpcErr) {
-        // Client fallback
-        const { error: logErr } = await supabase.from('feed_logs').insert({
-          batch_id: selectedBatch,
-          farm_id: farmId,
-          quantity_kg: task.amount,
-          feed_type: feedName,
-          date: todayStr,
-        });
-        if (logErr) {
-          toast.error(logErr.message.includes('duplicate') || logErr.code === '23505'
-            ? 'Feed already logged for today'
-            : logErr.message);
-          return;
-        }
-        if (deductStock && feedStock) {
-          await autoDeductStock({
-            farmId, itemName: feedStock.name, quantity: task.amount,
-            batchId: selectedBatch, reason: `Daily feeding ${task.amount}kg`, sourceRef,
-          });
-          if (expenseConsumption && !skipExpense && unitPrice > 0) {
-            await autoCreateExpense({
-              farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-              description: `Daily Feeding: ${task.amount}kg ${feedStock.name}`,
-              amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
-            });
-          }
-        }
-      } else if (rpcData?.already_logged) {
+      if (rpcErr) throw rpcErr;
+
+      if (rpcData?.already_logged) {
         toast.error('Feed already logged for today');
         return;
       }
@@ -526,7 +505,7 @@ export function useHealthData() {
     totalWaterCostPesewas,
     pendingWaterMeds,
     fwRatioInfo,
-    dailyOperationalTasks,
+    feedAmountKg,
     fulfillOperationalTask,
   };
 }

@@ -161,9 +161,7 @@ export function useStockData() {
         return;
       }
 
-      if (rpcError) {
-        console.warn('stock_purchase RPC failed, client fallback:', rpcError.message);
-      }
+      if (rpcError) throw rpcError;
     }
 
     const { data: tx, error: txError } = await supabase.from('stock_transactions').insert({

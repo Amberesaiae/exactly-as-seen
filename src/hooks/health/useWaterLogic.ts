@@ -16,25 +16,6 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
 
     const todayStr = format(new Date(), 'yyyy-MM-dd');
 
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      const { queueWrite } = await import('@/lib/sync');
-      const id = crypto.randomUUID();
-      const offlineRow = {
-        id,
-        batch_id: selectedBatch,
-        farm_id: farmId,
-        date: todayStr,
-        gallons_consumed: gallons,
-        temperature_c: temp ?? null,
-        notes: notes || null,
-      };
-      await queueWrite('water_records', 'insert', id, offlineRow);
-      setWaterRecords(prev => [offlineRow, ...prev.slice(0, 13)]);
-      toast.warning('Offline — water log queued; will sync when online');
-      setWaterSaving(false);
-      return offlineRow as any;
-    }
-
     const { data: batch } = await supabase
       .from('batches')
       .select('production_system')
@@ -47,6 +28,34 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
     const system = batch?.production_system as string | null;
     const ledger = hasRate && shouldExpenseConsumption(system);
 
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      const { queueRpc } = await import('@/lib/sync');
+      const id = crypto.randomUUID();
+      await queueRpc('log_day_water', {
+        p_farm_id: farmId,
+        p_batch_id: selectedBatch,
+        p_gallons: gallons,
+        p_temperature_c: temp ?? null,
+        p_notes: notes || null,
+        p_date: todayStr,
+        p_ledger: ledger,
+        p_rate_per_liter_pesewas: hasRate ? waterRatePesewas : 0,
+      });
+      const offlineRow = {
+        id,
+        batch_id: selectedBatch,
+        farm_id: farmId,
+        date: todayStr,
+        gallons_consumed: gallons,
+        temperature_c: temp ?? null,
+        notes: notes || null,
+      };
+      setWaterRecords(prev => [offlineRow, ...prev.slice(0, 13)]);
+      toast.warning('Offline — water log queued; will sync when online');
+      setWaterSaving(false);
+      return offlineRow as any;
+    }
+
     const { data: rpcData, error: rpcError } = await supabase.rpc('log_day_water', {
       p_farm_id: farmId,
       p_batch_id: selectedBatch,
@@ -58,44 +67,18 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       p_rate_per_liter_pesewas: hasRate ? waterRatePesewas : 0,
     });
 
-    let data: any = null;
-    if (rpcError) {
-      console.warn('log_day_water RPC failed, client fallback:', rpcError.message);
-      const { data: inserted, error } = await supabase.from('water_records').insert({
-        batch_id: selectedBatch,
-        farm_id: farmId,
-        date: todayStr,
-        gallons_consumed: gallons,
-        temperature_c: temp,
-        notes: notes || null,
-      }).select().single();
+    if (rpcError) throw rpcError;
 
-      if (error) { toast.error(error.message); setWaterSaving(false); return; }
-      data = inserted;
-
-      if (ledger && amount > 0) {
-        await autoCreateExpense({
-          farmId,
-          batchId: selectedBatch,
-          category: 'utilities_and_services',
-          description: `Water consumption: ${gallons} gal (${liters.toFixed(1)}L)`,
-          amount,
-          source: LEDGER_SOURCES.water,
-          sourceRef: `water:${data.id}`,
-        });
-      }
-    } else {
-      // Must include date — WaterTab + daily tasks gate on w.date === today
-      data = {
-        id: rpcData?.water_record_id,
-        batch_id: selectedBatch,
-        farm_id: farmId,
-        date: todayStr,
-        gallons_consumed: gallons,
-        temperature_c: temp ?? null,
-        notes: notes || null,
-      };
-    }
+    // Must include date — WaterTab + daily tasks gate on w.date === today
+    const data: any = {
+      id: rpcData?.water_record_id,
+      batch_id: selectedBatch,
+      farm_id: farmId,
+      date: todayStr,
+      gallons_consumed: gallons,
+      temperature_c: temp ?? null,
+      notes: notes || null,
+    };
 
     setWaterRecords(prev => {
       // Dedupe same day rows so UI does not flicker dual state

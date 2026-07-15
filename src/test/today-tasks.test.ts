@@ -29,14 +29,14 @@ describe('today-tasks', () => {
   it('does not relabel vaccinations as medication', () => {
     const list = buildTodayChecklist({
       todayStr: today,
-      virtualOps: [
-        { id: 'water:b1:2026-07-13', batch_id: 'b1', task_type: 'hydration', title: 'Daily Hydration' },
+      batchTasks: [
+        { id: 'w1', batch_id: 'b1', task_type: 'water_log', title: 'Log water', due_date: '2026-07-13', completed: false },
       ],
       healthTasks: [
         { id: 'v1', completed: false, scheduled_date: '2026-07-13', task_type: 'vaccination', product_name: 'HB1', batch_id: 'b1', batches: { name: 'Flock A' } },
       ],
     });
-    expect(list.some((i) => i.task_type === 'hydration')).toBe(true);
+    expect(list.some((i) => i.task_type === 'water_log')).toBe(true);
     expect(list.find((i) => i.id === 'v1')?.task_type).toBe('vaccination');
   });
 
@@ -44,9 +44,9 @@ describe('today-tasks', () => {
     const list = buildTodayChecklist({
       todayStr: today,
       maxItems: 1,
-      virtualOps: [
-        { id: 'a', batch_id: 'b', task_type: 'feeding' },
-        { id: 'b', batch_id: 'b', task_type: 'hydration' },
+      batchTasks: [
+        { id: 'f1', batch_id: 'b', task_type: 'feed_log', title: 'Log feed', due_date: '2026-07-13', completed: false },
+        { id: 'w1', batch_id: 'b', task_type: 'water_log', title: 'Log water', due_date: '2026-07-13', completed: false },
       ],
       healthTasks: [],
     });

@@ -25,7 +25,7 @@ interface WaterTabProps {
   totalWaterCostPesewas?: number;
   costPrivacyEnabled?: boolean;
   pendingWaterMeds?: HealthTask[];
-  dailyOperationalTasks?: any[];
+  batchTasks?: any[];
 }
 
 /**
@@ -45,14 +45,27 @@ export function WaterTab({
   totalWaterCostPesewas = 0,
   costPrivacyEnabled = false,
   pendingWaterMeds = [],
-  dailyOperationalTasks = [],
+  batchTasks = [],
 }: WaterTabProps) {
   const { currency } = useAuth();
   
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const hydrationTask = useMemo(() => 
-    dailyOperationalTasks.find(t => t.task_type === 'hydration'), 
-  [dailyOperationalTasks]);
+  const hydrationTask = useMemo(() => {
+    const waterTask = batchTasks.find(
+      t => t.task_type === 'water_log' && t.due_date === todayStr && !t.completed
+    );
+    if (!waterTask) return null;
+    // Adapt batch_task row to the shape fulfillOperationalTask expects
+    return {
+      ...waterTask,
+      task_type: 'hydration',
+      amount: waterPrescription?.gallons ?? 10,
+      unit: 'gal',
+      estimated_cost: waterPrescription
+        ? (waterPrescription.liters * (waterPrescription.costPerLiterPesewas ?? 0)) / 100
+        : 0,
+    };
+  }, [batchTasks, todayStr, waterPrescription]);
 
   const isTodayCompleted = waterRecords.some(w => w.date === todayStr);
 

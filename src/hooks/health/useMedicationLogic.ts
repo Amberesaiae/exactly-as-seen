@@ -146,41 +146,7 @@ export function useMedicationLogic(
       p_completed_at: completedAtISO,
     });
 
-    if (rpcError) {
-      // Fallback multi-step only if RPC not deployed yet
-      console.warn('complete_health_task RPC failed, client fallback:', rpcError.message);
-      let withdrawalMeatUntil: string | null = null;
-      let withdrawalEggsUntil: string | null = null;
-      let hasWithdrawal = false;
-      if (task.withdrawal_meat_days && task.withdrawal_meat_days > 0) {
-        withdrawalMeatUntil = format(addDays(completedAt, task.withdrawal_meat_days), 'yyyy-MM-dd');
-        hasWithdrawal = true;
-      }
-      if (task.withdrawal_egg_days && task.withdrawal_egg_days > 0) {
-        withdrawalEggsUntil = format(addDays(completedAt, task.withdrawal_egg_days), 'yyyy-MM-dd');
-        hasWithdrawal = true;
-      }
-      const { error } = await supabase.from('health_tasks')
-        .update({
-          completed: true,
-          completed_at: completedAtISO,
-          withdrawal_meat_until: withdrawalMeatUntil,
-          withdrawal_eggs_until: withdrawalEggsUntil,
-          cost_pesewas: costPesewas || null,
-        })
-        .eq('id', taskId);
-      if (error) { toast.error(error.message); return; }
-      if (hasWithdrawal) {
-        await supabase.from('batches').update({ has_active_withdrawal: true }).eq('id', batchId);
-      }
-      if (isVaccinationHealthTask(task) && task.product_name) {
-        await syncScheduleFromHealthTask({
-          batchId: task.batch_id,
-          productName: task.product_name,
-          completedAt: completedAtISO,
-        });
-      }
-    }
+    if (rpcError) throw rpcError;
 
     if (isVaccinationHealthTask(task) && farmId) {
       await seedPostVaccinationSupplements(farmId, task.batch_id);
