@@ -51,7 +51,7 @@ describe('synergy.ts', () => {
         update: vi.fn().mockReturnValue({ eq: step, select: step }),
         upsert: vi.fn().mockResolvedValue({ error: null }),
         delete: step,
-        maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+        maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'stock-1', current_quantity: 100, unit: 'unit' }, error: null }),
         single: vi.fn().mockResolvedValue({ data: null, error: null }),
       });
       return chain;

@@ -91,10 +91,16 @@ describe('sync.ts', () => {
     });
 
     it('handles failed items by adding to failedItems list', async () => {
-      mockRpc.mockResolvedValueOnce({ error: { message: 'RPC failed', code: 'XX000' } });
+      const origSetTimeout = globalThis.setTimeout;
+      globalThis.setTimeout = ((fn: Function) => { fn(); return 0 as unknown as ReturnType<typeof setTimeout>; }) as unknown as typeof setTimeout;
+
+      mockRpc.mockResolvedValue({ error: { message: 'RPC failed', code: 'XX000' } });
 
       await queueRpc('stock_purchase', { p_qty: 10 }, 'sp-1');
       await flushOutbox();
+
+      globalThis.setTimeout = origSetTimeout;
+      mockRpc.mockResolvedValue({ error: null });
 
       const failed = getFailedItems();
       expect(failed.length).toBeGreaterThanOrEqual(1);

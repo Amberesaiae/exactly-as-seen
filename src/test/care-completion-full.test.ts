@@ -8,11 +8,6 @@ vi.mock('@/integrations/supabase/client', () => ({
   },
 }));
 
-vi.mock('@/lib/synergy', () => ({
-  autoCreateExpense: vi.fn(),
-  autoDeductStock: vi.fn(),
-}));
-
 vi.mock('@/lib/production-system', () => ({
   shouldAutoLedger: vi.fn().mockReturnValue(true),
 }));
@@ -40,15 +35,16 @@ import {
 function makeChain(data: unknown = null, error: unknown = null) {
   const chain: Record<string, unknown> = {};
   const step = vi.fn().mockReturnValue(chain);
+  const resolvedSelect = vi.fn().mockResolvedValue({ data, error });
   Object.assign(chain, {
     eq: step,
     ilike: step,
     gte: step,
     lte: step,
     in: step,
-    select: step,
+    select: resolvedSelect,
     insert: vi.fn().mockResolvedValue({ data, error }),
-    update: vi.fn().mockReturnValue({ eq: step, select: step }),
+    update: vi.fn().mockReturnValue({ eq: step, select: resolvedSelect }),
     upsert: vi.fn().mockResolvedValue({ data, error }),
     delete: step,
     maybeSingle: vi.fn().mockResolvedValue({ data, error }),
