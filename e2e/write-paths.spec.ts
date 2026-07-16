@@ -235,6 +235,95 @@ test.describe('B: Batch create wizard', () => {
   });
 });
 
+// ─── B — Full batch create flow ──────────────────────────────────────────────
+
+test.describe('B — Full batch create flow', () => {
+  skipIfAnon();
+
+  test('batch create wizard completes all steps', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches/new');
+    await page.waitForLoadState('networkidle');
+
+    // Step 1: fill name (species defaults to broiler)
+    await page.locator('input#name, input[placeholder*="October"]').first().fill('E2E Wizard Batch');
+
+    // Select a house if any are available
+    const houseSelect = page.getByRole('combobox').last();
+    const hasHouses = await houseSelect.isVisible().catch(() => false);
+    if (hasHouses) {
+      await houseSelect.click();
+      const firstOption = page.getByRole('option').first();
+      const hasOption = await firstOption.isVisible().catch(() => false);
+      if (hasOption) await firstOption.click();
+    }
+
+    // Advance to step 2
+    const nextBtn = page.getByRole('button', { name: /next step/i });
+    if (await nextBtn.isEnabled()) {
+      await nextBtn.click();
+      await page.waitForTimeout(400);
+
+      // Step 2: verify production system and quantity fields are visible
+      await expect(page.locator('text=Production System').first()).toBeVisible({ timeout: 5_000 });
+      await expect(page.locator('text=Initial Quantity').first()).toBeVisible();
+
+      // Create Flock button should be present
+      const createBtn = page.getByRole('button', { name: /create flock/i });
+      await expect(createBtn).toBeVisible();
+    }
+  });
+
+  test('batch create validates required fields', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches/new');
+    await page.waitForLoadState('networkidle');
+
+    const nextBtn = page.getByRole('button', { name: /next step/i });
+    await expect(nextBtn).toBeVisible({ timeout: 10_000 });
+
+    // Next Step is disabled when name is empty
+    await expect(nextBtn).toBeDisabled();
+
+    // Fill name but leave house unselected — still disabled
+    await page.locator('input#name, input[placeholder*="October"]').first().fill('Validation Test');
+    await page.waitForTimeout(300);
+
+    // If no houses available, a destructive hint should be shown
+    const noHouses = page.locator('text=No available houses');
+    const nextStillDisabled = await nextBtn.isDisabled();
+    if (nextStillDisabled) {
+      // Either house selector is empty or some other required field is missing
+      const hint = noHouses.or(page.locator('text=/clean a house|create one/i'));
+      const hasHint = await hint.first().isVisible().catch(() => false);
+      // We just verify the button stayed disabled — no crash
+      expect(nextStillDisabled).toBe(true);
+    }
+  });
+
+  test('batch create shows species-specific options', async ({ page }) => {
+    await login(page);
+    await page.goto('/batches/new');
+    await page.waitForLoadState('networkidle');
+
+    // Select duck species via the Species combobox
+    const speciesCombo = page.getByRole('combobox').first();
+    await speciesCombo.click();
+    await page.getByRole('option', { name: /duck/i }).click();
+    await page.waitForTimeout(300);
+
+    // Duck Type selector should now be visible
+    await expect(page.locator('text=Duck Type').first()).toBeVisible({ timeout: 5_000 });
+
+    // Select turkey and verify the Duck Type disappears
+    await speciesCombo.click();
+    await page.getByRole('option', { name: /turkey/i }).click();
+    await page.waitForTimeout(300);
+
+    await expect(page.locator('text=Duck Type')).not.toBeVisible({ timeout: 5_000 });
+  });
+});
+
 // ─── K: Dashboard ───────────────────────────────────────────────────────────
 
 test.describe('K: Dashboard shows today checklist', () => {

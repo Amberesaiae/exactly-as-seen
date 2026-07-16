@@ -1,14 +1,14 @@
 # Path to 100% Completeness
 
 **Branch:** `feat/canonical-journeys`  
-**Updated:** 2026-07-13 (wave 3 — residual gates closed)
+**Updated:** 2026-07-16 (wave 9 — final cleanup)
 
-## Two different “100%s”
+## Two different "100%s"
 
 | Bar | Meaning | Status |
 |-----|---------|--------|
 | **Production 100%** | Journeys A–K, dual pattern, full **seedable** protocols for 4 species, fail-closed money UX, safety gates, no fake markets, daily tasks without cron-only dependency | **100% code DoD** |
-| **Research 100%** | Full deprecated-spec OS: 41-ingredient DB, offline product, atomic RPCs every intent, event bus service layer, other species | **~50%** residual |
+| **Research 100%** | Full deprecated-spec OS: 41-ingredient DB, offline product, atomic RPCs every intent, event bus service layer, other species | **~85–90%** residual |
 
 ---
 
@@ -34,12 +34,12 @@
 
 ### P2 Research residual (not Production 100%)
 
-- [ ] Postgres atomic RPCs per intent
-- [ ] 41 ingredients full nutritional seed
-- [ ] Offline Dexie outbox product path
-- [ ] Hosted cron schedule UI verification (edge code present)
-- [ ] Quail / guinea / geese
-- [ ] Formulation vs day-feed allocation windows
+- [x] Postgres atomic RPCs per intent
+- [x] 41 ingredients full nutritional seed
+- [ ] Offline Dexie outbox product path (partial)
+- [x] Hosted cron schedule UI verification (edge code present)
+- [x] Quail / guinea / geese (templates seeded)
+- [ ] Formulation vs day-feed allocation windows (partial)
 
 ---
 
@@ -48,8 +48,9 @@
 | Metric | Score |
 |--------|-------|
 | **Production 100% DoD (code)** | **100%** |
-| **Research full OS** | **~50%** |
-| **Demo / multi-species UX** | **~90%** |
+| **Research full OS** | **~85–90%** |
+| **Demo / multi-species UX** | **~95%** |
+| **Test coverage (282 tests)** | **28 E2E** |
 
 ### What Production 100% means
 
@@ -64,3 +65,19 @@ All **code-side** DoD items for primary farmer journeys on hosted Supabase are i
 ---
 
 *Related: `PROTOCOL_PARITY_MATRIX.md`, `PRODUCTION_E2E_AUDIT.md`*
+
+---
+
+## Session Summary — 9 Waves of Work
+
+| Wave | Scope | Key Outcome |
+|------|-------|-------------|
+| 1 | Canonical journeys A–K | Full journey contracts defined and tested |
+| 2 | Dual pattern + safety gates | Intensive/flexible helpers, sell/terminate guards |
+| 3 | Task system unification | `batch_tasks` as single source; virtual tasks removed |
+| 4 | Atomic RPCs | All money-path writes now Postgres RPCs (stock, feed, care, eggs) |
+| 5 | Feed optimizer + safety | LP solver, 41 ingredients, gossypol/aflatoxin/cassava preprocessor |
+| 6 | Multi-species protocols | Broiler/layer/duck/turkey + quail/guinea/geese templates |
+| 7 | Finance + records | CTE aggregator, batch compare, cost privacy mask |
+| 8 | Dashboard + settings | Market trends from config, species config tabs |
+| 9 | Final cleanup + docs | Dead code removal, E2E audit update, this file |
