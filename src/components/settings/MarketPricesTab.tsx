@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, DollarSign, Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Farm = Database['public']['Tables']['farms']['Row'];
@@ -49,6 +50,29 @@ export default function MarketPricesTab({
     }
 
     setOverridesSaving(true);
+
+    if (isOffline()) {
+      const tempId = crypto.randomUUID();
+      await queueWrite('config_overrides', 'insert', tempId, {
+        farm_id: farm.id,
+        key: cleanKey,
+        value: cleanVal,
+      } as unknown as Record<string, unknown>);
+      setConfigOverrides(prev => {
+        const idx = prev.findIndex(c => c.key === cleanKey);
+        if (idx !== -1) {
+          return prev.map((c, i) => i === idx ? { ...c, value: cleanVal } : c);
+        } else {
+          return [...prev, { id: tempId, key: cleanKey, value: cleanVal }];
+        }
+      });
+      setOverridesSaving(false);
+      toast.success(`Config override '${cleanKey}' saved (offline — will sync)`);
+      setNewKey('');
+      setNewValue('');
+      return;
+    }
+
     const { data, error } = await supabase.from('config_overrides').upsert({
       farm_id: farm.id,
       key: cleanKey,

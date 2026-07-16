@@ -8,6 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Download, Trash2, Loader2, FileJson, FileSpreadsheet, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { isOffline, queueWrite } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Farm = Database['public']['Tables']['farms']['Row'];
@@ -118,6 +119,13 @@ export default function DataTab({ farm, signOut }: DataTabProps) {
 
     setDeletingAccount(true);
     try {
+      if (isOffline()) {
+        await queueWrite('farms', 'delete', farm.id, {} as Record<string, unknown>);
+        toast.success('Farm data queued for deletion (offline — will sync)');
+        await signOut();
+        return;
+      }
+
       const { error: deleteErr } = await supabase.from('farms').delete().eq('id', farm.id);
       if (deleteErr) throw deleteErr;
 
