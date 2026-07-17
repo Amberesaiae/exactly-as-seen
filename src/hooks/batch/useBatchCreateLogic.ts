@@ -6,6 +6,7 @@ import { cacheBatches, isOffline, queueRpc } from '@/lib/sync';
 import { generateAutoTasks } from '@/lib/health-auto-tasks';
 import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 import { getBatchAge } from '@/lib/batch-utils';
+import { setPreferredBatchId } from '@/lib/preferred-batch';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -29,10 +30,22 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
     if (!farmId) return;
     const load = async () => {
       setLoading(true);
-      const { data } = await supabase.from('houses').select('*').eq('farm_id', farmId);
-      const available = (data ?? []).filter(h => !h.occupied_by_batch_id);
-      setHouses(available);
-      if (available.length) setHouseId(available[0].id);
+      const [{ data: houseRows }, { data: activeBatches }] = await Promise.all([
+        supabase.from('houses').select('*').eq('farm_id', farmId),
+        supabase.from('batches').select('id, house_id').eq('farm_id', farmId).eq('status', 'active'),
+      ]);
+      const occupiedHouseIds = new Set(
+        (activeBatches ?? []).map((b) => b.house_id).filter(Boolean) as string[]
+      );
+      // Free = no active flock on house (and heal stale occupied_by pointer in UI filter)
+      const available = (houseRows ?? []).filter(
+        (h) => !occupiedHouseIds.has(h.id) && !h.occupied_by_batch_id
+      );
+      // If pointer is stale but no active batch, still allow house
+      const availableRelaxed = (houseRows ?? []).filter((h) => !occupiedHouseIds.has(h.id));
+      const free = available.length > 0 ? available : availableRelaxed;
+      setHouses(free);
+      if (free.length) setHouseId((prev) => (prev && free.some((h) => h.id === prev) ? prev : free[0].id));
       setLoading(false);
     };
     load();
@@ -143,53 +156,59 @@ export function useBatchCreateLogic(farmId: string | null, userId: string | unde
         status: 'active',
         phase: age.phase,
       };
+      setPreferredBatchId(tempId);
       toast.success('Batch created (offline — will sync when connected)');
       setSubmitting(false);
       return batch as Batch;
     }
 
-    const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch', createBatchArgs);
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('create_batch', createBatchArgs);
 
-    if (!rpcError && rpcData && (rpcData as CreateBatchReturn).ok) {
-      const batchId = (rpcData as CreateBatchReturn).batch_id;
-      const batch = {
-        id: batchId,
-        farm_id: farmId,
-        name: name.trim(),
-        species,
-        duck_type: species === 'duck' ? duckType : null,
-        house_id: houseId,
-        production_system: productionSystem,
-        initial_quantity: qty,
-        current_population: qty,
-        start_date: startDate,
-        cycle_length_weeks: cycleWeeks,
-        current_week: age.week,
-        current_day: age.day,
-        status: 'active',
-        phase: age.phase,
-      };
-      await cacheBatches(farmId).catch(err => console.error('Cache sync error:', err));
-      toast.success(
-        `Batch created (${(rpcData as CreateBatchReturn).health_tasks_seeded ?? 0} care tasks, ${(rpcData as CreateBatchReturn).vaccinations_seeded ?? 0} vaccines)`
-      );
-      setSubmitting(false);
-      return batch as Batch;
-    }
-
-    if (rpcError) {
-      console.warn('create_batch RPC failed:', rpcError.message);
-      if (/house not available|name is required|duck_type/i.test(rpcError.message)) {
-        toast.error(rpcError.message);
+      if (!rpcError && rpcData && (rpcData as CreateBatchReturn).ok) {
+        const batchId = (rpcData as CreateBatchReturn).batch_id;
+        const batch = {
+          id: batchId,
+          farm_id: farmId,
+          name: name.trim(),
+          species,
+          duck_type: species === 'duck' ? duckType : null,
+          house_id: houseId,
+          production_system: productionSystem,
+          initial_quantity: qty,
+          current_population: qty,
+          start_date: startDate,
+          cycle_length_weeks: cycleWeeks,
+          current_week: age.week,
+          current_day: age.day,
+          status: 'active',
+          phase: age.phase,
+        };
+        setPreferredBatchId(batchId);
+        await cacheBatches(farmId).catch((err) => console.error('Cache sync error:', err));
+        const seeded =
+          (rpcData as CreateBatchReturn).health_tasks_seeded ?? 0;
+        const vaxSeeded = (rpcData as CreateBatchReturn).vaccinations_seeded ?? 0;
+        toast.success(`Batch created (${seeded} care tasks, ${vaxSeeded} vaccines)`);
         setSubmitting(false);
-        return null;
+        return batch as Batch;
       }
-      setSubmitting(false);
-      throw new Error(rpcError.message);
-    }
 
-    setSubmitting(false);
-    throw new Error((rpcData as CreateBatchReturn)?.error ?? 'create_batch failed');
+      const msg =
+        rpcError?.message ||
+        (rpcData as CreateBatchReturn)?.error ||
+        'create_batch failed';
+      console.warn('create_batch RPC failed:', msg);
+      toast.error(msg);
+      setSubmitting(false);
+      return null;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.error('create_batch unexpected:', msg);
+      toast.error(msg);
+      setSubmitting(false);
+      return null;
+    }
   };
 
   return {

@@ -12,6 +12,7 @@ import { useWaterLogic } from './health/useWaterLogic';
 import { useWeeklyHealthSummary } from './health/useWeeklyHealthSummary';
 import { runPostCompletionSideEffects } from '@/lib/care-completion';
 import { toast } from 'sonner';
+import { resolvePreferredBatchId, setPreferredBatchId } from '@/lib/preferred-batch';
 import type { Database } from '@/integrations/supabase/types';
 
 type HealthTask = Database['public']['Tables']['health_tasks']['Row'];
@@ -43,12 +44,27 @@ export function useHealthData() {
     baseLoading
   } = useHealthBaseData();
 
-  // Set initial selected batch
+  // Set initial selected batch (prefer just-created flock)
   useEffect(() => {
-    if (batches.length && !selectedBatch) {
-      setSelectedBatch(batches[0].id);
+    if (!batches.length) return;
+    const ids = batches.map((b) => b.id);
+    const preferred = resolvePreferredBatchId(ids);
+    if (preferred && preferred !== selectedBatch) {
+      setSelectedBatch(preferred);
+      return;
+    }
+    if (!selectedBatch) {
+      const sorted = [...batches].sort((a, b) =>
+        String(b.created_at || '').localeCompare(String(a.created_at || ''))
+      );
+      setSelectedBatch(sorted[0].id);
     }
   }, [batches, selectedBatch]);
+
+  // Remember manual selection across modules
+  useEffect(() => {
+    if (selectedBatch) setPreferredBatchId(selectedBatch);
+  }, [selectedBatch]);
 
   const batch = useMemo(() => batches.find(b => b.id === selectedBatch), [batches, selectedBatch]);
   const batchAge = useMemo(() => batch ? getBatchAge(batch.start_date, batch.species) : null, [batch]);

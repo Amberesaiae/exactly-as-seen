@@ -25,4 +25,12 @@ describe('stock-match', () => {
       { name: 'Syringe', category: 'equipment', current_quantity: 5 },
     ])).toBeNull();
   });
+
+  it('prefers priced starter lots over unpriced when both have qty', () => {
+    const pick = pickPreferredFeedStock([
+      { name: 'Broiler Starter A', category: 'feed_ingredient', current_quantity: 100, unit_price_pesewas: 0 },
+      { name: 'Broiler Starter B', category: 'feed_ingredient', current_quantity: 50, unit_price_pesewas: 500 },
+    ]);
+    expect(pick?.name).toBe('Broiler Starter B');
+  });
 });

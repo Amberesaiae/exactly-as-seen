@@ -135,6 +135,7 @@ export default function Feed() {
                 </div>
 
                 <Button
+                  data-testid="confirm-feeding"
                   onClick={() => void confirmDayFeed()}
                   disabled={feedSaving}
                   className="w-full rounded-full py-6 text-base font-bold gap-2 bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200"

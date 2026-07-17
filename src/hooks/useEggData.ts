@@ -17,6 +17,7 @@ import {
   LAYER_EGG_START_WEEK,
   DUCK_EGG_START_WEEK,
 } from '@/lib/canonical';
+import { resolvePreferredBatchId, setPreferredBatchId } from '@/lib/preferred-batch';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
 type EggRecord = Database['public']['Tables']['egg_collections']['Row'];
@@ -48,9 +49,18 @@ export function useEggData() {
       const farm = selectPrimaryFarm(farms);
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
-      const { data: b } = await supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active').in('species', ['layer', 'duck', 'turkey']);
+      const { data: b } = await supabase
+        .from('batches')
+        .select('*')
+        .eq('farm_id', farm.id)
+        .eq('status', 'active')
+        .in('species', ['layer', 'duck', 'turkey'])
+        .order('created_at', { ascending: false });
       setBatches(b ?? []);
-      if (b?.length) setSelectedBatch(b[0].id);
+      if (b?.length) {
+        const pref = resolvePreferredBatchId(b.map((x) => x.id));
+        setSelectedBatch(pref || b[0].id);
+      }
 
       const { data: s } = await supabase.from('egg_sales').select('*').eq('farm_id', farm.id).order('date', { ascending: false }).limit(30);
       setSales(s ?? []);
@@ -62,6 +72,7 @@ export function useEggData() {
 
   useEffect(() => {
     if (!selectedBatch) { setRecords([]); return; }
+    setPreferredBatchId(selectedBatch);
     supabase.from('egg_collections').select('*').eq('batch_id', selectedBatch).order('date', { ascending: false }).limit(30)
       .then(({ data }) => setRecords(data ?? []));
   }, [selectedBatch]);

@@ -7,7 +7,7 @@
 **Backend:** Hosted Supabase `lampfarms` (`ulliwnizurgfbwryhnng`) — **no local Docker required**
 
 Method: code-path audit vs CANONICAL_JOURNEYS + Vitest; live smoke on hosted.  
-**Honesty gate:** UI-present ≠ production-complete. See PRODUCTION_E2E_AUDIT completeness ~35–40%.
+**Honesty gate:** UI-present ≠ production-complete. Live thorough session 2026-07-17: see `docs/live-audit-artifacts/thorough/SESSION.md` (B create seed fixed; money RPCs proved).
 
 ---
 

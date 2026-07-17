@@ -24,7 +24,12 @@ export function useHealthBaseData() {
       if (!hasLoadedRef.current) setLoading(true);
 
       const [batchRes, medsRes, containersRes, farmRes] = await Promise.all([
-        supabase.from('batches').select('*').eq('farm_id', farmId).eq('status', 'active'),
+        supabase
+          .from('batches')
+          .select('*')
+          .eq('farm_id', farmId)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false }),
         supabase.from('medications').select('*'),
         supabase.from('container_types').select('*'),
         supabase.from('farms').select('water_source_chlorinated, location_region, water_rate_per_liter_pesewas').eq('id', farmId).maybeSingle(),

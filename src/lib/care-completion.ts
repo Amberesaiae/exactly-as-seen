@@ -212,13 +212,23 @@ export async function seedPostVaccinationSupplements(
     return;
   }
 
-  const { error } = await supabase.from('health_tasks').upsert(
-    supplementRows,
-    { onConflict: 'batch_id,medication_id,scheduled_date', ignoreDuplicates: true }
-  );
-
-  if (error) {
-    console.error('seedPostVaccinationSupplements:', error.message);
-    toast.error(`Failed to seed post-vaccination supplements: ${error.message}`);
+  // Idempotent upsert on unique (batch_id, medication_id, scheduled_date).
+  // Row-at-a-time so one conflict never blocks the rest.
+  let hardError: string | null = null;
+  for (const row of supplementRows) {
+    const { error } = await supabase.from('health_tasks').upsert(row, {
+      onConflict: 'batch_id,medication_id,scheduled_date',
+      ignoreDuplicates: true,
+    });
+    if (!error) continue;
+    if (/duplicate|unique|conflict/i.test(error.message)) continue;
+    const { error: insErr } = await supabase.from('health_tasks').insert(row);
+    if (insErr && !/duplicate|unique/i.test(insErr.message)) {
+      hardError = insErr.message;
+    }
+  }
+  if (hardError) {
+    console.error('seedPostVaccinationSupplements:', hardError);
+    // Non-blocking: vaccination already completed; supplements are best-effort
   }
 }

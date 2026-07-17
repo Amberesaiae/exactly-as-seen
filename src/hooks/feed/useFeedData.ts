@@ -10,6 +10,7 @@ import type { Database } from '@/integrations/supabase/types';
 
 type ConfirmDayFeedReturn = Database['public']['Functions']['confirm_day_feed']['Returns'];
 import { toast } from 'sonner';
+import { resolvePreferredBatchId, setPreferredBatchId } from '@/lib/preferred-batch';
 
 /**
  * Feed Lab data + today's confirm path.
@@ -31,6 +32,11 @@ export function useFeedData() {
   // Stable calendar day for session (avoid effect thrash from new Date() each render)
   const todayStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
+  // Remember manual flock selection for Care / Eggs
+  useEffect(() => {
+    if (selectedBatch) setPreferredBatchId(selectedBatch);
+  }, [selectedBatch]);
+
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
@@ -48,27 +54,40 @@ export function useFeedData() {
       if (!farm) { setLoading(false); return; }
       setFarmId(farm.id);
 
-      const [batchResult, formulationResult, recipeResult] = await Promise.all([
-        supabase.from('batches').select('*').eq('farm_id', farm.id).eq('status', 'active'),
+      const [batchResult, formulationResult, recipeResult, todayLogs] = await Promise.all([
+        supabase
+          .from('batches')
+          .select('*')
+          .eq('farm_id', farm.id)
+          .eq('status', 'active')
+          .order('created_at', { ascending: false }),
         supabase.from('feed_formulations').select('*').eq('farm_id', farm.id).order('created_at', { ascending: false }).limit(10),
         supabase.from('feed_recipes').select('*').eq('farm_id', farm.id).order('name'),
+        supabase
+          .from('feed_logs')
+          .select('batch_id')
+          .eq('farm_id', farm.id)
+          .eq('date', todayStr),
       ]);
 
       if (cancelled) return;
       const batchList = batchResult.data ?? [];
+      const fedToday = new Set((todayLogs.data ?? []).map((r) => r.batch_id).filter(Boolean));
       setBatches(batchList);
       setFormulations(formulationResult.data ?? []);
       setRecipes(recipeResult.data ?? []);
-      setSelectedBatch(prev => {
-        if (prev && batchList.some(b => b.id === prev)) return prev;
-        return batchList[0]?.id ?? '';
-      });
+      const ids = batchList.map((b) => b.id);
+      const preferred = resolvePreferredBatchId(ids);
+      const pending = batchList.find((b) => !fedToday.has(b.id));
+      // Preferred (just-created) always wins on load so multi-flock farms don't stick on old "complete" flocks
+      const nextId = preferred || pending?.id || batchList[0]?.id || '';
+      setSelectedBatch(nextId);
       hasLoadedRef.current = true;
       setLoading(false);
     };
     void load();
     return () => { cancelled = true; };
-  }, [user]);
+  }, [user, todayStr]);
 
   const fetchSchedules = useCallback(async (batchId: string) => {
     const { data } = await supabase
@@ -196,14 +215,15 @@ export function useFeedData() {
         return;
       }
 
-      const ledger = deductStock && !!feedStock;
+      // p_ledger drives stock-out; p_skip_expense independently skips second expense
+      const doLedger = deductStock && !!feedStock;
       const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
         p_quantity_kg: qty,
         p_feed_type: feedName,
         p_date: todayStr,
-        p_ledger: ledger && expenseConsumption,
+        p_ledger: doLedger,
         p_stock_item_id: feedStock?.id ?? null,
         p_unit_price_pesewas: unitPricePesewas,
         p_skip_expense: skipExpense || !expenseConsumption,

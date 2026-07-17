@@ -13,7 +13,7 @@ import { StockDialogs } from '@/components/stock/StockDialogs';
 
 export default function Stock() {
   const {
-    loading, stockItems, transactions, stats, lowStockItems, submitting, costPrivacyEnabled, addStockItem, recordTransaction,
+    loading, stockItems, transactions, stats, lowStockItems, submitting, costPrivacyEnabled, addStockItem, recordTransaction, batches,
   } = useStockData();
 
   const [search, setSearch] = useState('');
@@ -34,7 +34,14 @@ export default function Stock() {
     <div className="p-4 md:p-6 space-y-4 pb-24">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-black text-foreground tracking-tight">Inventory</h1>
-        <Button className="rounded-full gap-1.5 h-9" onClick={() => setItemDialogOpen(true)}><Plus className="h-4 w-4" /> New Item</Button>
+        <Button
+          className="rounded-full gap-1.5 h-9"
+          onClick={() => setItemDialogOpen(true)}
+          data-testid="stock-new-item"
+          aria-label="New inventory item"
+        >
+          <Plus className="h-4 w-4" /> New Item
+        </Button>
       </div>
 
       <StockSummary stats={{...stats, uniqueCount: stockItems.length}} costPrivacyEnabled={costPrivacyEnabled} />

@@ -140,6 +140,7 @@ export function WaterTab({
             )}
 
             <Button 
+              data-testid="confirm-hydration"
               onClick={() => onFulfillTask(hydrationTask)}
               disabled={waterSaving}
               className="w-full rounded-full py-6 text-base font-bold gap-2 shadow-lg shadow-primary/20"
@@ -167,6 +168,7 @@ export function WaterTab({
               No prescription yet (select an active batch with population). You can still log water manually.
             </p>
             <Button
+              data-testid="confirm-hydration"
               variant="outline"
               className="w-full rounded-full"
               disabled={waterSaving || !batch}

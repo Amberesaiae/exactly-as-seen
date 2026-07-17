@@ -1,0 +1,165 @@
+{
+  "when": "2026-07-17T14:18:14.240Z",
+  "base": "http://127.0.0.1:5173",
+  "email": "live.fix.1783906173@example.com",
+  "farm": "Thorough Audit 2026-07-17 14:15",
+  "farmId": "a215f55a-b7bb-4c82-8aeb-dc63b9429cdf",
+  "batchId": null,
+  "stockItemId": "fe1e8fa9-e079-479e-a239-31ce0ff5f0ce",
+  "findings": [
+    {
+      "step": "A0 auth",
+      "ok": true,
+      "detail": "signed in live.fix.1783906173@example.com",
+      "at": "2026-07-17T14:15:56.907Z"
+    },
+    {
+      "step": "A1 session in browser",
+      "ok": true,
+      "detail": "http://127.0.0.1:5173/dashboard",
+      "at": "2026-07-17T14:16:03.141Z"
+    },
+    {
+      "step": "A2 farm row",
+      "ok": true,
+      "detail": "Live Audit Farm 1783906174990 setup=true",
+      "at": "2026-07-17T14:16:22.561Z",
+      "farmId": "a215f55a-b7bb-4c82-8aeb-dc63b9429cdf"
+    },
+    {
+      "step": "A3 houses",
+      "ok": true,
+      "detail": "total=7 free=6",
+      "at": "2026-07-17T14:16:38.015Z"
+    },
+    {
+      "step": "B1 create UI",
+      "ok": false,
+      "detail": "http://127.0.0.1:5173/batches/new | LampFarms®\nTODAY\nOverview\nOPERATIONS\nFlocks\nFeed Lab\nCare & Water\nHarvest\nInventory\nINSIGHTS\nLedger\nPerformance\nACCOUNT\n",
+      "at": "2026-07-17T14:17:16.206Z"
+    },
+    {
+      "step": "B1b create_batch API fallback",
+      "ok": false,
+      "detail": "duplicate key value violates unique constraint \"batches_house_active_uniq\"",
+      "at": "2026-07-17T14:17:29.641Z"
+    },
+    {
+      "step": "B2 batch DB",
+      "ok": false,
+      "detail": "missing name=Broiler Thorough 1784297755868",
+      "at": "2026-07-17T14:17:29.641Z",
+      "batchId": null
+    },
+    {
+      "step": "B4 create_batch RPC",
+      "ok": true,
+      "detail": "rpc observed",
+      "at": "2026-07-17T14:17:29.641Z"
+    },
+    {
+      "step": "F0 stock dialog",
+      "ok": false,
+      "detail": "No New Item button",
+      "at": "2026-07-17T14:17:31.965Z"
+    },
+    {
+      "step": "F2 stock item present",
+      "ok": true,
+      "detail": "Broiler Starter 1784297618401 cat=feed_ingredient qty=70 price=500",
+      "at": "2026-07-17T14:17:33.138Z"
+    },
+    {
+      "step": "F3 stock_purchase RPC",
+      "ok": true,
+      "detail": "{\"ok\":true,\"new_quantity\":95,\"transaction_id\":\"f7c192c6-71fe-4328-927e-beb854ae8c4c\",\"expense_pesewas\":12500}",
+      "at": "2026-07-17T14:17:36.650Z"
+    },
+    {
+      "step": "F4 purchase → expense DB",
+      "ok": true,
+      "detail": "txs=5 expenses_total=10 stock_auto=6 ui=false exp_before=16",
+      "at": "2026-07-17T14:17:37.680Z",
+      "sample": {
+        "id": "810f7a9a-ff0d-42bb-b4ad-6cbc80385717",
+        "amount_pesewas": 12500,
+        "source": "auto:stock",
+        "source_ref": "f7c192c6-71fe-4328-927e-beb854ae8c4c",
+        "description": "Purchase: 25 kg of Broiler Starter 1784297618401",
+        "category": "feed_and_nutrition"
+      }
+    },
+    {
+      "step": "C1 feed page",
+      "ok": false,
+      "detail": "no confirm (maybe done)",
+      "at": "2026-07-17T14:17:42.073Z"
+    },
+    {
+      "step": "C6a water UI",
+      "ok": false,
+      "detail": "no hydration CTA",
+      "at": "2026-07-17T14:17:47.314Z"
+    },
+    {
+      "step": "D1 care complete UI",
+      "ok": true,
+      "detail": "clicked complete",
+      "at": "2026-07-17T14:17:55.738Z"
+    },
+    {
+      "step": "E1 formulate UI",
+      "ok": true,
+      "detail": "http://127.0.0.1:5173/feed/formulate",
+      "at": "2026-07-17T14:17:59.669Z"
+    },
+    {
+      "step": "G1 eggs page",
+      "ok": true,
+      "detail": "Collect",
+      "at": "2026-07-17T14:18:02.177Z"
+    },
+    {
+      "step": "K1 finance DB",
+      "ok": true,
+      "detail": "expenses=18 sum_pesewas=167000 revenue=0",
+      "at": "2026-07-17T14:18:05.690Z",
+      "sources": [
+        "auto:stock",
+        "auto:health",
+        "auto:vaccination"
+      ]
+    },
+    {
+      "step": "K2 finance UI",
+      "ok": true,
+      "detail": "Expenses",
+      "at": "2026-07-17T14:18:05.698Z"
+    },
+    {
+      "step": "K3 dashboard",
+      "ok": true,
+      "detail": "1 Active",
+      "at": "2026-07-17T14:18:08.811Z"
+    },
+    {
+      "step": "J1 cron",
+      "ok": true,
+      "detail": "active=4 jobs=[{\"active\":true,\"jobname\":\"advance-batch-weeks-job\",\"schedule\":\"0 * * * *\"},{\"active\":true,\"jobname\":\"check-withdrawal-periods-job\",\"schedule\":\"0 */4 * * *\"},{\"active\":true,\"jobname\":\"generate-daily-tasks-job\",\"schedule\":\"0 * * * *\"},{\"active\":true,\"jobname\":\"prune-idempotency-keys-job\",\"schedule\":\"",
+      "at": "2026-07-17T14:18:13.977Z"
+    },
+    {
+      "step": "J2 batch_tasks today",
+      "ok": true,
+      "detail": "{\"feed_log\":7,\"water_log\":7}",
+      "at": "2026-07-17T14:18:14.240Z"
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 409 ()",
+    "Error: duplicate key value violates unique constraint \"batches_house_active_uniq\"",
+    "Failed to load resource: the server responded with a status of 400 ()"
+  ],
+  "passed": 16,
+  "failed": 6
+}

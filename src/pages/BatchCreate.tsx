@@ -32,8 +32,13 @@ export default function BatchCreate() {
   } = useBatchCreateLogic(farmId, user?.id);
 
   const handleCreate = async () => {
-    const batch = await createBatch();
-    if (batch) navigate(`/batches/${batch.id}`);
+    try {
+      const batch = await createBatch();
+      if (batch?.id) navigate(`/batches/${batch.id}`);
+    } catch (e) {
+      // createBatch is fail-closed (returns null + toast); keep page usable
+      console.error('handleCreate:', e);
+    }
   };
 
   if (loading) {
@@ -157,7 +162,12 @@ export default function BatchCreate() {
 
               <div className="flex gap-3 mt-4">
                 <Button variant="outline" className="flex-1 rounded-full" onClick={() => setStep(1)}>Back</Button>
-                <Button className="flex-[2] rounded-full gap-1.5" onClick={handleCreate} disabled={submitting}>
+                <Button
+                  className="flex-[2] rounded-full gap-1.5"
+                  onClick={handleCreate}
+                  disabled={submitting || !initialQuantity}
+                  data-testid="create-flock"
+                >
                   {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Check className="h-4 w-4" /> Create Flock</>}
                 </Button>
               </div>

@@ -65,7 +65,6 @@ export default function Health() {
     fulfillOperationalTask,
     totalWaterCostPesewas,
     pendingWaterMeds,
-    dailyOperationalTasks,
   } = useHealthData();
 
   const [showMedModal, setShowMedModal] = useState(false);
@@ -312,6 +311,7 @@ export default function Health() {
                                 <Button 
                                   size="sm" 
                                   className="rounded-full bg-amber-600 hover:bg-amber-700 text-white h-7 text-xs px-2.5"
+                                  data-testid="care-complete"
                                   onClick={() => setCompleteTask({
                                     id: task.id,
                                     product_name: task.product_name || 'Care Task',
@@ -414,7 +414,7 @@ export default function Health() {
                 totalWaterCostPesewas={totalWaterCostPesewas}
                 costPrivacyEnabled={costPrivacyEnabled}
                 pendingWaterMeds={pendingWaterMeds}
-                dailyOperationalTasks={dailyOperationalTasks}
+                batchTasks={batchTasks}
               />
             </TabsContent>
           </Tabs>
