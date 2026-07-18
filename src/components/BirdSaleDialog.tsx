@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { AlertTriangle, ShoppingCart } from 'lucide-react';
 import { PrivacyMask } from '@/components/ui/PrivacyMask';
 import { useAuth } from '@/contexts/AuthContext';
+import { canSellBirds } from '@/lib/safety-gates';
 import type { Database } from '@/integrations/supabase/types';
 
 type Batch = Database['public']['Tables']['batches']['Row'];
@@ -45,6 +46,10 @@ export function BirdSaleDialog({ batch, onClose, onSuccess, farmId }: BirdSaleDi
     }
     if (priceNum <= 0) {
       toast.error('Enter a valid unit price');
+      return;
+    }
+    if (!canSellBirds(batch)) {
+      toast.error('Cannot sell birds during active medication withdrawal period');
       return;
     }
 

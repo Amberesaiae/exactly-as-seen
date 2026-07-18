@@ -19,12 +19,7 @@ import { type FeedPhase, normalizeIngredient } from '@/lib/feed-data';
 import { useCustomFormulationSolver } from './hooks/useCustomFormulationSolver';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
-import { isIntensiveSystem } from '@/lib/production-system';
-import { isOffline, queueWrite } from '@/lib/sync';
-import type { Database } from '@/integrations/supabase/types';
-
-type FeedIngredientInsert = Database['public']['Tables']['feed_ingredients']['Insert'];
+import { isOffline, queueRpc } from '@/lib/sync';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { PrivacyMask } from '@/components/ui/PrivacyMask';
@@ -139,92 +134,63 @@ export function CustomFormulation({ batch, phase, week, farmId, onDone, targetKg
       toast.error('All ingredients must have quantity > 0');
       return;
     }
+    if (totalKg <= 0) { toast.error('Set a valid planning target'); return; }
 
     setSaving(true);
 
-    if (isOffline()) {
-      const tempId = crypto.randomUUID();
-      await queueWrite('feed_formulations', 'insert', tempId, {
-        farm_id: farmId,
-        batch_id: batch.id,
-        species: batch.species,
-        phase: phase?.name.toLowerCase() ?? 'unknown',
-        population: batch.current_population,
-        bags_count: parseInt(bagsCount) || 1,
-        bag_size_kg: parseInt(bagSize) || 50,
-        total_kg: totalKg,
-        formulation_type: solverStatus === 'optimal' ? 'optimized' : solverStatus === 'fallback' ? 'guided' : 'free',
-      } as unknown as Record<string, unknown>);
-      for (const s of selected.filter(s => s.quantityKg > 0)) {
-        await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
-          formulation_id: tempId,
-          category: s.ingredient.category,
-          name: s.ingredient.name,
-          quantity_kg: s.quantityKg,
-          unit_price_pesewas: Math.round(s.unitPrice * 100),
-          total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
-          ...(s.stockItemId ? { stock_item_id: s.stockItemId } : {}),
-        } as unknown as Record<string, unknown>);
-      }
-      toast.success('Formulation saved (offline — will sync)');
-      setSaving(false);
-      onDone();
-      return;
-    }
-
-    const { data: formulation, error } = await supabase.from('feed_formulations').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      species: batch.species,
-      phase: phase?.name.toLowerCase() ?? 'unknown',
-      population: batch.current_population,
-      bags_count: parseInt(bagsCount) || 1,
-      bag_size_kg: parseInt(bagSize) || 50,
-      total_kg: totalKg,
-      formulation_type: solverStatus === 'optimal' ? 'optimized' : solverStatus === 'fallback' ? 'guided' : 'free',
-    }).select('id').single();
-
-    if (error) { toast.error(error.message); setSaving(false); return; }
-
-    await supabase.from('feed_ingredients').insert(
-      selected.filter(s => s.quantityKg > 0).map(s => ({
-        formulation_id: formulation.id,
-        category: s.ingredient.category,
+    const formulationType = solverStatus === 'optimal' ? 'optimized' : solverStatus === 'fallback' ? 'guided' : 'free';
+    const ingredients = selected
+      .filter(s => s.quantityKg > 0)
+      .map(s => ({
         name: s.ingredient.name,
+        category: s.ingredient.category,
         quantity_kg: s.quantityKg,
         unit_price_pesewas: Math.round(s.unitPrice * 100),
-        total_cost_pesewas: Math.round(s.quantityKg * s.unitPrice * 100),
-        ...(s.stockItemId ? { stock_item_id: s.stockItemId } : {}),
-      })) as FeedIngredientInsert[]
-    );
+        stock_item_id: s.stockItemId || null,
+      }));
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_batch_id: batch.id,
+      p_species: batch.species,
+      p_phase: phase?.name.toLowerCase() ?? 'unknown',
+      p_population: batch.current_population,
+      p_bags_count: parseInt(bagsCount) || 1,
+      p_bag_size_kg: parseInt(bagSize) || 50,
+      p_total_kg: totalKg,
+      p_formulation_type: formulationType,
+      p_ingredients: ingredients,
+      p_total_cost_pesewas: Math.round(totalCost * 100),
+      p_description: `Custom feed (${approach}): ${batch.species} ${phase?.name ?? ''} — ${totalKg}kg`,
+    };
 
-    const isIntensive = isIntensiveSystem(batch.production_system);
-    if (isIntensive) {
-      for (const s of selected) {
-        if (s.quantityKg > 0) {
-          await autoDeductStock({
-            farmId, itemName: s.ingredient.name, quantity: s.quantityKg, batchId: batch.id,
-            reason: `Feed formulation auto-deduction: ${s.ingredient.name}`, sourceRef: formulation.id
-          });
-        }
+    try {
+      // S2: sole spine — never multi-write formulation + stock + expense
+      if (isOffline()) {
+        await queueRpc('confirm_formulation_allocation', rpcArgs, `formulation:${batch.id}:${Date.now()}`);
+        toast.warning('Offline — formulation queued; will sync when online');
+        onDone();
+        return;
       }
-      if (totalCost > 0) {
-        await autoCreateExpense({
-          farmId, batchId: batch.id, category: 'feed_and_nutrition',
-          description: `Custom feed (${approach}): ${batch.species} ${phase?.name ?? ''} — ${totalKg}kg`,
-          amount: totalCost, source: 'auto:feed', sourceRef: formulation.id,
-        });
+
+      const { data, error } = await supabase.rpc('confirm_formulation_allocation', rpcArgs);
+      if (error) {
+        toast.error(error.message || 'Formulation save failed');
+        return;
       }
+      if (!data?.ok) {
+        toast.error('Formulation save failed');
+        return;
+      }
+
+      toast.success(
+        data.intensive_ledger
+          ? 'Formulation saved (stock & expense ledgered)'
+          : 'Formulation saved!'
+      );
+      onDone();
+    } finally {
+      setSaving(false);
     }
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId, batch_id: batch.id, event_type: 'feed_formulation',
-      description: `Created custom ${approach} formulation — ${totalKg}kg for ${batch.name}`,
-    });
-
-    toast.success('Formulation saved!');
-    setSaving(false);
-    onDone();
   };
 
   if (dbLoading) return <div className="space-y-4"><BatchContextCard batch={batch} phase={phase} week={week} /><Skeleton className="h-64 rounded-xl" /></div>;

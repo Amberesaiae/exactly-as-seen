@@ -1,5 +1,5 @@
 import createHighs from 'highs';
-import { SelectedIngredient, Ingredient } from './feed-safety';
+import type { SelectedIngredient, Ingredient } from './feed-safety';
 
 let highsInstance: any = null;
 let highsPromise: Promise<any> | null = null;

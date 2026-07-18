@@ -10,6 +10,9 @@ export interface Medication {
   contains_calcium: boolean;
   is_tetracycline: boolean;
   is_activated_charcoal: boolean;
+  withdrawal_meat_days?: number;
+  withdrawal_egg_days?: number;
+  duration_days?: number;
 }
 
 export interface HealthTask {

@@ -21,8 +21,8 @@ export function BatchAnalysisTab({
   const mask = (val: string | number) => costPrivacyEnabled ? '****' : val;
 
   const analysis = batches.map(b => {
-    const bExp = expenses.filter(e => e.batch_id === b.id).reduce((s, e) => s + Number(e.amount), 0);
-    const bRev = revenue.filter(r => r.batch_id === b.id).reduce((s, r) => s + Number(r.amount), 0);
+    const bExp = expenses.filter(e => e.batch_id === b.id).reduce((s, e) => s + Number(e.amount_pesewas ?? 0) / 100, 0);
+    const bRev = revenue.filter(r => r.batch_id === b.id).reduce((s, r) => s + Number(r.amount_pesewas ?? 0) / 100, 0);
     const profit = bRev - bExp;
     return { ...b, expenses: bExp, revenue: bRev, profit };
   });

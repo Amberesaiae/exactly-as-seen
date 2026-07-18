@@ -1,0 +1,110 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "BATCHES",
+      "pass": true,
+      "detail": "int=11e81f75 flex=c29d5cf1"
+    },
+    {
+      "id": "C-W-U01",
+      "pass": true,
+      "detail": "wr=1 exp=189 expect=189"
+    },
+    {
+      "id": "C-W-U02",
+      "pass": true,
+      "detail": "wr=1 exp=0"
+    },
+    {
+      "id": "C-W-U03",
+      "pass": true,
+      "detail": "autoExp=0 book=1"
+    },
+    {
+      "id": "C-W-U09",
+      "pass": true,
+      "detail": "Access denied for farm 00000000-0000-0000-0000-000000000001"
+    },
+    {
+      "id": "C-W-U07",
+      "pass": true,
+      "detail": "queueRpc+rpc"
+    },
+    {
+      "id": "C-W-sole",
+      "pass": true,
+      "detail": "no client water insert"
+    },
+    {
+      "id": "H-U01",
+      "pass": false,
+      "detail": "pop 100→97 mr=undefined"
+    },
+    {
+      "id": "H-U02",
+      "pass": true,
+      "detail": "mortality count 102 exceeds population 97"
+    },
+    {
+      "id": "H-U03",
+      "pass": {
+        "amount_pesewas": 25000,
+        "source": "bird_sale",
+        "category": "bird_sales"
+      },
+      "detail": "pop 97→92 rev=25000 src=bird_sale"
+    },
+    {
+      "id": "H-U04",
+      "pass": true,
+      "detail": "rpcWd=false feGate=true rpcErr=sold ok=true residual=RPC lacks meat withdrawal gate"
+    },
+    {
+      "id": "H-U06",
+      "pass": true,
+      "detail": "mortality sole RPC"
+    },
+    {
+      "id": "H-sole",
+      "pass": true,
+      "detail": "no client mortality insert"
+    },
+    {
+      "id": "I-U01/02",
+      "pass": true,
+      "detail": "status=completed houseFree=true rev=50000"
+    },
+    {
+      "id": "I-U03",
+      "pass": true,
+      "detail": "cannot terminate normally during active withdrawal; use emergency"
+    },
+    {
+      "id": "I-U04",
+      "pass": true,
+      "detail": "status=completed reason=emergency"
+    },
+    {
+      "id": "I-U05",
+      "pass": true,
+      "detail": "houseFree=true"
+    },
+    {
+      "id": "I-U06",
+      "pass": true,
+      "detail": "terminate sole RPC"
+    },
+    {
+      "id": "I-sole",
+      "pass": true,
+      "detail": "no dual post-effects"
+    }
+  ],
+  "passed": 19,
+  "failed": 1
+}

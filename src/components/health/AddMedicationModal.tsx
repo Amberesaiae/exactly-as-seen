@@ -62,7 +62,7 @@ export function AddMedicationModal({
   const conflicts = selectedMed ? detectConflicts({
     newMed: selectedMed,
     newDate: scheduledDate || format(new Date(), 'yyyy-MM-dd'),
-    newDuration: selectedMed.duration_days || 5,
+    newDuration: (selectedMed as { duration_days?: number }).duration_days || 5,
     neighborhood: healthTasks.map(t => ({ task: t, med: medications.find(m => m.id === t.medication_id) })).filter(i => i.med),
     waterSourceChlorinated,
   }) : [];

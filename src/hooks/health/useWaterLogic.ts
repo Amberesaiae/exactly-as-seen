@@ -71,7 +71,17 @@ export function useWaterLogic(farmId: string | null, selectedBatch: string, wate
       p_rate_per_liter_pesewas: hasRate ? waterRatePesewas : 0,
     });
 
-    if (rpcError) throw rpcError;
+    // Fail closed — no client multi-write rescue after RPC fail
+    if (rpcError) {
+      toast.error(rpcError.message || 'Failed to log water');
+      setWaterSaving(false);
+      return;
+    }
+    if (rpcData && (rpcData as { ok?: boolean; already_logged?: boolean }).already_logged) {
+      toast.error('Water already logged for today');
+      setWaterSaving(false);
+      return;
+    }
 
     // Must include date — WaterTab + daily tasks gate on w.date === today
     const data: WaterRecord = {

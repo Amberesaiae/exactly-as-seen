@@ -5,9 +5,6 @@
 import { addDays, format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
-import { shouldAutoLedger } from '@/lib/production-system';
-import { LEDGER_SOURCES } from '@/lib/canonical';
 import { isOffline, queueWrite } from '@/lib/sync';
 
 /** True when a health task is a vaccination protocol row. */
@@ -114,43 +111,21 @@ export async function syncScheduleForCompletedVaccinationTasks(batchId: string):
 /**
  * Post-RPC side-effects for a single completed health task.
  * Shared by single complete and bulk complete paths.
- * Handles: seed supplements for vaccinations, auto-deduct stock + create expense for intensive.
- * Does NOT handle the interactive "Book now" flow (single-path only, via shouldOfferBookNow).
+ *
+ * K6: intensive stock/expense are owned by `complete_health_task` / bulk RPC only.
+ * This helper must NOT re-ledger (double-expense risk). Keep non-money side-effects only.
+ * Book now remains interactive on flexible systems (useMedicationLogic toast).
  */
 export async function runPostCompletionSideEffects(params: {
   farmId: string;
   task: { id: string; batch_id: string; task_type?: string | null; product_name?: string | null; duration_days?: number | null; computed_dose_amount?: string | number | null; computed_dose_unit?: string | null; container_count?: number | null; cost_pesewas?: number | null };
   costPesewas?: number;
 }): Promise<void> {
-  const { farmId, task, costPesewas = task.cost_pesewas ?? 0 } = params;
+  const { farmId, task } = params;
+  void params.costPesewas; // cost is ledgered only inside complete_health_task when intensive
 
   if (isVaccinationHealthTask(task)) {
     await seedPostVaccinationSupplements(farmId, task.batch_id);
-  }
-
-  const { data: activeBatch } = await supabase.from('batches').select('production_system').eq('id', task.batch_id).maybeSingle();
-  const system = activeBatch?.production_system as string | null;
-  const autoLedger = shouldAutoLedger(system);
-  const amountMajor = (costPesewas || 0) / 100;
-  const qty = task.computed_dose_amount ? Number(task.computed_dose_amount) : (task.container_count ?? 1);
-  const source = isVaccinationHealthTask(task) ? LEDGER_SOURCES.vaccination : LEDGER_SOURCES.health;
-  const description = `${task.product_name} — ${task.duration_days ?? 0}d course`;
-
-  if (autoLedger && task.product_name) {
-    await autoDeductStock({
-      farmId, itemName: task.product_name,
-      quantity: qty,
-      batchId: task.batch_id,
-      reason: `Auto-deduction for health task: ${task.product_name}`,
-      sourceRef: task.id,
-      doseUnit: task.computed_dose_unit,
-    });
-    if (amountMajor > 0) {
-      await autoCreateExpense({
-        farmId, batchId: task.batch_id, category: 'health_and_medicine',
-        description, amount: amountMajor, source, sourceRef: task.id,
-      });
-    }
   }
 }
 

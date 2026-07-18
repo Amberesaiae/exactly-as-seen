@@ -1,0 +1,52 @@
+{
+  "results": [
+    {
+      "id": "UI-AUTH",
+      "pass": true,
+      "detail": "url=http://127.0.0.1:5173/feed"
+    },
+    {
+      "id": "UI-C1 CTA",
+      "pass": true,
+      "detail": "Confirm visible"
+    },
+    {
+      "id": "UI-C2 toast",
+      "pass": true,
+      "detail": "Today's feeding confirmed: 5.0kg (stock out; expense skipped — purchased today)"
+    },
+    {
+      "id": "UI-C2b network RPC",
+      "pass": true,
+      "detail": "confirm_day_feed"
+    },
+    {
+      "id": "UI-C2c no feed_logs POST",
+      "pass": true,
+      "detail": "clean"
+    },
+    {
+      "id": "UI-C2d no expenses POST",
+      "pass": true,
+      "detail": "clean"
+    },
+    {
+      "id": "UI-DB feed_logs",
+      "pass": true,
+      "detail": "rows=1 qty=5"
+    },
+    {
+      "id": "UI-DB expense+stock",
+      "pass": true,
+      "detail": "exp=0 stock 400→400"
+    },
+    {
+      "id": "UI-DB intensive stock-out",
+      "pass": true,
+      "detail": "stockMoved=false exp=0"
+    }
+  ],
+  "passed": 9,
+  "failed": 0,
+  "batchId": "0ce8d74a-7771-448c-acd5-b5b913aef6f5"
+}

@@ -1,11 +1,8 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { isOffline, queueWrite } from '@/lib/sync';
-import {
-  seedPostVaccinationSupplements,
-  syncHealthTaskFromSchedule,
-} from '@/lib/care-completion';
+import { isOffline, queueWrite, queueRpc } from '@/lib/sync';
+import { seedPostVaccinationSupplements } from '@/lib/care-completion';
 import { buildVaccinationSeedRows } from '@/lib/vaccination-seed';
 
 export function useVaccinationLogic(farmId: string | null, batch: any) {
@@ -73,74 +70,102 @@ export function useVaccinationLogic(farmId: string | null, batch: any) {
     setGeneratingVaccines(false);
   };
 
-  const markVaccineAdministered = async (vId: string, currentVaccinations: any[], costPesewas: number = 0, notes?: string) => {
+  /**
+   * K5: sole spine is complete_health_task (same as This Week care).
+   * Never primary-update vaccination_schedule + dual-sync health_tasks from FE.
+   */
+  const markVaccineAdministered = async (
+    vId: string,
+    currentVaccinations: any[],
+    costPesewas: number = 0,
+    notes?: string
+  ) => {
+    if (!farmId || !batch?.id) {
+      toast.error('Farm or batch not ready');
+      return false;
+    }
+
+    const vaccine = currentVaccinations.find((v) => v.id === vId);
+    if (!vaccine?.vaccine_name) {
+      toast.error('Vaccine not found');
+      return false;
+    }
+
+    // Prefer matching incomplete protocol task (create_batch / This Week seed)
+    const { data: task, error: taskErr } = await supabase
+      .from('health_tasks')
+      .select('id, product_name, task_type, completed')
+      .eq('batch_id', batch.id)
+      .eq('farm_id', farmId)
+      .eq('task_type', 'vaccination')
+      .eq('product_name', vaccine.vaccine_name)
+      .eq('completed', false)
+      .order('scheduled_date', { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    if (taskErr) {
+      toast.error(taskErr.message);
+      return false;
+    }
+    if (!task?.id) {
+      toast.error(
+        `No open care task for ${vaccine.vaccine_name}. Complete from This Week, or re-seed protocol.`
+      );
+      return false;
+    }
+
     const completedAt = new Date().toISOString();
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_task_id: task.id,
+      p_cost_pesewas: costPesewas || 0,
+      p_completed_at: completedAt,
+    };
 
     if (isOffline()) {
-      await queueWrite('vaccination_schedule', 'update', vId, {
-        administered: true,
-        administered_at: completedAt,
-      });
-      const vaccine = currentVaccinations.find(v => v.id === vId);
-      const updated = currentVaccinations.map(v => v.id === vId ? { ...v, administered: true, administered_at: completedAt } : v);
+      await queueRpc('complete_health_task', rpcArgs, task.id);
+      const updated = currentVaccinations.map((v) =>
+        v.id === vId ? { ...v, administered: true, administered_at: completedAt } : v
+      );
       setVaccinations(updated);
-      toast.success(`Administered ${vaccine?.vaccine_name ?? 'vaccine'} (offline — will sync)`);
+      toast.warning('Offline — vaccine complete queued; will sync when online');
       return true;
     }
 
-    const { error } = await supabase.from('vaccination_schedule')
-      .update({ 
-        administered: true, 
-        administered_at: completedAt 
-      })
-      .eq('id', vId);
-    
-    if (error) { toast.error(error.message); return; }
-    
-    const vaccine = currentVaccinations.find(v => v.id === vId);
-    
-    // Dual writer: vaccination_schedule → health_tasks
-    if (batch?.id && vaccine?.vaccine_name) {
-      await syncHealthTaskFromSchedule({
-        batchId: batch.id,
-        vaccineName: vaccine.vaccine_name,
-        completedAt,
-      });
+    const { data: rpcResult, error: rpcError } = await supabase.rpc('complete_health_task', rpcArgs);
+    if (rpcError) {
+      toast.error(rpcError.message || 'Failed to complete vaccination');
+      return false;
+    }
+    if (rpcResult?.already_completed) {
+      toast.error('This care task was already completed');
+      // still refresh local schedule UI if RPC synced
     }
 
-    // Dual pattern: intensive auto-expense only (research VACCINATION_COMPLETED)
-    if (costPesewas > 0 && farmId && batch) {
-      const { isIntensiveSystem } = await import('@/lib/production-system');
-      if (isIntensiveSystem(batch.production_system)) {
-        const { autoCreateExpense } = await import('@/lib/synergy');
-        const { LEDGER_SOURCES } = await import('@/lib/canonical');
-        await autoCreateExpense({
-          farmId,
-          batchId: batch.id,
-          category: 'health_and_medicine',
-          description: `Vaccination: ${vaccine?.vaccine_name ?? 'Vaccine'}`,
-          amount: costPesewas / 100,
-          source: LEDGER_SOURCES.vaccination,
-          sourceRef: vId,
-        });
-      }
+    // Non-money side-effect only (supplements). Ledger is inside RPC when intensive.
+    try {
+      await seedPostVaccinationSupplements(farmId, batch.id);
+    } catch (e) {
+      console.error('Post-vax supplement seed failed:', e);
+      toast.warning('Vaccine completed, but supplement seed failed');
     }
 
-    const updated = currentVaccinations.map(v => v.id === vId ? { ...v, administered: true, administered_at: completedAt } : v);
-    setVaccinations(updated);
-
-    if (farmId && batch) {
+    if (notes && farmId) {
       const { error: actErr } = await supabase.from('activity_log').insert({
         farm_id: farmId,
         batch_id: batch.id,
         event_type: 'vaccination',
-        description: `Administered ${vaccine?.vaccine_name ?? 'vaccine'}${notes ? `: ${notes}` : ''}`,
+        description: `Administered ${vaccine.vaccine_name}: ${notes}`,
       });
       if (actErr) console.debug('Activity log failed:', actErr);
-
-      await seedPostVaccinationSupplements(farmId, batch.id);
     }
-    
+
+    const updated = currentVaccinations.map((v) =>
+      v.id === vId ? { ...v, administered: true, administered_at: completedAt } : v
+    );
+    setVaccinations(updated);
+    toast.success(`Administered ${vaccine.vaccine_name}`);
     return true;
   };
 

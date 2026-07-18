@@ -1,0 +1,77 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a"
+    },
+    {
+      "id": "BATCH",
+      "pass": true,
+      "detail": "1ce4bae4 week=20"
+    },
+    {
+      "id": "G-U01",
+      "pass": true,
+      "detail": "FE week gate for early layer collect"
+    },
+    {
+      "id": "G-U02",
+      "pass": true,
+      "detail": "rows=1 good=85 id=96111182"
+    },
+    {
+      "id": "G-U02-dup",
+      "pass": true,
+      "detail": "rpc={\"ok\":false,\"reason\":\"duplicate\"}"
+    },
+    {
+      "id": "G-U09",
+      "pass": true,
+      "detail": "onHand=85 err=undefined"
+    },
+    {
+      "id": "G-U05",
+      "pass": true,
+      "detail": "sale=0e312552 rev=4500 src=auto:eggs"
+    },
+    {
+      "id": "G-U06",
+      "pass": true,
+      "detail": "insufficient eggs: on hand 55, requested 555"
+    },
+    {
+      "id": "G-U07",
+      "pass": true,
+      "detail": "cannot record egg sale during active medication withdrawal"
+    },
+    {
+      "id": "G-U08",
+      "pass": true,
+      "detail": "no fallthrough insert/revenue"
+    },
+    {
+      "id": "G-U10",
+      "pass": true,
+      "detail": "offline queueRpc both"
+    },
+    {
+      "id": "G-U11",
+      "pass": true,
+      "detail": "payment normalize present"
+    },
+    {
+      "id": "G-U12-auth",
+      "pass": true,
+      "detail": "Access denied for farm 00000000-0000-0000-0000-000000000001"
+    }
+  ],
+  "passed": 14,
+  "failed": 0,
+  "batchId": "1ce4bae4-59ec-4b0d-9a30-70d708b71e81"
+}

@@ -162,6 +162,23 @@ export default function FarmTab({
     if (!farm) return;
     const house = houses.find(h => h.id === houseId);
 
+    // Fail closed: never delete a house with an active flock (trigger also enforces)
+    if (house?.occupied_by_batch_id) {
+      toast.error('Cannot delete house while a flock occupies it');
+      setDeleteHouseId(null);
+      return;
+    }
+    const { count: activeOnHouse } = await supabase
+      .from('batches')
+      .select('id', { count: 'exact', head: true })
+      .eq('house_id', houseId)
+      .eq('status', 'active');
+    if ((activeOnHouse || 0) > 0) {
+      toast.error('Cannot delete house with an active flock');
+      setDeleteHouseId(null);
+      return;
+    }
+
     if (isOffline()) {
       await queueWrite('houses', 'delete', houseId, {} as Record<string, unknown>);
       setHouses(prev => prev.filter(h => h.id !== houseId));

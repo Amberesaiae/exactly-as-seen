@@ -1,0 +1,127 @@
+{
+  "email": "live.fix.1783906173@example.com",
+  "farmId": "a215f55a-b7bb-4c82-8aeb-dc63b9429cdf",
+  "today": "2026-07-17",
+  "stockId": "2e5aae3a-d481-4d0d-b6d9-09980639ac8f",
+  "batches": {
+    "intensive": "0ce8d74a-7771-448c-acd5-b5b913aef6f5",
+    "flexible": "fbc74b53-0bf8-4707-8d1b-50d5f73f8aa7",
+    "deepLitter": "1c6cd377-fcd0-4678-acd4-d384719c7865",
+    "freeRange": "71b2898f-dc4b-4a1f-8084-e349eff6a8ac",
+    "cage": "f53a815f-7795-4e78-98da-24986f626a34"
+  },
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a Live Audit Farm 1783906174990"
+    },
+    {
+      "id": "STOCK",
+      "pass": true,
+      "detail": "2e5aae3a qty=400 price=500"
+    },
+    {
+      "id": "BATCHES",
+      "pass": true,
+      "detail": "intensive:0ce8d74a semi_intensive:fbc74b53 deep_litter:1c6cd377 free_range:71b2898f cage:f53a815f"
+    },
+    {
+      "id": "C-F-U01",
+      "pass": true,
+      "detail": "logs=1 exp=1 stock 400→390 pesewas=5000"
+    },
+    {
+      "id": "C-F-U06",
+      "pass": true,
+      "detail": "already_logged=true logs=1 exp=1 stockStable=true"
+    },
+    {
+      "id": "C-F-U02",
+      "pass": true,
+      "detail": "logs=1 exp=0 stockStable=true"
+    },
+    {
+      "id": "C-F-U03",
+      "pass": true,
+      "detail": "logs=1 exp=0 stock 390→383"
+    },
+    {
+      "id": "C-F-U04",
+      "pass": true,
+      "detail": "logs=1 exp=0 stockStable=true"
+    },
+    {
+      "id": "C-F-U05",
+      "pass": true,
+      "detail": "book rows=1 pesewas=4000"
+    },
+    {
+      "id": "C-F-U15",
+      "pass": true,
+      "detail": "logs=1 exp=0 stock 383→380"
+    },
+    {
+      "id": "C-F-U21",
+      "pass": true,
+      "detail": "logs=1 exp=1 stockΔ=-4"
+    },
+    {
+      "id": "C-F-U22",
+      "pass": true,
+      "detail": "logs=1 exp=0 stockStable=true"
+    },
+    {
+      "id": "C-F-U18",
+      "pass": true,
+      "detail": "active batch not found"
+    },
+    {
+      "id": "C-F-U23",
+      "pass": true,
+      "detail": "quantity_kg must be positive"
+    },
+    {
+      "id": "C-F-U07",
+      "pass": true,
+      "detail": "rpcErr=Access denied for farm 00000000-0000-0000-0000-000000000001; logs 10→10; feClean=true"
+    },
+    {
+      "id": "C-F-U25",
+      "pass": true,
+      "detail": "book rows=1"
+    },
+    {
+      "id": "C-F-U08",
+      "pass": true,
+      "detail": "int=0ce8d74a@7 flex=fbc74b53@8"
+    },
+    {
+      "id": "C-F-U10",
+      "pass": true,
+      "detail": "queueRpc both paths; flush not live-exercised"
+    },
+    {
+      "id": "C-F-SIDE-activity",
+      "pass": true,
+      "detail": "activity_log feed_log rows=2"
+    },
+    {
+      "id": "C-F-U14",
+      "pass": true,
+      "detail": "Book now expense-only: true"
+    },
+    {
+      "id": "C-F-U11",
+      "pass": true,
+      "detail": "broiler w1 kg/bird=0.05 forageMod=0"
+    }
+  ],
+  "passed": 22,
+  "failed": 0
+}

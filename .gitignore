@@ -29,3 +29,7 @@ supabase/.branches/
 *.njsproj
 *.sln
 *.sw?
+
+# Hosted setup secrets
+.supabase-db-password
+.env.local

@@ -1,0 +1,56 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "BATCH",
+      "pass": true,
+      "detail": "0ce8d74a intensive"
+    },
+    {
+      "id": "E-U01",
+      "pass": true,
+      "detail": "ff=ready_made exp=37000"
+    },
+    {
+      "id": "E-U01-flex",
+      "pass": true,
+      "detail": "exp=1"
+    },
+    {
+      "id": "E-U04",
+      "pass": true,
+      "detail": "ings=2 exp=20000 stock 200→160 ledger=true"
+    },
+    {
+      "id": "E-U05",
+      "pass": true,
+      "detail": "ledger=false exp=0"
+    },
+    {
+      "id": "E-U09",
+      "pass": true,
+      "detail": "active batch not found"
+    },
+    {
+      "id": "E-S1-FE",
+      "pass": true,
+      "detail": "ready-made RPC only"
+    },
+    {
+      "id": "E-S2-FE",
+      "pass": true,
+      "detail": "custom RPC only"
+    },
+    {
+      "id": "E-K8-FE",
+      "pass": true,
+      "detail": "concentrate RPC only"
+    }
+  ],
+  "passed": 10,
+  "failed": 0
+}

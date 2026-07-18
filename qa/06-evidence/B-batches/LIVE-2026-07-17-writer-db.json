@@ -1,0 +1,76 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a"
+    },
+    {
+      "id": "CLEAN",
+      "pass": true,
+      "detail": "houses freed"
+    },
+    {
+      "id": "B-U01",
+      "pass": true,
+      "detail": "houseOcc health=20 vax=5 rpcSeed=20/5"
+    },
+    {
+      "id": "B-U09",
+      "pass": true,
+      "detail": "meds=anti_stress,anti_stress_glucose,coccidiostat_prevention,coccidiostat_prevention"
+    },
+    {
+      "id": "B-U02",
+      "pass": true,
+      "detail": "cycle=72 health=56"
+    },
+    {
+      "id": "B-U03",
+      "pass": true,
+      "detail": "duck_type=meat vax=6"
+    },
+    {
+      "id": "B-U04",
+      "pass": true,
+      "detail": "h=17 v=6"
+    },
+    {
+      "id": "B-U05",
+      "pass": true,
+      "detail": "health=41 vax=12 blackhead=true"
+    },
+    {
+      "id": "B-U06",
+      "pass": true,
+      "detail": "house not available"
+    },
+    {
+      "id": "B-U07",
+      "pass": true,
+      "detail": "name=name is required; qty=initial_quantity must be positive; duck=duck_type required for duck batches"
+    },
+    {
+      "id": "B-U10",
+      "pass": true,
+      "detail": "preferred batch"
+    },
+    {
+      "id": "B-U11",
+      "pass": true,
+      "detail": "sole RPC"
+    },
+    {
+      "id": "B-U12",
+      "pass": true,
+      "detail": "fail-closed no client insert"
+    }
+  ],
+  "passed": 14,
+  "failed": 0
+}

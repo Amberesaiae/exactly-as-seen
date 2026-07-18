@@ -309,7 +309,7 @@ export function useHealthData() {
         shouldOfferBookNow,
         shouldSkipDayFeedExpense,
       } = await import('@/lib/ledger-policy');
-      const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
+      const { autoCreateExpense } = await import('@/lib/synergy');
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
       const { queueRpc } = await import('@/lib/sync');
       const active = batches.find(b => b.id === selectedBatch);
@@ -341,40 +341,35 @@ export function useHealthData() {
       }
       const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
 
-      const ledger = deductStock && !!feedStock;
-
-      // Offline: queue payload for later flush
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await queueRpc('confirm_day_feed', {
-          p_farm_id: farmId,
-          p_batch_id: selectedBatch,
-          p_quantity_kg: task.amount,
-          p_feed_type: feedName,
-          p_date: todayStr,
-          p_ledger: ledger && expenseConsumption,
-          p_stock_item_id: feedStock?.id ?? null,
-          p_unit_price_pesewas: unitPricePesewas,
-          p_skip_expense: skipExpense || !expenseConsumption,
-        });
-        toast.warning('Offline — feed queued; will sync when online');
-        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as unknown as FeedLog, ...prev]);
-        return;
-      }
-
-      // Atomic RPC preferred
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
+      // p_ledger drives stock-out (same as Feed Lab); expense gated by p_skip_expense
+      const doLedger = deductStock && !!feedStock;
+      const rpcArgs = {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
         p_quantity_kg: task.amount,
         p_feed_type: feedName,
         p_date: todayStr,
-        p_ledger: ledger && expenseConsumption,
+        p_ledger: doLedger,
         p_stock_item_id: feedStock?.id ?? null,
         p_unit_price_pesewas: unitPricePesewas,
         p_skip_expense: skipExpense || !expenseConsumption,
-      });
+      };
 
-      if (rpcErr) throw rpcErr;
+      // Offline: queue full intent (OFFLINE-OK) — never raw feed_logs
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
+        toast.warning('Offline — feed queued; will sync when online');
+        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as unknown as FeedLog, ...prev]);
+        return;
+      }
+
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
+
+      // Fail closed — no client multi-write rescue
+      if (rpcErr) {
+        toast.error(rpcErr.message || 'Failed to confirm feeding');
+        return;
+      }
 
       if (rpcData?.already_logged) {
         toast.error('Feed already logged for today');
@@ -396,35 +391,16 @@ export function useHealthData() {
             ? {
                 label: 'Book now',
                 onClick: async () => {
-                  let rpcOk = false;
-                  let expenseOk = false;
+                  // KEEP: manual book expense only — re-RPC would hit already_logged without expense
                   try {
-                    const { error: bookErr } = await supabase.rpc('confirm_day_feed', {
-                      p_farm_id: farmId,
-                      p_batch_id: selectedBatch,
-                      p_quantity_kg: task.amount,
-                      p_feed_type: feedName,
-                      p_date: todayStr,
-                      p_ledger: true,
-                      p_stock_item_id: feedStock?.id ?? null,
-                      p_unit_price_pesewas: unitPricePesewas,
-                      p_skip_expense: false,
+                    await autoCreateExpense({
+                      farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
+                      description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
+                      amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
                     });
-                    rpcOk = !bookErr;
-                    if (!rpcOk) {
-                      const res = await autoCreateExpense({
-                        farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-                        description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
-                        amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
-                      });
-                      expenseOk = true;
-                    }
+                    toast.success('Feed expense booked');
                   } catch (e) {
                     console.error('Book now feed error:', e);
-                  }
-                  if (rpcOk || expenseOk) {
-                    toast.success('Feed expense booked');
-                  } else {
                     toast.error('Failed to book feed expense');
                   }
                 },

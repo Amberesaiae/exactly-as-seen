@@ -6,14 +6,12 @@ import { toast } from 'sonner';
 import { format, subDays } from 'date-fns';
 import { getExpectedRate } from '@/lib/health-data';
 import { getBatchAge } from '@/lib/batch-utils';
-import { isOffline, queueWrite } from '@/lib/sync';
+import { isOffline } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
-import { autoCreateRevenue } from '@/lib/synergy';
 import {
   selectPrimaryFarm,
   normalizePaymentMethod,
   toPesewas,
-  LEDGER_SOURCES,
   LAYER_EGG_START_WEEK,
   DUCK_EGG_START_WEEK,
 } from '@/lib/canonical';
@@ -368,10 +366,25 @@ export function useEggData() {
       return;
     }
 
-    // W5: atomic sale + revenue (withdrawal + inventory checked server-side)
-    const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale', eggSaleArgs);
+    // W5 / K4: atomic sale + revenue only — never client multi-write fallthrough
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('record_egg_sale', eggSaleArgs);
 
-    if (!rpcError && rpcData && rpcData.ok) {
+      if (rpcError) {
+        toast.error(rpcError.message || 'Egg sale failed');
+        return;
+      }
+      if (!rpcData?.ok) {
+        const reason = (rpcData as { reason?: string; error?: string } | null)?.reason
+          || (rpcData as { error?: string } | null)?.error;
+        toast.error(
+          reason === 'withdrawal' ? 'Cannot sell eggs during withdrawal period'
+            : reason === 'insufficient_inventory' ? 'Insufficient egg inventory'
+            : reason || 'Egg sale failed'
+        );
+        return;
+      }
+
       const sale = {
         id: rpcData.sale_id,
         farm_id: farmId,
@@ -384,54 +397,10 @@ export function useEggData() {
         buyer: buyer || null,
       };
       setSales(prev => [sale as unknown as EggSale, ...prev.slice(0, 29)]);
-      setSaleSubmitting(false);
       toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
-      return;
+    } finally {
+      setSaleSubmitting(false);
     }
-
-    if (rpcError) throw rpcError;
-
-    const { data: sale, error } = await supabase.from('egg_sales').insert({
-      farm_id: farmId,
-      batch_id: selectedBatch,
-      quantity: totalEggs,
-      crates_sold: crates,
-      looses_sold: looses,
-      size_category: sizeCategory,
-      price_per_crate_pesewas: toPesewas(pricePerCrate),
-      price_per_loose_pesewas: toPesewas(pricePerLoose),
-      total_revenue_pesewas: totalPesewas,
-      buyer: buyer || null,
-      payment_method: normalizedPayment,
-      notes: notes || null,
-    }).select().single();
-
-    if (error) { toast.error(error.message); setSaleSubmitting(false); return; }
-
-    await autoCreateRevenue({
-      farmId,
-      batchId: selectedBatch,
-      category: 'egg_sales',
-      description: `Egg sale: ${crates} crates & ${looses} looses (${sizeCategory})`,
-      amount: totalAmount,
-      buyer: buyer || undefined,
-      paymentMethod: normalizedPayment,
-      paymentStatus: (paymentStatus as 'paid' | 'pending' | 'partial') || 'paid',
-      source: LEDGER_SOURCES.eggs,
-      sourceRef: sale.id,
-    });
-
-    const { error: actErr } = await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: selectedBatch,
-      event_type: 'egg_collection',
-      description: `Collected ${total} eggs (${good} good, ${broken} broken, ${dirty} dirty) — ${SIZE_LABELS[sizeCategory] || sizeCategory}`,
-    });
-    if (actErr) console.debug('Activity log failed:', actErr);
-
-    setSales(prev => [sale!, ...prev.slice(0, 29)]);
-    setSaleSubmitting(false);
-    toast.success(`Sale recorded: GHS ${totalAmount.toFixed(2)}`);
   };
 
   return {

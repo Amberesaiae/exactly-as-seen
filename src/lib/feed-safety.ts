@@ -1,4 +1,11 @@
-import { Ingredient } from './feed-data';
+import type { Ingredient as FeedIngredient } from './feed-data';
+
+/** Re-export so feed-lp / tests can import Ingredient from feed-safety. */
+export type Ingredient = FeedIngredient & {
+  containsGossypol?: boolean;
+  containsAflatoxinRisk?: boolean;
+  maxSharePct?: number;
+};
 
 export interface SelectedIngredient {
   ingredient: Ingredient;

@@ -1,19 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { preprocessFormulation, Ingredient, SelectedIngredient } from '../lib/feed-safety';
+import { preprocessFormulation } from '../lib/feed-safety';
+import { normalizeIngredient, type Ingredient } from '../lib/feed-data';
 
 const availableIngredients: Ingredient[] = [
-  { id: 'maize', name: 'Maize', category: 'energy', protein_pct: 9, energy_kcal_per_kg: 3350, calcium_pct: 0.02, phosphorus_pct: 0.3, lysine_pct: 0.24, methionine_pct: 0.18, contains_gossypol: false, contains_aflatoxin_risk: true, max_share_pct: 100 },
-  { id: 'soybean_meal', name: 'Soybean Meal', category: 'protein', protein_pct: 44, energy_kcal_per_kg: 2230, calcium_pct: 0.3, phosphorus_pct: 0.65, lysine_pct: 2.7, methionine_pct: 0.65, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'cotton_seed_meal', name: 'Cotton Seed Meal', category: 'protein', protein_pct: 41, energy_kcal_per_kg: 2100, calcium_pct: 0.2, phosphorus_pct: 0.6, lysine_pct: 1.7, methionine_pct: 0.55, contains_gossypol: true, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'fish_meal', name: 'Fish Meal', category: 'protein', protein_pct: 60, energy_kcal_per_kg: 2800, calcium_pct: 5.0, phosphorus_pct: 3.0, lysine_pct: 4.5, methionine_pct: 1.8, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'oyster_shell', name: 'Oyster Shell', category: 'calcium', protein_pct: 0, energy_kcal_per_kg: 0, calcium_pct: 38, phosphorus_pct: 0, lysine_pct: 0, methionine_pct: 0, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'limestone', name: 'Limestone', category: 'calcium', protein_pct: 0, energy_kcal_per_kg: 0, calcium_pct: 36, phosphorus_pct: 0, lysine_pct: 0, methionine_pct: 0, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'toxin_binder', name: 'Toxin Binder', category: 'supplement', protein_pct: 0, energy_kcal_per_kg: 0, calcium_pct: 0, phosphorus_pct: 0, lysine_pct: 0, methionine_pct: 0, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
-  { id: 'niacin', name: 'Niacin', category: 'supplement', protein_pct: 0, energy_kcal_per_kg: 0, calcium_pct: 0, phosphorus_pct: 0, lysine_pct: 0, methionine_pct: 0, contains_gossypol: false, contains_aflatoxin_risk: false, max_share_pct: 100 },
+  normalizeIngredient({ id: 'maize', name: 'Maize', category: 'energy', proteinPct: 9, energyKcal: 3350, calciumPct: 0.02, phosphorusPct: 0.3, lysinePct: 0.24, methioninePct: 0.18, fiberPct: 2, niacinMgKg: 20, usageLimits: { min: 0, max: 70 }, defaultPricePerKg: 3.5, containsAflatoxinRisk: true }),
+  normalizeIngredient({ id: 'soybean_meal', name: 'Soybean Meal', category: 'protein', proteinPct: 44, energyKcal: 2230, calciumPct: 0.3, phosphorusPct: 0.65, lysinePct: 2.7, methioninePct: 0.65, fiberPct: 6, niacinMgKg: 0, usageLimits: { min: 0, max: 30 }, defaultPricePerKg: 6 }),
+  normalizeIngredient({ id: 'cotton_seed_cake', name: 'Cotton Seed Meal', category: 'protein', proteinPct: 41, energyKcal: 2100, calciumPct: 0.2, phosphorusPct: 0.6, lysinePct: 1.7, methioninePct: 0.55, fiberPct: 12, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 4.5, containsGossypol: true }),
+  normalizeIngredient({ id: 'fish_meal_65', name: 'Fish Meal', category: 'protein', proteinPct: 60, energyKcal: 2800, calciumPct: 5, phosphorusPct: 3, lysinePct: 4.5, methioninePct: 1.8, fiberPct: 1, niacinMgKg: 0, usageLimits: { min: 0, max: 10 }, defaultPricePerKg: 8 }),
+  normalizeIngredient({ id: 'oyster_shell', name: 'Oyster Shell', category: 'calcium', proteinPct: 0, energyKcal: 0, calciumPct: 38, phosphorusPct: 0, lysinePct: 0, methioninePct: 0, fiberPct: 0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 1 }),
+  normalizeIngredient({ id: 'limestone', name: 'Limestone', category: 'calcium', proteinPct: 0, energyKcal: 0, calciumPct: 36, phosphorusPct: 0, lysinePct: 0, methioninePct: 0, fiberPct: 0, niacinMgKg: 0, usageLimits: { min: 0, max: 5 }, defaultPricePerKg: 0.8 }),
+  normalizeIngredient({ id: 'toxin_binder', name: 'Toxin Binder', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, phosphorusPct: 0, lysinePct: 0, methioninePct: 0, fiberPct: 0, niacinMgKg: 0, usageLimits: { min: 0.1, max: 0.3 }, defaultPricePerKg: 12 }),
+  normalizeIngredient({ id: 'niacin_pure', name: 'Niacin', category: 'supplement', proteinPct: 0, energyKcal: 0, calciumPct: 0, phosphorusPct: 0, lysinePct: 0, methioninePct: 0, fiberPct: 0, niacinMgKg: 0, usageLimits: { min: 0, max: 1 }, defaultPricePerKg: 20 }),
 ];
 
 describe('feed-safety', () => {
-  it('Rule R-FC-1: Compulsory toxin binder at exactly 0.5% should be auto-added', () => {
+  it('blocks high-risk maize/groundnut mix without toxin binder', () => {
     const res = preprocessFormulation({
       species: 'broiler',
       targetKg: 100,
@@ -24,71 +25,69 @@ describe('feed-safety', () => {
       availableIngredients,
     });
 
-    const tb = res.selected.find(s => s.ingredient.id === 'toxin_binder');
-    expect(tb).toBeDefined();
-    expect(tb?.quantityKg).toBe(0.5); // 0.5% of 100kg is 0.5kg
-    expect(tb?.autoAdded).toBe(true);
+    expect(res.blocked).toBe(true);
+    expect(res.blockedReason).toMatch(/Toxin Binder/i);
+    expect(res.suggestions.some((s) => s.id === 'toxin_binder')).toBe(true);
   });
 
-  it('Rule R-FC-2: Cotton seed meal with gossypol for Layer should BLOCK', () => {
+  it('blocks cotton seed for layers (gossypol / yolk discoloration)', () => {
     const res = preprocessFormulation({
       species: 'layer',
       targetKg: 100,
       selected: [
         { ingredient: availableIngredients[0], quantityKg: 50, unitPrice: 3.5 },
-        { ingredient: availableIngredients[2], quantityKg: 50, unitPrice: 4.5 }, // Cotton seed meal (contains_gossypol: true)
+        { ingredient: availableIngredients[2], quantityKg: 50, unitPrice: 4.5 },
       ],
       availableIngredients,
     });
 
     expect(res.blocked).toBe(true);
-    expect(res.blockedReason).toBe('LAYER_GOSSYPOL_BLOCKED');
+    expect(res.blockedReason).toMatch(/Cotton Seed|gossypol|yolk/i);
   });
 
-  it('Rule R-FC-3: Fish meal for Broiler should emit warnings', () => {
+  it('warns when layer fish meal exceeds 8%', () => {
     const res = preprocessFormulation({
-      species: 'broiler',
+      species: 'layer',
       targetKg: 100,
       selected: [
         { ingredient: availableIngredients[0], quantityKg: 60, unitPrice: 3.5 },
-        { ingredient: availableIngredients[3], quantityKg: 40, unitPrice: 8.0 }, // Fish Meal
+        { ingredient: availableIngredients[3], quantityKg: 40, unitPrice: 8.0 },
       ],
       availableIngredients,
     });
 
-    expect(res.warnings).toContain('BROILER_FISH_MEAL_CAPPED: Fish meal is capped at 10% of target formulation to prevent flavor taint.');
+    expect(res.warnings.some((w) => w.toLowerCase().includes('fish'))).toBe(true);
   });
 
-  it('Rule R-FC-4: Multiple calcium sources should keep only the last one and warn', () => {
+  it('warns on multiple calcium sources (guidance, does not strip)', () => {
     const res = preprocessFormulation({
       species: 'layer',
       targetKg: 100,
       selected: [
         { ingredient: availableIngredients[0], quantityKg: 50, unitPrice: 3.5 },
-        { ingredient: availableIngredients[4], quantityKg: 25, unitPrice: 2.0 }, // Oyster Shell (calcium)
-        { ingredient: availableIngredients[5], quantityKg: 25, unitPrice: 1.5 }, // Limestone (calcium)
+        { ingredient: availableIngredients[4], quantityKg: 25, unitPrice: 2.0 },
+        { ingredient: availableIngredients[5], quantityKg: 25, unitPrice: 1.5 },
       ],
       availableIngredients,
     });
 
-    const calciumItems = res.selected.filter(s => s.ingredient.category === 'calcium');
-    expect(calciumItems).toHaveLength(1);
-    expect(calciumItems[0].ingredient.id).toBe('limestone'); // keeps the last one
-    expect(res.warnings.some(w => w.includes('CALCIUM_SOURCE_REPLACED'))).toBe(true);
+    const calciumItems = res.selected.filter((s) => s.ingredient.category === 'calcium');
+    expect(calciumItems.length).toBeGreaterThanOrEqual(1);
+    expect(res.warnings.some((w) => w.toLowerCase().includes('calcium'))).toBe(true);
   });
 
-  it('Rule R-FC-5: Duck batch should explicitly filter out niacin supplement line', () => {
+  it('blocks ducks without niacin / waterfowl premix', () => {
     const res = preprocessFormulation({
       species: 'duck',
       targetKg: 100,
       selected: [
-        { ingredient: availableIngredients[0], quantityKg: 50, unitPrice: 3.5 },
-        { ingredient: availableIngredients[7], quantityKg: 50, unitPrice: 10.0 }, // Niacin (should be filtered out)
+        { ingredient: availableIngredients[0], quantityKg: 60, unitPrice: 3.5 },
+        { ingredient: availableIngredients[1], quantityKg: 40, unitPrice: 6.0 },
       ],
       availableIngredients,
     });
 
-    const hasNiacin = res.selected.some(s => s.ingredient.id === 'niacin');
-    expect(hasNiacin).toBe(false);
+    expect(res.blocked).toBe(true);
+    expect(res.blockedReason).toMatch(/Niacin|duck/i);
   });
 });

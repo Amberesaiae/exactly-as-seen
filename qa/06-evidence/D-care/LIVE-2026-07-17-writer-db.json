@@ -1,0 +1,78 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a"
+    },
+    {
+      "id": "BATCH",
+      "pass": true,
+      "detail": "0ce8d74a intensive"
+    },
+    {
+      "id": "FLEX",
+      "pass": true,
+      "detail": "fbc74b53"
+    },
+    {
+      "id": "D-U01",
+      "pass": true,
+      "detail": "completed=true exp=1 pesewas=1500 withdrawal=true"
+    },
+    {
+      "id": "D-U10",
+      "pass": true,
+      "detail": "already_completed=true"
+    },
+    {
+      "id": "D-U12",
+      "pass": true,
+      "detail": "exp before=1 after=1 (no double)"
+    },
+    {
+      "id": "D-U03",
+      "pass": true,
+      "detail": "task=true schedule=true exp=1 src=auto:vaccination"
+    },
+    {
+      "id": "D-U04",
+      "pass": true,
+      "detail": "Vaccines tab must call same RPC (FE K5); RPC twin sync proved"
+    },
+    {
+      "id": "D-U02",
+      "pass": true,
+      "detail": "autoExp=0 book=1 completed=true"
+    },
+    {
+      "id": "D-U11",
+      "pass": true,
+      "detail": "rpcErr=Access denied for farm 00000000-0000-0000-0000-000000000001; completed stable=true"
+    },
+    {
+      "id": "D-U15",
+      "pass": true,
+      "detail": "FE fail-closed when no matching health_task"
+    },
+    {
+      "id": "D-U12-static-K6",
+      "pass": true,
+      "detail": "runPostCompletionSideEffects money-free"
+    },
+    {
+      "id": "D-U04-static-K5",
+      "pass": true,
+      "detail": "no schedule primary update"
+    }
+  ],
+  "passed": 14,
+  "failed": 0,
+  "batchId": "0ce8d74a-7771-448c-acd5-b5b913aef6f5",
+  "farmId": "a215f55a-b7bb-4c82-8aeb-dc63b9429cdf"
+}

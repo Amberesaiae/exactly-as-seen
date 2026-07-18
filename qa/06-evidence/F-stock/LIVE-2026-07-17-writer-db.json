@@ -1,0 +1,67 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a"
+    },
+    {
+      "id": "F-U01",
+      "pass": true,
+      "detail": "item=fee3472d"
+    },
+    {
+      "id": "F-U02",
+      "pass": true,
+      "detail": "qty=25 lots=1 exp=12500"
+    },
+    {
+      "id": "F-U07",
+      "pass": true,
+      "detail": "grade=A"
+    },
+    {
+      "id": "F-U03",
+      "pass": true,
+      "detail": "exp=1 25→30"
+    },
+    {
+      "id": "F-U04",
+      "pass": true,
+      "detail": "stock item not found"
+    },
+    {
+      "id": "F-U05",
+      "pass": true,
+      "detail": "30→27"
+    },
+    {
+      "id": "F-U10",
+      "pass": true,
+      "detail": "queueRpc offline"
+    },
+    {
+      "id": "F-U11",
+      "pass": true,
+      "detail": "no expenses fallthrough; fail closed"
+    },
+    {
+      "id": "F-U13-free",
+      "pass": true,
+      "detail": "exp=0"
+    },
+    {
+      "id": "F-U08",
+      "pass": true,
+      "detail": "pick=Broiler Starter Feed"
+    }
+  ],
+  "passed": 12,
+  "failed": 0,
+  "itemId": "fee3472d-74df-4b6e-bda9-da1c68b56d92"
+}

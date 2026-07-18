@@ -9,7 +9,6 @@ import { LEDGER_SOURCES } from '@/lib/canonical';
 import { isOffline, queueWrite } from '@/lib/sync';
 import {
   isVaccinationHealthTask,
-  syncScheduleFromHealthTask,
   runPostCompletionSideEffects,
 } from '@/lib/care-completion';
 import type { Database } from '@/integrations/supabase/types';
@@ -159,8 +158,13 @@ export function useMedicationLogic(
       p_completed_at: completedAtISO,
     });
 
-    if (rpcError) throw rpcError;
+    // K6: fail closed on RPC — no client multi-write rescue
+    if (rpcError) {
+      toast.error(rpcError.message || 'Failed to complete care task');
+      return;
+    }
 
+    // Supplements only (no stock/expense — RPC owns intensive ledger)
     try {
       await runPostCompletionSideEffects({ farmId, task, costPesewas });
     } catch (e) {

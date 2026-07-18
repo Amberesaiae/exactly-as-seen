@@ -9,9 +9,7 @@ import { Loader2, Beaker } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { autoCreateExpense, autoDeductStock } from '@/lib/synergy';
-import { isIntensiveSystem } from '@/lib/production-system';
-import { isOffline, queueWrite } from '@/lib/sync';
+import { isOffline, queueRpc } from '@/lib/sync';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { CONCENTRATE_PRODUCTS, type FeedPhase } from '@/lib/feed-data';
@@ -77,123 +75,68 @@ export function ConcentrateMix({ batch, phase, week, farmId, onDone, targetKg }:
 
     setSaving(true);
 
-    if (isOffline()) {
-      const tempId = crypto.randomUUID();
-      await queueWrite('feed_formulations', 'insert', tempId, {
-        farm_id: farmId,
-        batch_id: batch.id,
-        species: batch.species,
-        phase: phase?.name.toLowerCase() ?? 'unknown',
-        population: batch.current_population,
-        bags_count: parseInt(bagsCount) || 1,
-        bag_size_kg: parseInt(bagSize) || 50,
-        total_kg: totalKg,
-        formulation_type: 'concentrate',
-      } as unknown as Record<string, unknown>);
-      await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
-        formulation_id: tempId,
+    const ingredients = [
+      {
+        name: selectedProduct.name,
         category: 'supplement',
-        name: selectedProduct.name,
         quantity_kg: concentrateKg,
         unit_price_pesewas: Math.round(concPriceNum * 100),
-        total_cost_pesewas: Math.round(concentrateKg * concPriceNum * 100),
-      } as unknown as Record<string, unknown>);
-      await queueWrite('feed_ingredients', 'insert', crypto.randomUUID(), {
-        formulation_id: tempId,
+        stock_item_id: null,
+      },
+      {
+        name: grainName,
         category: 'energy',
-        name: grainName,
         quantity_kg: grainKg,
         unit_price_pesewas: Math.round(grainPriceNum * 100),
-        total_cost_pesewas: Math.round(grainKg * grainPriceNum * 100),
-      } as unknown as Record<string, unknown>);
-      toast.success('Mix saved (offline — will sync)');
+        stock_item_id: null,
+      },
+    ].filter(i => i.quantity_kg > 0);
+
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_batch_id: batch.id,
+      p_species: batch.species,
+      p_phase: phase?.name.toLowerCase() ?? 'unknown',
+      p_population: batch.current_population,
+      p_bags_count: parseInt(bagsCount) || 1,
+      p_bag_size_kg: parseInt(bagSize) || 50,
+      p_total_kg: totalKg,
+      p_formulation_type: 'concentrate',
+      p_ingredients: ingredients,
+      p_total_cost_pesewas: Math.round(totalCost * 100),
+      p_description: `Concentrate mix: ${selectedProduct.name} + ${grainName} — ${totalKg}kg`,
+    };
+
+    try {
+      // S2 (K8): sole spine via confirm_formulation_allocation
+      if (isOffline()) {
+        await queueRpc('confirm_formulation_allocation', rpcArgs, `concentrate:${batch.id}:${Date.now()}`);
+        toast.warning('Offline — mix queued; will sync when online');
+        onDone();
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('confirm_formulation_allocation', rpcArgs);
+      if (error) {
+        toast.error(error.message || 'Mix save failed');
+        return;
+      }
+      if (!data?.ok) {
+        toast.error('Mix save failed');
+        return;
+      }
+
+      toast.success(
+        data.intensive_ledger
+          ? 'Mix saved & expense auto-created!'
+          : totalCost > 0
+            ? 'Mix saved! (flexible — expense not auto-ledgered)'
+            : 'Mix saved!'
+      );
+      onDone();
+    } finally {
       setSaving(false);
-      return;
     }
-
-    const { data: formulation, error } = await supabase.from('feed_formulations').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      species: batch.species,
-      phase: phase?.name.toLowerCase() ?? 'unknown',
-      population: batch.current_population,
-      bags_count: parseInt(bagsCount) || 1,
-      bag_size_kg: parseInt(bagSize) || 50,
-      total_kg: totalKg,
-      formulation_type: 'concentrate',
-    }).select('id').single();
-
-    if (error) { toast.error(error.message); setSaving(false); return; }
-
-    // Save ingredients
-    await supabase.from('feed_ingredients').insert([
-      {
-        formulation_id: formulation.id,
-        category: 'supplement' as const,
-        name: selectedProduct.name,
-        quantity_kg: concentrateKg,
-        unit_price_pesewas: Math.round(concPriceNum * 100),
-        total_cost_pesewas: Math.round(concentrateKg * concPriceNum * 100),
-      },
-      {
-        formulation_id: formulation.id,
-        category: 'energy' as const,
-        name: grainName,
-        quantity_kg: grainKg,
-        unit_price_pesewas: Math.round(grainPriceNum * 100),
-        total_cost_pesewas: Math.round(grainKg * grainPriceNum * 100),
-      },
-    ]);
-
-    const isIntensive = isIntensiveSystem(batch.production_system);
-    if (isIntensive) {
-      const mixIngredients = [
-        { name: selectedProduct.name, qty: concentrateKg },
-        { name: grainName, qty: grainKg }
-      ];
-
-      for (const ing of mixIngredients) {
-        if (ing.qty > 0) {
-          // Synergy: Auto-Stock Deduction (FIFO)
-          await autoDeductStock({
-            farmId,
-            itemName: ing.name,
-            quantity: ing.qty,
-            batchId: batch.id,
-            reason: `Concentrate mix auto-deduction: ${ing.name}`,
-            sourceRef: formulation.id
-          });
-        }
-      }
-
-      if (totalCost > 0) {
-        // Synergy: Auto-Expense Creation
-        await autoCreateExpense({
-          farmId,
-          batchId: batch.id,
-          category: 'feed_and_nutrition',
-          description: `Concentrate mix: ${selectedProduct.name} + ${grainName} — ${totalKg}kg`,
-          amount: totalCost,
-          source: 'auto:feed',
-          sourceRef: formulation.id,
-        });
-      }
-    }
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      event_type: 'feed_formulation',
-      description: `Created concentrate mix — ${ratio}:${100 - ratio} ratio, ${totalKg}kg for ${batch.name}`,
-    });
-
-    if (!isIntensive && totalCost > 0) {
-      toast.success('Mix saved! Remember to record the expense in Finance.');
-    } else {
-      toast.success('Mix saved & expense auto-created!');
-    }
-    setSaving(false);
-    onDone();
   };
 
   return (

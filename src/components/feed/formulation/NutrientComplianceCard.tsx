@@ -1,10 +1,6 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Check, X, Progress } from '@/components/ui/progress';
-
-// Note: The UI component was actually using its own Check/X from Lucide, 
-// and a custom layout. Correcting to match the original style.
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { Check as CheckIcon, X as XIcon } from 'lucide-react';
-import { CardHeader, CardTitle } from '@/components/ui/card';
 
 interface NutrientComplianceCardProps {
   nutrition: { protein: number; energy: number; calcium: number };

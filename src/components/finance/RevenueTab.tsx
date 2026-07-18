@@ -87,7 +87,7 @@ export function RevenueTab({
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <p className="font-black text-primary">{symbol} {mask((Number(r.amount_pesewas ?? 0) / 100 || Number(r.amount)).toLocaleString())}</p>
+                      <p className="font-black text-primary">{symbol} {mask((Number(r.amount_pesewas ?? 0) / 100).toLocaleString())}</p>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${STATUS_STYLES[status] ?? STATUS_STYLES['paid']}`}>
                         {status}
                       </span>

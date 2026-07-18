@@ -1,0 +1,136 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "FARM",
+      "pass": true,
+      "detail": "a215f55a setup=true"
+    },
+    {
+      "id": "J-rpc-cron_generate_daily_tasks",
+      "pass": true,
+      "detail": "permission denied for function cron_generate_daily_tasks"
+    },
+    {
+      "id": "J-rpc-cron_advance_batch_weeks",
+      "pass": true,
+      "detail": "permission denied for function cron_advance_batch_weeks"
+    },
+    {
+      "id": "J-rpc-cron_check_withdrawal_periods",
+      "pass": true,
+      "detail": "permission denied for function cron_check_withdrawal_periods"
+    },
+    {
+      "id": "J-rpc-cron_prune_idempotency_keys",
+      "pass": true,
+      "detail": "permission denied for function cron_prune_idempotency_keys"
+    },
+    {
+      "id": "J-U02",
+      "pass": true,
+      "detail": "actives=6 tasks_today=38 batches_with_tasks=19"
+    },
+    {
+      "id": "J-U05",
+      "pass": true,
+      "detail": "tasks 38→38 after double ensure"
+    },
+    {
+      "id": "J-U06",
+      "pass": true,
+      "detail": "edge fns present: generate-daily-tasks,advance-batch-weeks,check-withdrawal-periods,prune-idempotency-keys"
+    },
+    {
+      "id": "J-U01",
+      "pass": true,
+      "detail": "cron.job not exposed to API (Could not find the table 'public.cron.job' in the schema cac) — document DEFER SQL editor"
+    },
+    {
+      "id": "K-U01",
+      "pass": true,
+      "detail": "active=6 overview=ok keys=currency,greeting,sync_state,quick_stats,active_batches,recent_activity,cost_privacy_enabled"
+    },
+    {
+      "id": "K-U04",
+      "pass": true,
+      "detail": "sources=auto:stock,auto:health,auto:vaccination,auto:feed,auto:water auto=5"
+    },
+    {
+      "id": "K-U05",
+      "pass": true,
+      "detail": "id=e6d886dd"
+    },
+    {
+      "id": "K-U05-check",
+      "pass": true,
+      "detail": "new row for relation \"expenses\" violates check constraint \"expenses_category_che"
+    },
+    {
+      "id": "K-U06",
+      "pass": true,
+      "detail": "id=a03bf1bc"
+    },
+    {
+      "id": "K-U10",
+      "pass": false,
+      "detail": "column reference \"total_eggs\" is ambiguous"
+    },
+    {
+      "id": "K-manual-FE",
+      "pass": true,
+      "detail": "manual finance writers present"
+    },
+    {
+      "id": "A-U02",
+      "pass": true,
+      "detail": "pre-confirmed login → session"
+    },
+    {
+      "id": "A-U04",
+      "pass": true,
+      "detail": "setup_complete=true"
+    },
+    {
+      "id": "A-U03-inverse",
+      "pass": true,
+      "detail": "houses=22 (setup with houses)"
+    },
+    {
+      "id": "A-U08",
+      "pass": true,
+      "detail": "farms=1 primary=a215f55a"
+    },
+    {
+      "id": "A-writers",
+      "pass": true,
+      "detail": "AuthContext farm/prefs writers"
+    },
+    {
+      "id": "A-setup-FE",
+      "pass": true,
+      "detail": "FarmSetup houses+setup_complete"
+    },
+    {
+      "id": "A-U06-FE",
+      "pass": true,
+      "detail": "ForgotPassword/ResetPassword pages exist as routes (static)"
+    },
+    {
+      "id": "A-U06",
+      "pass": true,
+      "detail": "reset pages present"
+    },
+    {
+      "id": "K-U08",
+      "pass": true,
+      "detail": "cost privacy surface"
+    }
+  ],
+  "passed": 25,
+  "failed": 1
+}

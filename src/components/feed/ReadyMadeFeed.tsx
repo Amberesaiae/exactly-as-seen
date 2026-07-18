@@ -8,9 +8,7 @@ import { Loader2, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { autoCreateExpense } from '@/lib/synergy';
-import { LEDGER_SOURCES } from '@/lib/canonical';
-import { isOffline, queueWrite } from '@/lib/sync';
+import { isOffline, queueRpc } from '@/lib/sync';
 import { useAppStore } from '@/stores/useAppStore';
 import { BatchContextCard } from './BatchContextCard';
 import { COMMERCIAL_FEED_TYPES } from '@/lib/feed-data';
@@ -30,6 +28,7 @@ interface ReadyMadeFeedProps {
 
 export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: ReadyMadeFeedProps) {
   const { currency } = useAuth();
+  void currency;
   const { costPrivacyEnabled } = useAppStore();
   const [feedType, setFeedType] = useState('');
   const [brand, setBrand] = useState('');
@@ -43,14 +42,12 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
   const [pricePerBag, setPricePerBag] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Sync bags if targetKg or bagSizeKg changes
   useEffect(() => {
     if (targetKg) {
       const size = parseInt(bagSizeKg) || 50;
       setBags(Math.ceil(targetKg / size).toString());
     }
   }, [targetKg, bagSizeKg]);
-
 
   const feedTypes = COMMERCIAL_FEED_TYPES.filter(f => f.species.includes(batch.species));
   const totalKg = (parseInt(bags) || 0) * (parseInt(bagSizeKg) || 0);
@@ -69,68 +66,56 @@ export function ReadyMadeFeed({ batch, phase, week, farmId, onDone, targetKg }: 
       toast.error('Fill in quantity and price');
       return;
     }
-    setSaving(true);
-
-    if (isOffline()) {
-      const tempId = crypto.randomUUID();
-      await queueWrite('feed_formulations', 'insert', tempId, {
-        farm_id: farmId,
-        batch_id: batch.id,
-        species: batch.species,
-        phase: phase?.name.toLowerCase() ?? 'unknown',
-        population: batch.current_population,
-        bags_count: parseInt(bags) || 1,
-        bag_size_kg: parseInt(bagSizeKg) || 50,
-        total_kg: totalKg,
-        formulation_type: 'ready_made',
-      } as unknown as Record<string, unknown>);
-      toast.success('Feed purchase saved (offline — will sync)');
-      setSaving(false);
+    if (totalKg <= 0) {
+      toast.error('Enter a valid quantity');
       return;
     }
+    setSaving(true);
 
-    // Save formulation record
-    const { data: formulation, error } = await supabase.from('feed_formulations').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      species: batch.species,
-      phase: phase?.name.toLowerCase() ?? 'unknown',
-      population: batch.current_population,
-      bags_count: parseInt(bags) || 1,
-      bag_size_kg: parseInt(bagSizeKg) || 50,
-      total_kg: totalKg,
-      formulation_type: 'ready_made',
-    }).select('id').single();
+    const totalCostPesewas = Math.round(totalCost * 100);
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_batch_id: batch.id,
+      p_species: batch.species,
+      p_phase: phase?.name.toLowerCase() ?? 'unknown',
+      p_population: batch.current_population,
+      p_bags_count: parseInt(bags) || 1,
+      p_bag_size_kg: parseInt(bagSizeKg) || 50,
+      p_total_kg: totalKg,
+      p_total_cost_pesewas: totalCostPesewas,
+      p_feed_type: feedType || 'Commercial',
+      p_brand: brand || null,
+      p_description: `Ready-made feed: ${feedType || 'Commercial'}${brand ? ` (${brand})` : ''} — ${totalKg}kg`,
+    };
 
-    if (error) { toast.error(error.message); setSaving(false); return; }
+    try {
+      // S1: sole spine — never multi-write formulation + expense
+      if (isOffline()) {
+        await queueRpc('record_ready_made_purchase', rpcArgs, `ready-made:${batch.id}:${Date.now()}`);
+        toast.warning('Offline — feed purchase queued; will sync when online');
+        onDone();
+        return;
+      }
 
-    // Purchase class: always ledger expense (dual pattern applies only to consumption)
-    if (totalCost > 0) {
-      await autoCreateExpense({
-        farmId,
-        batchId: batch.id,
-        category: 'feed_and_nutrition',
-        description: `Ready-made feed: ${feedType || 'Commercial'} ${brand ? `(${brand})` : ''} — ${totalKg}kg`,
-        amount: totalCost,
-        source: LEDGER_SOURCES.feed,
-        sourceRef: formulation.id,
-      });
+      const { data, error } = await supabase.rpc('record_ready_made_purchase', rpcArgs);
+      if (error) {
+        toast.error(error.message || 'Feed purchase failed');
+        return;
+      }
+      if (!data?.ok) {
+        toast.error('Feed purchase failed');
+        return;
+      }
+
+      toast.success(
+        totalCost > 0
+          ? 'Feed purchase recorded (expense logged)'
+          : 'Formulation saved'
+      );
+      onDone();
+    } finally {
+      setSaving(false);
     }
-
-    await supabase.from('activity_log').insert({
-      farm_id: farmId,
-      batch_id: batch.id,
-      event_type: 'feed_purchase',
-      description: `Purchased ${bags} bags of ready-made feed (${totalKg}kg) for ${batch.name}`,
-    });
-
-    toast.success(
-      totalCost > 0
-        ? 'Feed purchase recorded (expense logged)'
-        : 'Formulation saved'
-    );
-    setSaving(false);
-    onDone();
   };
 
   return (

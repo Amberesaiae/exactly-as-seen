@@ -7,8 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
-import { autoCreateRevenue } from '@/lib/synergy';
-import { cleanupBatchCompletion } from '@/lib/batch-utils';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { canTerminateNormal } from '@/lib/safety-gates';
@@ -65,12 +63,15 @@ export function TerminationDialog({ open, onOpenChange, batch, onSuccess }: Term
 
     if (rpcError) {
       console.warn('terminate_batch RPC failed:', rpcError.message);
+      toast.error(rpcError.message || 'Terminate failed');
       setCompleting(false);
-      throw new Error(rpcError.message);
+      return;
     }
 
     if ((rpcData as TerminateBatchReturn)?.ok === false) {
-      toast.error('Terminate failed');
+      toast.error(
+        (rpcData as TerminateBatchReturn & { error?: string })?.error || 'Terminate failed'
+      );
       setCompleting(false);
       return;
     }

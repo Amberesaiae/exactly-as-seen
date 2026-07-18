@@ -250,8 +250,11 @@ export async function recordBirdSale(params: {
   if (rpcResult && !rpcResult.ok) {
     if (rpcResult.reason === 'insufficient_population') {
       toast.error(`Insufficient birds. Current: ${currentPopulation}, requested: ${quantity}`);
+    } else if (rpcResult.reason === 'meat_withdrawal') {
+      toast.error('Cannot sell birds during active meat withdrawal period');
     } else {
       console.error(`Synergy Error (record_bird_sale): ${rpcResult.reason}`);
+      toast.error('Bird sale failed');
     }
     return null;
   }

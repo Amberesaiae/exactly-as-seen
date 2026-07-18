@@ -170,7 +170,7 @@ export function useFeedData() {
         shouldOfferBookNow,
         shouldSkipDayFeedExpense,
       } = await import('@/lib/ledger-policy');
-      const { autoCreateExpense, autoDeductStock } = await import('@/lib/synergy');
+      const { autoCreateExpense } = await import('@/lib/synergy');
       const { LEDGER_SOURCES } = await import('@/lib/canonical');
       const { pickPreferredFeedStock } = await import('@/lib/stock-match');
 
@@ -201,23 +201,9 @@ export function useFeedData() {
       }
       const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
 
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        const { queueWrite } = await import('@/lib/sync');
-        await queueWrite('feed_logs', 'insert', crypto.randomUUID(), {
-          farm_id: farmId,
-          batch_id: selectedBatch,
-          quantity_kg: qty,
-          feed_type: feedName,
-          date: todayStr,
-        });
-        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev.filter(f => f.date !== todayStr)]);
-        toast.warning('Offline — feed queued; will sync when online');
-        return;
-      }
-
       // p_ledger drives stock-out; p_skip_expense independently skips second expense
       const doLedger = deductStock && !!feedStock;
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', {
+      const rpcArgs = {
         p_farm_id: farmId,
         p_batch_id: selectedBatch,
         p_quantity_kg: qty,
@@ -227,48 +213,25 @@ export function useFeedData() {
         p_stock_item_id: feedStock?.id ?? null,
         p_unit_price_pesewas: unitPricePesewas,
         p_skip_expense: skipExpense || !expenseConsumption,
-      });
+      };
 
+      // K2: offline must queue full intent RPC — never raw feed_logs-only
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        const { queueRpc } = await import('@/lib/sync');
+        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
+        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev.filter(f => f.date !== todayStr)]);
+        toast.warning('Offline — feed queued; will sync when online');
+        return;
+      }
+
+      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
+
+      // K1: fail closed — no client multi-write rescue after RPC fail
       if (rpcErr) {
-        const { error: logErr } = await supabase.from('feed_logs').insert({
-          batch_id: selectedBatch,
-          farm_id: farmId,
-          quantity_kg: qty,
-          feed_type: feedName,
-          date: todayStr,
-        });
-        if (logErr) {
-          toast.error(
-            logErr.message.includes('duplicate') || logErr.code === '23505'
-              ? 'Feed already logged for today'
-              : logErr.message
-          );
-          return;
-        }
-        if (deductStock && feedStock) {
-          try {
-            await autoDeductStock({
-              farmId, itemName: feedStock.name, quantity: qty,
-              batchId: selectedBatch, reason: `Daily feeding ${qty}kg`, sourceRef,
-            });
-          } catch (e) {
-            console.error('Fallback stock deduction failed:', e);
-            toast.error(`Feed logged but stock deduction failed: ${feedStock.name}`);
-          }
-          if (expenseConsumption && !skipExpense && unitPrice > 0) {
-            try {
-              await autoCreateExpense({
-                farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-                description: `Daily Feeding: ${qty}kg ${feedStock.name}`,
-                amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef,
-              });
-            } catch (e) {
-              console.error('Fallback expense creation failed:', e);
-              toast.error('Feed logged but expense recording failed');
-            }
-          }
-        }
-      } else if ((rpcData as ConfirmDayFeedReturn)?.already_logged) {
+        toast.error(rpcErr.message || 'Failed to confirm feeding');
+        return;
+      }
+      if ((rpcData as ConfirmDayFeedReturn)?.already_logged) {
         toast.error('Feed already logged for today');
         setFeedLogs(prev => (prev.some(f => f.date === todayStr) ? prev : [{ id: 'temp', date: todayStr, quantity_kg: qty }, ...prev]));
         return;

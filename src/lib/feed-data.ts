@@ -36,7 +36,7 @@ export const FEED_PHASES: Record<string, FeedPhase[]> = {
 export interface Ingredient {
   id: string;
   name: string;
-  category: 'energy' | 'protein' | 'calcium' | 'supplement';
+  category: 'energy' | 'protein' | 'calcium' | 'supplement' | string;
   proteinPct: number;
   energyKcal: number;
   calciumPct: number;
@@ -50,6 +50,35 @@ export interface Ingredient {
     max: number;
   };
   defaultPricePerKg: number; // GHS
+  /** Optional safety flags used by preprocessFormulation / LP path */
+  containsGossypol?: boolean;
+  containsAflatoxinRisk?: boolean;
+  maxSharePct?: number;
+}
+
+/** Normalize DB or partial ingredient rows into Ingredient. */
+export function normalizeIngredient(raw: Record<string, unknown> | Ingredient): Ingredient {
+  const r = raw as Record<string, unknown>;
+  const maxShare = Number(r.maxSharePct ?? r.max_share_pct ?? (r.usageLimits as { max?: number } | undefined)?.max ?? 100);
+  const minShare = Number((r.usageLimits as { min?: number } | undefined)?.min ?? 0);
+  return {
+    id: String(r.id ?? ''),
+    name: String(r.name ?? ''),
+    category: String(r.category ?? 'supplement'),
+    proteinPct: Number(r.proteinPct ?? r.protein_pct ?? 0),
+    energyKcal: Number(r.energyKcal ?? r.energy_kcal_per_kg ?? 0),
+    calciumPct: Number(r.calciumPct ?? r.calcium_pct ?? 0),
+    fiberPct: Number(r.fiberPct ?? r.fiber_pct ?? 0),
+    lysinePct: Number(r.lysinePct ?? r.lysine_pct ?? 0),
+    methioninePct: Number(r.methioninePct ?? r.methionine_pct ?? 0),
+    phosphorusPct: Number(r.phosphorusPct ?? r.phosphorus_pct ?? 0),
+    niacinMgKg: Number(r.niacinMgKg ?? r.niacin_mg_kg ?? 0),
+    usageLimits: { min: minShare, max: maxShare },
+    defaultPricePerKg: Number(r.defaultPricePerKg ?? r.price_per_kg ?? r.unitPrice ?? 0),
+    containsGossypol: Boolean(r.containsGossypol ?? r.contains_gossypol ?? false),
+    containsAflatoxinRisk: Boolean(r.containsAflatoxinRisk ?? r.contains_aflatoxin_risk ?? false),
+    maxSharePct: maxShare,
+  };
 }
 
 export const INGREDIENTS: Ingredient[] = [

@@ -1,0 +1,25 @@
+# Static sole-writer proof — 2026-07-17
+
+## Grep: no client feed_logs insert / queueWrite
+(none)
+(none)
+
+## confirm_day_feed call sites in src
+src/hooks/feed/useFeedData.ts:11:type ConfirmDayFeedReturn = Database['public']['Functions']['confirm_day_feed']['Returns'];
+src/hooks/feed/useFeedData.ts:221:        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
+src/hooks/feed/useFeedData.ts:227:      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
+src/hooks/useHealthData.ts:360:        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
+src/hooks/useHealthData.ts:366:      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
+src/lib/sync.ts:136:            const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch' | 'record_egg_collection' | 'allocate_fifo_by_quality' | 'record_bird_sale';
+src/test/journeys-a-k.contract.test.ts:50:    expect(feed).toContain("rpc('confirm_day_feed'");
+src/test/journeys-a-k.contract.test.ts:51:    expect(feed).toContain("queueRpc('confirm_day_feed'");
+src/test/journeys-a-k.contract.test.ts:55:    expect(health).toContain("rpc('confirm_day_feed'");
+src/test/journeys-a-k.contract.test.ts:56:    expect(health).toContain("queueRpc('confirm_day_feed'");
+src/test/sync.test.ts:70:      await queueRpc('confirm_day_feed', { p_batch_id: 'b1' });
+
+## useFeedData rpcErr handling (expect toast only)
+220:        const { queueRpc } = await import('@/lib/sync');
+221:        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
+227:      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
+230:      if (rpcErr) {
+231:        toast.error(rpcErr.message || 'Failed to confirm feeding');

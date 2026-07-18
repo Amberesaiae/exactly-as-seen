@@ -1627,12 +1627,12 @@ export type Database = {
         Args: { p_batch_ids: string[]; p_farm_id: string }
         Returns: {
           batch_id: string
-          current_population: number
           initial_quantity: number
+          current_population: number
+          total_mortality: number
+          total_feed_kg: number
           total_eggs: number
           total_expenses_pesewas: number
-          total_feed_kg: number
-          total_mortality: number
           total_revenue_pesewas: number
         }[]
       }
@@ -1671,6 +1671,20 @@ export type Database = {
           transaction_id: string
           new_quantity: number
           expense_pesewas: number
+        }
+      }
+      stock_usage: {
+        Args: {
+          p_farm_id: string
+          p_stock_item_id: string
+          p_qty: number
+          p_batch_id?: string | null
+          p_notes?: string | null
+        }
+        Returns: {
+          ok: boolean
+          transaction_id: string
+          new_quantity: number
         }
       }
       confirm_day_feed: {
@@ -1802,6 +1816,50 @@ export type Database = {
           reason?: string
         }
       }
+      record_ready_made_purchase: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_species: string
+          p_phase?: string
+          p_population?: number
+          p_bags_count?: number
+          p_bag_size_kg?: number
+          p_total_kg: number
+          p_total_cost_pesewas?: number
+          p_description?: string
+          p_feed_type?: string
+          p_brand?: string
+        }
+        Returns: {
+          ok: boolean
+          formulation_id: string
+          expense_pesewas: number
+        }
+      }
+      confirm_formulation_allocation: {
+        Args: {
+          p_farm_id: string
+          p_batch_id: string
+          p_species: string
+          p_phase?: string
+          p_population?: number
+          p_bags_count?: number
+          p_bag_size_kg?: number
+          p_total_kg: number
+          p_formulation_type?: string
+          p_ingredients?: Json
+          p_total_cost_pesewas?: number
+          p_description?: string
+        }
+        Returns: {
+          ok: boolean
+          formulation_id: string
+          ingredient_count: number
+          intensive_ledger: boolean
+          expense_pesewas: number
+        }
+      }
       record_bird_sale: {
         Args: {
           p_farm_id: string
@@ -1824,18 +1882,24 @@ export type Database = {
           p_farm_id: string
           p_name: string
           p_species: string
-          p_duck_type?: string
+          p_house_id: string
+          p_production_system: string
           p_initial_quantity: number
-          p_cycle_length_weeks?: number
-          p_start_date?: string
-          p_production_system?: string
-          p_house_id?: string
+          p_start_date: string
+          p_cycle_length_weeks: number
+          p_current_week?: number
+          p_current_day?: number
+          p_phase?: string
+          p_duck_type?: string | null
+          p_health_tasks?: Json
+          p_vaccinations?: Json
         }
         Returns: {
           ok: boolean
           batch_id: string
           health_tasks_seeded: number
           vaccinations_seeded: number
+          error?: string
         }
       }
     }

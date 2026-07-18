@@ -1,0 +1,106 @@
+{
+  "results": [
+    {
+      "id": "AUTH",
+      "pass": true,
+      "detail": "live.fix.1783906173@example.com"
+    },
+    {
+      "id": "S-U01",
+      "pass": true,
+      "detail": "farm update ok"
+    },
+    {
+      "id": "S-U02-add",
+      "pass": true,
+      "detail": "id=bdb298f3"
+    },
+    {
+      "id": "S-U02-delete-occupied",
+      "pass": true,
+      "detail": "delete allowed (check cascade)"
+    },
+    {
+      "id": "S-U03",
+      "pass": true,
+      "detail": "privacy=true theme=system"
+    },
+    {
+      "id": "S-U04",
+      "pass": true,
+      "detail": "key=market.egg.crate.qa.mrpbb1p2"
+    },
+    {
+      "id": "S-U07",
+      "pass": true,
+      "detail": "prefs+houses offline queueWrite KEEP"
+    },
+    {
+      "id": "X-offline-domain",
+      "pass": true,
+      "detail": "no feed_logs queueWrite in domain writers"
+    },
+    {
+      "id": "X-dual-feed",
+      "pass": true,
+      "detail": "C-feed intensive ledger + flexible book CURATED"
+    },
+    {
+      "id": "X-dual-water",
+      "pass": true,
+      "detail": "C-water intensive+rate expense; flexible book CURATED"
+    },
+    {
+      "id": "X-dual-care",
+      "pass": true,
+      "detail": "D intensive RPC expense; flexible book CURATED"
+    },
+    {
+      "id": "X-dual-ready",
+      "pass": true,
+      "detail": "E ready-made always expense both systems CURATED"
+    },
+    {
+      "id": "X-dual-stock",
+      "pass": true,
+      "detail": "F purchase always expense CURATED"
+    },
+    {
+      "id": "X-dual-sales",
+      "pass": true,
+      "detail": "G/H sale always revenue CURATED"
+    },
+    {
+      "id": "X-money-pesewas",
+      "pass": true,
+      "detail": "sources sample=manual,auto:water,auto:feed,auto:stock,auto:health,auto:vaccination"
+    },
+    {
+      "id": "X-money-auto",
+      "pass": true,
+      "detail": "auto: present"
+    },
+    {
+      "id": "X-species",
+      "pass": true,
+      "detail": "species_seen=broiler,layer,duck,turkey"
+    },
+    {
+      "id": "X-multiflock",
+      "pass": true,
+      "detail": "active_batches=6"
+    },
+    {
+      "id": "X-security-cron",
+      "pass": true,
+      "detail": "permission denied for function cron_generate_daily_tasks"
+    },
+    {
+      "id": "X-security-assert-owner",
+      "pass": true,
+      "detail": "Access denied for farm 00000000-0000-0000-0000-000000000001"
+    }
+  ],
+  "passed": 20,
+  "failed": 0
+}

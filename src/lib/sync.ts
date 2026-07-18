@@ -133,7 +133,7 @@ export async function flushOutbox() {
       try {
         await retryWithBackoff(async () => {
           if (item.table.startsWith('rpc:')) {
-            const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch' | 'record_egg_collection' | 'allocate_fifo_by_quality' | 'record_bird_sale';
+            const fn = item.table.slice(4) as 'stock_purchase' | 'confirm_day_feed' | 'log_day_water' | 'record_egg_sale' | 'complete_health_task' | 'record_mortality' | 'terminate_batch' | 'create_batch' | 'record_egg_collection' | 'allocate_fifo_by_quality' | 'record_bird_sale' | 'record_ready_made_purchase' | 'confirm_formulation_allocation' | 'stock_usage';
             const { error } = await supabase.rpc(fn, item.data as never);
             if (error) throw error;
           } else if (item.operation === 'insert') {

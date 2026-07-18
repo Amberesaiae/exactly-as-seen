@@ -92,7 +92,7 @@ export function ExpensesTab({
                       </div>
                     </div>
                     <div className="text-right shrink-0 flex flex-col items-end gap-1">
-                      <p className="font-black text-destructive">{symbol} {mask(Number(e.amount_pesewas ?? e.amount * 100) / 100 < 1 ? Number(e.amount).toLocaleString() : (Number(e.amount_pesewas ?? 0) / 100).toLocaleString())}</p>
+                      <p className="font-black text-destructive">{symbol} {mask((Number(e.amount_pesewas ?? 0) / 100).toLocaleString())}</p>
                       <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wider ${STATUS_STYLES[status] ?? STATUS_STYLES['paid']}`}>
                         {status}
                       </span>

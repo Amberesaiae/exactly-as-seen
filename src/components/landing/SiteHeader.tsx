@@ -6,7 +6,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
-const links = [
+const links: { name: string; to: string; hash?: boolean }[] = [
   { name: 'Platform', to: '/platform' },
   { name: 'Solutions', to: '/solutions' },
   { name: 'Impact', to: '/impact' },
