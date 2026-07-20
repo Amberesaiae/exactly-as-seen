@@ -89,12 +89,12 @@ export default function Records() {
 
       {/* Composed Premium Tabs List */}
       <Tabs defaultValue="overview" className="w-full">
-        <TabsList className="w-full grid grid-cols-5 h-auto">
-          <TabsTrigger value="overview" className="text-xxs py-2 gap-1"><FileText className="h-3.5 w-3.5 hidden md:block" /> Overview</TabsTrigger>
-          <TabsTrigger value="history" className="text-xxs py-2 gap-1"><Calendar className="h-3.5 w-3.5 hidden md:block" /> Timeline</TabsTrigger>
-          <TabsTrigger value="compare" className="text-xxs py-2 gap-1"><Scale className="h-3.5 w-3.5 hidden md:block" /> Compare</TabsTrigger>
-          <TabsTrigger value="finance" className="text-xxs py-2 gap-1"><Landmark className="h-3.5 w-3.5 hidden md:block" /> Margins</TabsTrigger>
-          <TabsTrigger value="exports" className="text-xxs py-2 gap-1"><Download className="h-3.5 w-3.5 hidden md:block" /> Compiles</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-5 h-10 p-1 bg-secondary/50 rounded-full">
+          <TabsTrigger value="overview" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><FileText className="h-3.5 w-3.5 hidden md:block" /> Overview</TabsTrigger>
+          <TabsTrigger value="history" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Calendar className="h-3.5 w-3.5 hidden md:block" /> Timeline</TabsTrigger>
+          <TabsTrigger value="compare" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Scale className="h-3.5 w-3.5 hidden md:block" /> Compare</TabsTrigger>
+          <TabsTrigger value="finance" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Landmark className="h-3.5 w-3.5 hidden md:block" /> Margins</TabsTrigger>
+          <TabsTrigger value="exports" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Download className="h-3.5 w-3.5 hidden md:block" /> Compiles</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview"><BatchOverviewTab batches={batches} performanceData={performanceData} /></TabsContent>

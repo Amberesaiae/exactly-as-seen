@@ -50,7 +50,7 @@ export default function Batches() {
 
   if (loading) {
     return (
-      <div className="p-4 md:p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4 pb-24">
         <Skeleton className="h-8 w-48" />
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}

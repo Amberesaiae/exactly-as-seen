@@ -44,11 +44,11 @@ function PageLoader() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] w-full gap-4 text-center p-6 animate-fade-in">
       <div className="relative flex h-14 w-14 items-center justify-center">
         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary/20 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-8 w-8 bg-gradient-to-tr from-primary to-amber-500 animate-spin duration-1000"></span>
+        <span className="relative inline-flex rounded-full h-8 w-8 bg-gradient-to-tr from-primary to-warning animate-spin duration-1000"></span>
       </div>
       <div className="flex flex-col items-center gap-1">
-        <p className="text-sm font-semibold text-slate-200 tracking-wide">Loading LampFarms Module</p>
-        <p className="text-xs text-slate-400 max-w-[240px]">Preparing secure offline ledger modules & analytics</p>
+        <p className="text-sm font-semibold text-foreground tracking-wide">Loading LampFarms Module</p>
+        <p className="text-xs text-muted-foreground max-w-[240px]">Preparing secure offline ledger modules & analytics</p>
       </div>
     </div>
   );
@@ -150,15 +150,15 @@ function AppInner() {
 
       {/* Floating Installation Prompt — toast-style at top on mobile, bottom-right on desktop */}
       {showInstallBtn && !installDismissed && (
-        <div className="fixed top-16 left-4 right-4 md:top-auto md:bottom-6 md:left-auto md:right-6 z-40 bg-slate-950/95 border border-slate-800 text-slate-100 p-3.5 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-2 fade-in duration-300 backdrop-blur-md max-w-sm">
+        <div className="fixed top-16 left-4 right-4 md:top-auto md:bottom-6 md:left-auto md:right-6 z-40 bg-card border border-border text-card-foreground p-3.5 rounded-xl shadow-2xl flex items-center justify-between gap-3 animate-in slide-in-from-top-2 fade-in duration-300 backdrop-blur-md max-w-sm">
           <div className="flex flex-col gap-0.5">
             <span className="text-xs font-bold">Install LampFarms App</span>
-            <span className="text-xxs text-slate-400">Access offline ledger and rapid mobile metrics</span>
+            <span className="text-xs text-muted-foreground">Access offline ledger and rapid mobile metrics</span>
           </div>
           <div className="flex items-center gap-1.5">
             <button
               onClick={dismissInstall}
-              className="text-slate-400 hover:text-slate-200 p-1 rounded-md transition-colors"
+              className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors"
               aria-label="Dismiss install prompt"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -168,7 +168,7 @@ function AppInner() {
             </button>
             <button
               onClick={handleInstallClick}
-              className="text-xxs font-bold bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-lg shadow-sm transition-all"
+              className="text-xs font-bold bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-lg shadow-sm transition-all"
             >
               Install
             </button>
@@ -178,10 +178,10 @@ function AppInner() {
 
       {/* Toast-style Offline Banner */}
       {!isOnline && (
-        <div className="fixed bottom-16 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 bg-red-950/95 border border-red-500/20 text-red-200 px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 backdrop-blur-md max-w-sm">
+        <div className="fixed bottom-16 left-4 right-4 md:bottom-6 md:left-auto md:right-6 z-40 bg-destructive/90 border border-destructive/30 text-destructive-foreground px-4 py-2.5 rounded-xl shadow-xl flex items-center gap-2 animate-in slide-in-from-bottom-2 fade-in duration-300 backdrop-blur-md max-w-sm">
           <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-destructive-foreground opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-destructive-foreground"></span>
           </span>
           <span className="text-xs font-semibold">Running offline — changes will sync when online.</span>
         </div>

@@ -89,13 +89,13 @@ export default function Feed() {
           <PhaseTransitionAlert phase={phase} lastSchedule={schedules[0]} />
 
           {!isTodayCompleted && feedTask ? (
-            <Card className="border-amber-200 shadow-md overflow-hidden ring-1 ring-amber-100">
-              <CardHeader className="bg-amber-50/50 pb-3 border-b border-amber-100">
+            <Card className="border-warning/30 shadow-md overflow-hidden ring-1 ring-warning/10">
+              <CardHeader className="bg-warning/5 pb-3 border-b border-warning/10">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base flex items-center gap-2 text-amber-900">
-                    <Utensils className="h-4 w-4 text-amber-600" /> Today&apos;s Feeding Tool
+                  <CardTitle className="text-base flex items-center gap-2 text-warning-foreground">
+                    <Utensils className="h-4 w-4 text-warning" /> Today&apos;s Feeding Tool
                   </CardTitle>
-                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-none text-[10px] font-bold">
+                  <Badge variant="secondary" className="bg-warning/20 text-warning border-none text-[10px] font-bold">
                     READY
                   </Badge>
                 </div>
@@ -138,7 +138,7 @@ export default function Feed() {
                   data-testid="confirm-feeding"
                   onClick={() => void confirmDayFeed()}
                   disabled={feedSaving}
-                  className="w-full rounded-full py-6 text-base font-bold gap-2 bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-200"
+                  className="w-full rounded-full py-6 text-base font-bold gap-2 bg-warning hover:bg-warning/90 shadow-lg shadow-warning/20"
                 >
                   {feedSaving ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -151,14 +151,14 @@ export default function Feed() {
               </CardContent>
             </Card>
           ) : isTodayCompleted ? (
-            <Card className="border-green-200 bg-green-50/20">
+            <Card className="border-success/30 bg-success/5">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center text-green-600">
+                <div className="h-10 w-10 rounded-full bg-success/20 flex items-center justify-center text-success">
                   <CheckCircle2 className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-green-900">Feeding Complete</p>
-                  <p className="text-xs text-green-800/70">
+                  <p className="text-sm font-bold text-success-foreground">Feeding Complete</p>
+                  <p className="text-xs text-success-foreground/70">
                     Protocol for Day {dynamics?.day} logged.
                     {batch && ['intensive', 'deep_litter', 'cage'].includes(batch.production_system)
                       ? ' Intensive systems also deduct stock and expense when feed stock exists.'

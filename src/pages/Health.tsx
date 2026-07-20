@@ -194,7 +194,7 @@ export default function Health() {
                     <Card>
                       <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Completed</p>
-                        <h3 className="text-2xl font-bold mt-1 text-green-600 dark:text-green-400">
+                        <h3 className="text-2xl font-bold mt-1 text-success">
                           {weeklySummary ? (weeklySummary.health_tasks_completed + weeklySummary.batch_tasks_completed) : 0}
                         </h3>
                         <p className="text-[10px] text-muted-foreground mt-1">
@@ -205,7 +205,7 @@ export default function Health() {
                     <Card>
                       <CardContent className="p-4">
                         <p className="text-xs text-muted-foreground font-medium">Pending Care</p>
-                        <h3 className="text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">
+                        <h3 className="text-2xl font-bold mt-1 text-warning">
                           {weeklySummary?.health_tasks_pending ?? 0}
                         </h3>
                         <p className="text-[10px] text-muted-foreground mt-1">Requires action</p>
@@ -231,7 +231,7 @@ export default function Health() {
                     {weeklySummary && weeklySummary.health_tasks_pending > 0 && selectedBatch && (
                       <Button 
                         onClick={() => bulkCompleteWeekTasks(selectedBatch, batchAge?.week ?? 1)}
-                        className="rounded-full bg-green-600 hover:bg-green-700 text-white font-semibold h-9 text-xs"
+                        className="rounded-full bg-success hover:bg-success/90 font-semibold h-9 text-xs"
                       >
                         <CheckCircle2 className="h-4 w-4 mr-1.5" />
                         Complete All Pending Care ({weeklySummary.health_tasks_pending})
@@ -265,7 +265,7 @@ export default function Health() {
                                   <p className="text-[10px] text-muted-foreground mt-0.5">Due: {task.due_date}</p>
                                 </div>
                                 {task.completed ? (
-                                  <Badge className="bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400 border-none text-[10px]">Done</Badge>
+                                  <Badge className="bg-success/20 text-success border-none text-[10px]">Done</Badge>
                                 ) : (
                                   <Button size="sm" variant="outline" className="rounded-full h-7 text-xs gap-1 shrink-0" asChild>
                                     <Link to={linkMap[task.task_type] || '/health'}>
@@ -287,18 +287,18 @@ export default function Health() {
                     {currentWeekTasks.filter(t => !t.completed).length === 0 ? (
                       <Card className="border-dashed bg-muted/10">
                         <CardContent className="py-6 flex flex-col items-center justify-center text-center">
-                          <CheckCircle2 className="h-6 w-6 text-green-500 mb-1.5" />
+                          <CheckCircle2 className="h-6 w-6 text-success mb-1.5" />
                           <p className="text-xs font-medium text-muted-foreground">All care tasks for this week are completed!</p>
                         </CardContent>
                       </Card>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                         {currentWeekTasks.filter(t => !t.completed).map(task => (
-                          <Card key={task.id} className="border-amber-200 dark:border-amber-800 bg-amber-50/10">
+                          <Card key={task.id} className="border-warning/30 bg-warning/5">
                             <CardHeader className="pb-1.5 pt-3 px-3">
                               <div className="flex justify-between items-start gap-2">
                                 <CardTitle className="text-sm font-semibold truncate">{task.product_name || 'Care Task'}</CardTitle>
-                                <Badge className="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-none text-[10px] capitalize shrink-0">{task.task_type}</Badge>
+                                <Badge className="bg-warning/20 text-warning border-none text-[10px] capitalize shrink-0">{task.task_type}</Badge>
                               </div>
                               <p className="text-[10px] text-muted-foreground">Scheduled: {task.scheduled_date}</p>
                             </CardHeader>
@@ -310,7 +310,7 @@ export default function Health() {
                                 </span>
                                 <Button 
                                   size="sm" 
-                                  className="rounded-full bg-amber-600 hover:bg-amber-700 text-white h-7 text-xs px-2.5"
+                                  className="rounded-full bg-warning hover:bg-warning/90 h-7 text-xs px-2.5"
                                   data-testid="care-complete"
                                   onClick={() => setCompleteTask({
                                     id: task.id,
@@ -338,7 +338,7 @@ export default function Health() {
                             <CardHeader className="pb-1 pt-2.5 px-3">
                               <div className="flex justify-between items-start gap-2">
                                 <CardTitle className="text-sm font-semibold text-muted-foreground line-through truncate">{task.product_name}</CardTitle>
-                                <Badge variant="secondary" className="text-[10px] shrink-0 border-none bg-green-50 text-green-700 dark:bg-green-950/20 dark:text-green-400">Completed</Badge>
+                                <Badge variant="secondary" className="text-[10px] shrink-0 border-none bg-success/20 text-success">Completed</Badge>
                               </div>
                               <p className="text-[9px] text-muted-foreground">
                                 Completed at: {task.completed_at ? format(new Date(task.completed_at), 'yyyy-MM-dd HH:mm') : 'N/A'}
@@ -357,7 +357,7 @@ export default function Health() {
                   {weeklySummary?.next_week_tasks && weeklySummary.next_week_tasks.length > 0 && (
                     <div className="space-y-2 mt-4 pt-2 border-t">
                       <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
-                        <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                        <AlertTriangle className="h-3.5 w-3.5 text-warning" />
                         Upcoming Next Week (Week { (batchAge?.week ?? 1) + 1 })
                       </h3>
                       <div className="bg-muted/10 border rounded-lg p-3 space-y-2">
@@ -366,7 +366,7 @@ export default function Health() {
                             <div className="flex items-center gap-1.5 min-w-0">
                               <span className="font-semibold text-foreground truncate">{t.product_name}</span>
                               <Badge variant="outline" className="text-[8px] h-4 py-0 px-1 capitalize shrink-0">{t.task_type}</Badge>
-                              {t.is_vaccination && <Badge className="text-[8px] h-4 py-0 px-1 bg-purple-50 text-purple-700 border-none shrink-0">Vaccine</Badge>}
+                              {t.is_vaccination && <Badge variant="secondary" className="text-[8px] h-4 py-0 px-1 shrink-0">Vaccine</Badge>}
                             </div>
                             <span className="text-muted-foreground text-[10px] shrink-0">Scheduled: {t.scheduled_date}</span>
                           </div>

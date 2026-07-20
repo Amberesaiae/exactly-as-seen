@@ -59,18 +59,18 @@ export function HealthAlertBanner({
                 {vaccinations.filter(v => v.administered).length}/{vaccinations.length} done
               </p>
             </div>
-            <div className={`rounded-lg p-2.5 text-center ${activeMeds.length > 0 ? 'bg-primary/10' : activeWithdrawals.length > 0 ? 'bg-yellow-100' : 'bg-background'}`}>
+            <div className={`rounded-lg p-2.5 text-center ${activeMeds.length > 0 ? 'bg-primary/10' : activeWithdrawals.length > 0 ? 'bg-warning/20' : 'bg-background'}`}>
               <p className="text-xs text-muted-foreground">Medications</p>
-              <p className={`text-lg font-bold ${activeMeds.length > 0 ? 'text-primary' : activeWithdrawals.length > 0 ? 'text-yellow-700' : 'text-foreground'}`}>
+              <p className={`text-lg font-bold ${activeMeds.length > 0 ? 'text-primary' : activeWithdrawals.length > 0 ? 'text-warning' : 'text-foreground'}`}>
                 {activeMeds.length > 0 ? `${activeMeds.length} active` : activeWithdrawals.length > 0 ? 'Withdrawal' : 'None'}
               </p>
               <p className="text-xs text-muted-foreground">
                 {activeWithdrawals.length > 0 ? `${activeWithdrawals.length} in withdrawal` : 'All clear'}
               </p>
             </div>
-            <div className={`rounded-lg p-2.5 text-center ${todayWaterLogged ? 'bg-background' : 'bg-yellow-50'}`}>
+            <div className={`rounded-lg p-2.5 text-center ${todayWaterLogged ? 'bg-background' : 'bg-warning/10'}`}>
               <p className="text-xs text-muted-foreground">Water Today</p>
-              <p className={`text-lg font-bold ${todayWaterLogged ? 'text-foreground' : 'text-yellow-700'}`}>
+              <p className={`text-lg font-bold ${todayWaterLogged ? 'text-foreground' : 'text-warning'}`}>
                 {todayWaterLogged ? '✓ Logged' : 'Not yet'}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -83,13 +83,13 @@ export function HealthAlertBanner({
 
       {/* Heat Stress Advisory (Refactored from hard multiplier) */}
       {waterPrescription?.caution && (
-        <Alert className={waterPrescription.caution.type === 'extreme_heat' ? 'border-red-500 bg-red-50' : 'border-orange-500/50 bg-orange-50'}>
-          <ThermometerSun className={`h-4 w-4 ${waterPrescription.caution.type === 'extreme_heat' ? 'text-red-600' : 'text-orange-600'}`} />
+        <Alert className={waterPrescription.caution.type === 'extreme_heat' ? 'border-destructive bg-destructive/10' : 'border-warning/50 bg-warning/10'}>
+          <ThermometerSun className={`h-4 w-4 ${waterPrescription.caution.type === 'extreme_heat' ? 'text-destructive' : 'text-warning'}`} />
           <AlertTitle className="text-sm font-bold flex items-center gap-2">
             {waterPrescription.caution.type === 'extreme_heat' ? 'EXTREME HEAT DANGER' : 'HEAT STRESS ADVISORY'}
-            <Badge variant="outline" className="text-[10px] h-4 bg-white border-orange-200">Lean Guidance</Badge>
+            <Badge variant="outline" className="text-[10px] h-4 bg-background border-warning/30">Lean Guidance</Badge>
           </AlertTitle>
-          <AlertDescription className="text-xs font-medium text-orange-900">
+          <AlertDescription className="text-xs font-medium text-warning-foreground">
             {waterPrescription.caution.message}
           </AlertDescription>
         </Alert>
@@ -103,13 +103,13 @@ export function HealthAlertBanner({
               key={alert.id}
               variant={alert.severity === 'critical' ? 'destructive' : 'default'}
               className={
-                alert.severity === 'warning' ? 'border-yellow-500/50 bg-yellow-50 text-yellow-900' :
-                alert.severity === 'info' ? 'border-blue-500/50 bg-blue-50 text-blue-900' : ''
+                alert.severity === 'warning' ? 'border-warning/50 bg-warning/10 text-warning-foreground' :
+                alert.severity === 'info' ? 'border-accent-cyan/50 bg-accent-cyan/10 text-accent-cyan-foreground' : ''
               }
             >
               {alert.severity === 'critical' ? <AlertTriangle className="h-4 w-4" /> :
-               alert.severity === 'warning' ? <AlertTriangle className="h-4 w-4 text-yellow-600" /> :
-               <Info className="h-4 w-4 text-blue-600" />}
+               alert.severity === 'warning' ? <AlertTriangle className="h-4 w-4 text-warning" /> :
+               <Info className="h-4 w-4 text-accent-cyan" />}
               <AlertTitle className="text-sm">{alert.title}</AlertTitle>
               <AlertDescription className="text-xs">{alert.description}</AlertDescription>
             </Alert>
@@ -119,8 +119,8 @@ export function HealthAlertBanner({
 
       {/* Egg Discard Warning */}
       {eggDiscardInfo && (
-        <Alert variant="destructive" className="border-orange-500/50 bg-orange-50 text-orange-900">
-          <Egg className="h-4 w-4 text-orange-600" />
+        <Alert variant="destructive" className="border-warning/50 bg-warning/10 text-warning-foreground">
+          <Egg className="h-4 w-4 text-warning" />
           <AlertTitle className="text-sm">Egg Discard Required</AlertTitle>
           <AlertDescription className="text-xs">
             Due to {(eggDiscardInfo.products ?? ['medication']).join(', ')} — discard all eggs until{' '}

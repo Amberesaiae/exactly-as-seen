@@ -177,24 +177,24 @@ export default function FeedFormulation() {
 
             {computedTargetKg > 0 && (
               <div className="space-y-3">
-                <div className="rounded-xl bg-blue-50 border border-blue-200 p-4">
+                <div className="rounded-xl bg-accent-cyan/10 border border-accent-cyan/20 p-4">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-blue-600 font-bold uppercase tracking-wider">Intensive Baseline</p>
-                      <p className="text-3xl font-black text-blue-700">{computedTargetKg.toFixed(1)} kg</p>
+                      <p className="text-xs text-accent-cyan font-bold uppercase tracking-wider">Intensive Baseline</p>
+                      <p className="text-3xl font-black text-accent-cyan-foreground">{computedTargetKg.toFixed(1)} kg</p>
                     </div>
-                    <Button className="rounded-full bg-blue-600 hover:bg-blue-700" onClick={() => handleConfirmPlan(computedTargetKg)}>Use Full</Button>
+                    <Button className="rounded-full bg-accent-cyan hover:bg-accent-cyan/90" onClick={() => handleConfirmPlan(computedTargetKg)}>Use Full</Button>
                   </div>
                 </div>
 
                 {isSemiIntensive && reductionPotentialKg > 0 && (
-                  <div className="rounded-xl bg-green-50 border border-green-200 p-4">
+                  <div className="rounded-xl bg-success/10 border border-success/20 p-4">
                     <div className="flex items-center justify-between">
                       <div className="space-y-1">
-                        <p className="text-xs text-green-700 font-bold uppercase tracking-wider">Lean Logic Target</p>
-                        <p className="text-2xl font-black text-green-800">{reducedTargetKg.toFixed(1)} kg</p>
+                        <p className="text-xs text-success font-bold uppercase tracking-wider">Lean Logic Target</p>
+                        <p className="text-2xl font-black text-success-foreground">{reducedTargetKg.toFixed(1)} kg</p>
                       </div>
-                      <Button variant="outline" className="rounded-full border-green-300 text-green-700" onClick={() => handleConfirmPlan(reducedTargetKg)}>Use Lean</Button>
+                      <Button variant="outline" className="rounded-full border-success/30 text-success" onClick={() => handleConfirmPlan(reducedTargetKg)}>Use Lean</Button>
                     </div>
                   </div>
                 )}

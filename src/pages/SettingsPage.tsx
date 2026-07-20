@@ -237,15 +237,15 @@ export default function SettingsPage() {
       </Card>
 
       <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="w-full grid grid-cols-4 sm:grid-cols-8 h-auto gap-0.5">
-          <TabsTrigger value="profile" className="text-xxs py-2 gap-1"><User className="h-3.5 w-3.5 hidden md:block" /> Profile</TabsTrigger>
-          <TabsTrigger value="farm" className="text-xxs py-2 gap-1"><Home className="h-3.5 w-3.5 hidden md:block" /> Farm</TabsTrigger>
-          <TabsTrigger value="prefs" className="text-xxs py-2 gap-1"><Settings className="h-3.5 w-3.5 hidden md:block" /> Prefs</TabsTrigger>
-          <TabsTrigger value="prices" className="text-xxs py-2 gap-1"><DollarSign className="h-3.5 w-3.5 hidden md:block" /> Prices</TabsTrigger>
-          <TabsTrigger value="species" className="text-xxs py-2 gap-1"><Activity className="h-3.5 w-3.5 hidden md:block" /> Species</TabsTrigger>
-          <TabsTrigger value="system" className="text-xxs py-2 gap-1"><Cpu className="h-3.5 w-3.5 hidden md:block" /> System</TabsTrigger>
-          <TabsTrigger value="notifications" className="text-xxs py-2 gap-1"><Bell className="h-3.5 w-3.5 hidden md:block" /> Alerts</TabsTrigger>
-          <TabsTrigger value="data" className="text-xxs py-2 gap-1"><Download className="h-3.5 w-3.5 hidden md:block" /> Data</TabsTrigger>
+        <TabsList className="w-full grid grid-cols-4 sm:grid-cols-8 h-10 p-1 bg-secondary/50 rounded-full gap-0.5">
+          <TabsTrigger value="profile" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><User className="h-3.5 w-3.5 hidden md:block" /> Profile</TabsTrigger>
+          <TabsTrigger value="farm" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Home className="h-3.5 w-3.5 hidden md:block" /> Farm</TabsTrigger>
+          <TabsTrigger value="prefs" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Settings className="h-3.5 w-3.5 hidden md:block" /> Prefs</TabsTrigger>
+          <TabsTrigger value="prices" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><DollarSign className="h-3.5 w-3.5 hidden md:block" /> Prices</TabsTrigger>
+          <TabsTrigger value="species" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Activity className="h-3.5 w-3.5 hidden md:block" /> Species</TabsTrigger>
+          <TabsTrigger value="system" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Cpu className="h-3.5 w-3.5 hidden md:block" /> System</TabsTrigger>
+          <TabsTrigger value="notifications" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Bell className="h-3.5 w-3.5 hidden md:block" /> Alerts</TabsTrigger>
+          <TabsTrigger value="data" className="rounded-full data-[state=active]:bg-background text-xs py-2 gap-1"><Download className="h-3.5 w-3.5 hidden md:block" /> Data</TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile"><ProfileTab user={user} fullName={fullName} setFullName={setFullName} saving={saving} savedSection={savedSection} saveProfile={saveProfile} signOut={signOut} /></TabsContent>

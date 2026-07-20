@@ -26,7 +26,7 @@ export default function Finance() {
   return (
     <div className="p-4 md:p-6 space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-foreground tracking-tight">Ledger</h1>
+        <h1 className="text-2xl font-bold text-foreground">Ledger</h1>
         <div className="flex items-center gap-2">
           <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Period</Label>
           <Select value={period} onValueChange={(v) => setPeriod(v as Period)}>

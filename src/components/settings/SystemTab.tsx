@@ -124,7 +124,7 @@ export default function SystemTab() {
               <div key={job.name} className="p-3 border rounded-xl bg-card space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-semibold text-foreground font-mono">{job.name}</span>
-                  <Badge variant="secondary" className="text-xxs bg-emerald-500/10 text-emerald-600 border-emerald-500/20">
+                  <Badge variant="secondary" className="text-xxs bg-success/10 text-success border-success/20">
                     {job.status}
                   </Badge>
                 </div>

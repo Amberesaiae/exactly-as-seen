@@ -33,7 +33,7 @@ export default function Stock() {
   return (
     <div className="p-4 md:p-6 space-y-4 pb-24">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-black text-foreground tracking-tight">Inventory</h1>
+        <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
         <Button
           className="rounded-full gap-1.5 h-9"
           onClick={() => setItemDialogOpen(true)}
