@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Exactly As Seen"
+version = "1.0.0"
+id = "artifacts/exactly-as-seen"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24577
+
+[services.development]
+run = "pnpm --filter @workspace/exactly-as-seen run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/exactly-as-seen", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/exactly-as-seen/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24577"
+BASE_PATH = "/"

@@ -1768,6 +1768,60 @@ export type Database = {
           withdrawal_eggs_until: string | null
         }
       }
+      record_manual_expense: {
+        Args: {
+          p_farm_id: string
+          p_category: string
+          p_description: string
+          p_amount_pesewas: number
+          p_date?: string
+          p_batch_id?: string | null
+          p_source?: string
+          p_source_ref?: string | null
+          p_payment_method?: string
+          p_payment_status?: string
+        }
+        Returns: {
+          ok: boolean
+          expense_id: string
+          already_recorded?: boolean
+        }
+      }
+      record_manual_revenue: {
+        Args: {
+          p_farm_id: string
+          p_category: string
+          p_description: string
+          p_amount_pesewas: number
+          p_date?: string
+          p_batch_id?: string | null
+          p_buyer?: string | null
+          p_source?: string
+          p_source_ref?: string | null
+          p_payment_method?: string
+          p_payment_status?: string
+        }
+        Returns: {
+          ok: boolean
+          revenue_id: string
+          already_recorded?: boolean
+        }
+      }
+      stock_adjust: {
+        Args: {
+          p_farm_id: string
+          p_stock_item_id: string
+          p_new_quantity: number
+          p_notes?: string | null
+        }
+        Returns: {
+          ok: boolean
+          transaction_id?: string
+          delta?: number
+          unchanged?: boolean
+          reason?: string
+        }
+      }
       record_mortality: {
         Args: {
           p_farm_id: string

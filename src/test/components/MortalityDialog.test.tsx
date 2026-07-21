@@ -77,8 +77,8 @@ describe('MortalityDialog', () => {
     expect(screen.getByLabelText(/Number of birds/)).toHaveProperty('value', '1');
   });
 
-  it('validates count must be positive', () => {
-    const { recordMortality } = require('@/lib/batch-utils');
+  it('validates count must be positive', async () => {
+    const { recordMortality } = await import('@/lib/batch-utils');
     render(<MortalityDialog {...defaultProps} />);
     const countInput = screen.getByLabelText(/Number of birds/);
     fireEvent.change(countInput, { target: { value: '0' } });
@@ -86,8 +86,8 @@ describe('MortalityDialog', () => {
     expect(recordMortality).not.toHaveBeenCalled();
   });
 
-  it('validates count cannot exceed population', () => {
-    const { recordMortality } = require('@/lib/batch-utils');
+  it('validates count cannot exceed population', async () => {
+    const { recordMortality } = await import('@/lib/batch-utils');
     render(<MortalityDialog {...defaultProps} />);
     const countInput = screen.getByLabelText(/Number of birds/);
     fireEvent.change(countInput, { target: { value: '200' } });

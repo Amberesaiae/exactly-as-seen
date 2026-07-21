@@ -303,121 +303,28 @@ export function useHealthData() {
         )
       );
     } else if (task.task_type === 'feeding') {
-      const {
-        shouldDeductStockOnConsumption,
-        shouldExpenseConsumption,
-        shouldOfferBookNow,
-        shouldSkipDayFeedExpense,
-      } = await import('@/lib/ledger-policy');
-      const { autoCreateExpense } = await import('@/lib/synergy');
-      const { LEDGER_SOURCES } = await import('@/lib/canonical');
-      const { queueRpc } = await import('@/lib/sync');
+      // F-C-F-006: shared intent — same writer as Feed Lab
+      const { confirmDayFeedIntent } = await import('@/lib/feed-confirm');
       const active = batches.find(b => b.id === selectedBatch);
-      const system = active?.production_system as string | null;
-      const deductStock = shouldDeductStockOnConsumption(system);
-      const expenseConsumption = shouldExpenseConsumption(system);
 
-      const { pickPreferredFeedStock } = await import('@/lib/stock-match');
-      const { data: allStock } = await supabase.from('stock_items').select('*').eq('farm_id', farmId);
-      const feedStock = pickPreferredFeedStock(allStock ?? []);
-      const feedName = feedStock?.name ?? `${active?.species ?? 'flock'} feed`;
-      const sourceRef = `day-feed:${selectedBatch}:${todayStr}`;
-      const unitPricePesewas = feedStock ? Number(feedStock.unit_price_pesewas || 0) : 0;
-      const unitPrice = unitPricePesewas / 100;
-      const bookAmount = unitPrice > 0 ? task.amount * unitPrice : 0;
+      const outcome = await confirmDayFeedIntent({
+        farmId,
+        batchId: selectedBatch,
+        qty: task.amount,
+        species: active?.species ?? null,
+        productionSystem: (active?.production_system as string | null) ?? null,
+        todayStr,
+      });
 
-      // Double-ledger guard: stock purchase same day → stock-out only, no second expense
-      let stockPurchasedSameDay = false;
-      if (feedStock) {
-        const { data: txs } = await supabase
-          .from('stock_transactions')
-          .select('id')
-          .eq('farm_id', farmId)
-          .eq('stock_item_id', feedStock.id)
-          .eq('transaction_type', 'purchase')
-          .gte('date', todayStr)
-          .limit(1);
-        stockPurchasedSameDay = (txs?.length ?? 0) > 0;
-      }
-      const skipExpense = shouldSkipDayFeedExpense({ stockPurchasedSameDay, unitPricePesewas });
-
-      // p_ledger drives stock-out (same as Feed Lab); expense gated by p_skip_expense
-      const doLedger = deductStock && !!feedStock;
-      const rpcArgs = {
-        p_farm_id: farmId,
-        p_batch_id: selectedBatch,
-        p_quantity_kg: task.amount,
-        p_feed_type: feedName,
-        p_date: todayStr,
-        p_ledger: doLedger,
-        p_stock_item_id: feedStock?.id ?? null,
-        p_unit_price_pesewas: unitPricePesewas,
-        p_skip_expense: skipExpense || !expenseConsumption,
-      };
-
-      // Offline: queue full intent (OFFLINE-OK) — never raw feed_logs
-      if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        await queueRpc('confirm_day_feed', rpcArgs, `day-feed:${selectedBatch}:${todayStr}`);
-        toast.warning('Offline — feed queued; will sync when online');
-        setFeedLogs(prev => [{ id: 'temp', date: todayStr, quantity_kg: task.amount } as unknown as FeedLog, ...prev]);
+      if (outcome.status === 'error' || outcome.status === 'blocked' || outcome.status === 'already_logged') {
         return;
-      }
-
-      const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_day_feed', rpcArgs);
-
-      // Fail closed — no client multi-write rescue
-      if (rpcErr) {
-        toast.error(rpcErr.message || 'Failed to confirm feeding');
-        return;
-      }
-
-      if (rpcData?.already_logged) {
-        toast.error('Feed already logged for today');
-        return;
-      }
-
-      if (deductStock && feedStock) {
-        toast.success(
-          skipExpense
-            ? `Today's feeding confirmed: ${task.amount}kg (stock out; expense skipped — purchased today)`
-            : `Today's feeding confirmed: ${task.amount}kg deducted from stock`
-        );
-      } else if (deductStock && !feedStock) {
-        toast.warning(`Feed logged (${task.amount}kg) — no feed stock item found for auto-deduct`);
-      } else if (shouldOfferBookNow(system)) {
-        toast.message(`Today's feeding logged: ${task.amount}kg (flexible — not auto-ledgered)`, {
-          duration: 8000,
-          action: bookAmount > 0
-            ? {
-                label: 'Book now',
-                onClick: async () => {
-                  // KEEP: manual book expense only — re-RPC would hit already_logged without expense
-                  try {
-                    await autoCreateExpense({
-                      farmId, batchId: selectedBatch, category: 'feed_and_nutrition',
-                      description: `Daily Feeding (booked): ${task.amount}kg ${feedName}`,
-                      amount: bookAmount, source: LEDGER_SOURCES.feed, sourceRef: `${sourceRef}:book`,
-                    });
-                    toast.success('Feed expense booked');
-                  } catch (e) {
-                    console.error('Book now feed error:', e);
-                    toast.error('Failed to book feed expense');
-                  }
-                },
-              }
-            : {
-                label: 'Open Ledger',
-                onClick: () => { window.location.href = '/finance'; },
-              },
-        });
-      } else {
-        toast.success(`Today's feeding logged: ${task.amount}kg`);
       }
 
       setFeedLogs(prev => {
         const rest = prev.filter(f => f.date !== todayStr);
         return [{ id: 'temp', date: todayStr, quantity_kg: task.amount, batch_id: selectedBatch } as unknown as FeedLog, ...rest];
       });
+      if (outcome.status === 'queued') return;
       const { markBatchTaskComplete } = await import('@/lib/ensure-daily-tasks');
       await markBatchTaskComplete({
         farmId,

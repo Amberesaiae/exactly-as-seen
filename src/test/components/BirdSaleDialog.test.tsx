@@ -85,8 +85,8 @@ describe('BirdSaleDialog', () => {
     expect(screen.getByLabelText(/Buyer/)).toBeDefined();
   });
 
-  it('validates quantity must be positive', () => {
-    const { recordBirdSale } = require('@/lib/synergy');
+  it('validates quantity must be positive', async () => {
+    const { recordBirdSale } = await import('@/lib/synergy');
     render(<BirdSaleDialog {...defaultProps} />);
     const quantityInput = screen.getByLabelText(/Quantity/);
     fireEvent.change(quantityInput, { target: { value: '0' } });
@@ -94,8 +94,8 @@ describe('BirdSaleDialog', () => {
     expect(recordBirdSale).not.toHaveBeenCalled();
   });
 
-  it('validates quantity cannot exceed population', () => {
-    const { recordBirdSale } = require('@/lib/synergy');
+  it('validates quantity cannot exceed population', async () => {
+    const { recordBirdSale } = await import('@/lib/synergy');
     render(<BirdSaleDialog {...defaultProps} />);
     const quantityInput = screen.getByLabelText(/Quantity/);
     fireEvent.change(quantityInput, { target: { value: '200' } });

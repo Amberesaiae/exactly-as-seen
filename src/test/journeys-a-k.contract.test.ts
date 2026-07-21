@@ -58,16 +58,19 @@ describe('Journeys A–K contract', () => {
   it('C Day feed: sole RPC writer — no client feed_logs multi-write (K1/K2)', () => {
     const feed = read('src/hooks/feed/useFeedData.ts');
     const health = read('src/hooks/useHealthData.ts');
-    expect(feed).toContain("rpc('confirm_day_feed'");
-    expect(feed).toContain("queueRpc('confirm_day_feed'");
-    expect(feed).not.toMatch(/queueWrite\(\s*['"]feed_logs['"]/);
-    expect(feed).not.toMatch(/from\(\s*['"]feed_logs['"]\s*\)\s*\.insert/);
+    const shared = read('src/lib/feed-confirm.ts');
+    // F-C-F-006: single shared writer used by both surfaces
+    expect(feed).toContain("import('@/lib/feed-confirm')");
+    expect(health).toContain("import('@/lib/feed-confirm')");
+    expect(shared).toContain("rpc('confirm_day_feed'");
+    expect(shared).toContain("queueRpc('confirm_day_feed'");
+    for (const src of [feed, health, shared]) {
+      expect(src).not.toMatch(/queueWrite\(\s*['"]feed_logs['"]/);
+      expect(src).not.toMatch(/from\(\s*['"]feed_logs['"]\s*\)\s*\.insert/);
+    }
     expect(feed).not.toContain('autoDeductStock');
-    expect(health).toContain("rpc('confirm_day_feed'");
-    expect(health).toContain("queueRpc('confirm_day_feed'");
-    expect(health).not.toMatch(/queueWrite\(\s*['"]feed_logs['"]/);
     // Book now: expense only, not re-RPC intent after log
-    expect(health).toContain('autoCreateExpense');
+    expect(shared).toContain('autoCreateExpense');
   });
 
   it('D Complete care: complete_health_task writer', () => {

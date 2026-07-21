@@ -5,7 +5,7 @@ import { useAppStore } from '@/stores/useAppStore';
 import { toast } from 'sonner';
 import { format, subDays, startOfMonth, startOfQuarter, startOfYear } from 'date-fns';
 import { selectPrimaryFarm, toPesewas, fromPesewas } from '@/lib/canonical';
-import { isOffline, queueWrite } from '@/lib/sync';
+import { isOffline, queueRpc } from '@/lib/sync';
 import type { Database } from '@/integrations/supabase/types';
 
 type Expense = Database['public']['Tables']['expenses']['Row'];
@@ -140,33 +140,44 @@ export function useFinanceData() {
     if (!farmId) return;
     setSubmitting(true);
     const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
-    const insertData = {
-      amount_pesewas: toPesewas(major),
+    const sourceRef = `manual:${crypto.randomUUID()}`;
+    // RPC-only ledger write (F-C-F-005)
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_batch_id: data.batch_id ?? null,
+      p_category: data.category ?? 'other',
+      p_description: data.description ?? '',
+      p_amount_pesewas: toPesewas(major),
+      p_date: data.date ?? undefined,
+      p_source: 'manual',
+      p_source_ref: sourceRef,
+      p_payment_method: data.payment_method ?? 'cash',
+      p_payment_status: data.payment_status ?? 'paid',
+    };
+    const localEntry = {
+      id: crypto.randomUUID(),
+      farm_id: farmId,
+      batch_id: data.batch_id ?? null,
       category: data.category,
       description: data.description,
-      batch_id: data.batch_id,
+      amount_pesewas: toPesewas(major),
       date: data.date,
-      farm_id: farmId,
       payment_method: data.payment_method ?? 'cash',
       payment_status: data.payment_status ?? 'paid',
       source: 'manual',
-      source_ref: null,
-    };
+      source_ref: sourceRef,
+      created_at: new Date().toISOString(),
+    } as unknown as Expense;
 
     if (isOffline()) {
-      const tempId = crypto.randomUUID();
-      await queueWrite('expenses', 'insert', tempId, insertData as unknown as Record<string, unknown>);
-      const entry = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as Expense;
-      setExpenses(prev => [entry, ...prev]);
+      await queueRpc('record_manual_expense', rpcArgs, sourceRef);
+      setExpenses(prev => [localEntry, ...prev]);
       setSubmitting(false);
       toast.success('Expense recorded (offline — will sync)');
       return;
     }
 
-    const { data: entry, error } = await supabase.from('expenses').insert(
-      insertData as Database['public']['Tables']['expenses']['Insert']
-    ).select().single();
-
+    const { data: result, error } = await supabase.rpc('record_manual_expense', rpcArgs);
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
     const { error: actErr } = await supabase.from('activity_log').insert({
@@ -177,7 +188,7 @@ export function useFinanceData() {
     });
     if (actErr) console.debug('Activity log failed:', actErr);
 
-    setExpenses(prev => [entry, ...prev]);
+    setExpenses(prev => [{ ...localEntry, id: (result as { expense_id?: string })?.expense_id ?? localEntry.id }, ...prev]);
     setSubmitting(false);
     toast.success('Expense recorded');
   };
@@ -186,34 +197,46 @@ export function useFinanceData() {
     if (!farmId) return;
     setSubmitting(true);
     const major = Number(data.amount ?? fromPesewas(data.amount_pesewas));
-    const insertData = {
-      amount_pesewas: toPesewas(major),
+    const sourceRef = `manual:${crypto.randomUUID()}`;
+    // RPC-only ledger write (F-C-F-005)
+    const rpcArgs = {
+      p_farm_id: farmId,
+      p_batch_id: data.batch_id ?? null,
+      p_category: data.category ?? 'other',
+      p_description: data.description ?? '',
+      p_amount_pesewas: toPesewas(major),
+      p_date: data.date ?? undefined,
+      p_buyer: data.buyer ?? null,
+      p_source: 'manual',
+      p_source_ref: sourceRef,
+      p_payment_method: data.payment_method ?? 'cash',
+      p_payment_status: data.payment_status ?? 'paid',
+    };
+    const localEntry = {
+      id: crypto.randomUUID(),
+      farm_id: farmId,
+      batch_id: data.batch_id ?? null,
       category: data.category,
       description: data.description,
-      batch_id: data.batch_id,
-      buyer: data.buyer,
+      amount_pesewas: toPesewas(major),
+      buyer: data.buyer ?? null,
       date: data.date,
-      farm_id: farmId,
       payment_method: data.payment_method ?? 'cash',
       payment_status: data.payment_status ?? 'paid',
       source: 'manual',
-      source_ref: null,
-    };
+      source_ref: sourceRef,
+      created_at: new Date().toISOString(),
+    } as unknown as Revenue;
 
     if (isOffline()) {
-      const tempId = crypto.randomUUID();
-      await queueWrite('revenue', 'insert', tempId, insertData as unknown as Record<string, unknown>);
-      const entry = { ...insertData, id: tempId, created_at: new Date().toISOString() } as unknown as Revenue;
-      setRevenue(prev => [entry, ...prev]);
+      await queueRpc('record_manual_revenue', rpcArgs, sourceRef);
+      setRevenue(prev => [localEntry, ...prev]);
       setSubmitting(false);
       toast.success('Revenue recorded (offline — will sync)');
       return;
     }
 
-    const { data: entry, error } = await supabase.from('revenue').insert(
-      insertData as Database['public']['Tables']['revenue']['Insert']
-    ).select().single();
-
+    const { data: result, error } = await supabase.rpc('record_manual_revenue', rpcArgs);
     if (error) { toast.error(error.message); setSubmitting(false); return; }
 
     const { error: actErr2 } = await supabase.from('activity_log').insert({
@@ -224,7 +247,7 @@ export function useFinanceData() {
     });
     if (actErr2) console.debug('Activity log failed:', actErr2);
 
-    setRevenue(prev => [entry, ...prev]);
+    setRevenue(prev => [{ ...localEntry, id: (result as { revenue_id?: string })?.revenue_id ?? localEntry.id }, ...prev]);
     setSubmitting(false);
     toast.success('Revenue recorded');
   };

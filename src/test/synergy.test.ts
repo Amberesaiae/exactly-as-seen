@@ -71,6 +71,7 @@ describe('synergy.ts', () => {
       });
 
       expect(mockFrom).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
     it('skips expense when amount is negative', async () => {
@@ -84,9 +85,10 @@ describe('synergy.ts', () => {
       });
 
       expect(mockFrom).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
-    it('calls supabase.from with expenses for positive amount', async () => {
+    it('calls record_manual_expense RPC for positive amount', async () => {
       await autoCreateExpense({
         farmId: 'farm-1',
         category: 'feed_and_nutrition',
@@ -96,7 +98,7 @@ describe('synergy.ts', () => {
         sourceRef: 'purchase-123',
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('expenses');
+      expect(mockRpc).toHaveBeenCalledWith('record_manual_expense', expect.objectContaining({ p_farm_id: 'farm-1', p_amount_pesewas: 5000, p_source_ref: 'purchase-123' }));
     });
   });
 
@@ -113,9 +115,10 @@ describe('synergy.ts', () => {
       });
 
       expect(mockFrom).not.toHaveBeenCalled();
+      expect(mockRpc).not.toHaveBeenCalled();
     });
 
-    it('calls supabase.from with revenue for positive amount', async () => {
+    it('calls record_manual_revenue RPC for positive amount', async () => {
       await autoCreateRevenue({
         farmId: 'farm-1',
         batchId: 'batch-1',
@@ -126,7 +129,7 @@ describe('synergy.ts', () => {
         sourceRef: 'egg-sale-1',
       });
 
-      expect(mockFrom).toHaveBeenCalledWith('revenue');
+      expect(mockRpc).toHaveBeenCalledWith('record_manual_revenue', expect.objectContaining({ p_farm_id: 'farm-1', p_amount_pesewas: 12000, p_source_ref: 'egg-sale-1' }));
     });
   });
 

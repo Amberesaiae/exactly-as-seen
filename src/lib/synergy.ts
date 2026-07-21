@@ -1,7 +1,7 @@
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { toPesewas, ledgerDate } from '@/lib/canonical';
-import { isOffline, queueWrite, queueRpc } from '@/lib/sync';
+import { isOffline, queueRpc } from '@/lib/sync';
 
 /**
  * Synergy Service (Dovetail Synergy)
@@ -42,27 +42,27 @@ export async function autoCreateExpense(params: SynergyExpenseParams) {
 
   if (amount <= 0) return;
 
-  const insertData = {
-    farm_id: farmId,
-    batch_id: batchId || null,
-    category,
-    description,
-    amount_pesewas: toPesewas(amount),
-    date: date || ledgerDate(),
-    source,
-    source_ref: sourceRef,
-    payment_method: paymentMethod,
-    payment_status: paymentStatus,
+  // RPC-only ledger write (F-C-F-005): idempotent on (source, source_ref)
+  const rpcArgs = {
+    p_farm_id: farmId,
+    p_batch_id: batchId || null,
+    p_category: category,
+    p_description: description,
+    p_amount_pesewas: toPesewas(amount),
+    p_date: date || ledgerDate(),
+    p_source: source,
+    p_source_ref: sourceRef,
+    p_payment_method: paymentMethod,
+    p_payment_status: paymentStatus,
   };
 
   if (isOffline()) {
-    const tempId = crypto.randomUUID();
-    await queueWrite('expenses', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+    await queueRpc('record_manual_expense', rpcArgs, `${source}:${sourceRef}`);
     toast.success('Expense recorded (offline — will sync)');
     return;
   }
 
-  const { error } = await supabase.from('expenses').upsert(insertData, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+  const { error } = await supabase.rpc('record_manual_expense', rpcArgs);
 
   if (error) {
     // Duplicate auto-ledger is expected (idempotent unique source+source_ref)
@@ -170,28 +170,28 @@ export async function autoCreateRevenue(params: SynergyRevenueParams) {
 
   if (amount <= 0) return;
 
-  const insertData = {
-    farm_id: farmId,
-    batch_id: batchId,
-    category,
-    description,
-    amount_pesewas: toPesewas(amount),
-    buyer: buyer || null,
-    date: date || ledgerDate(),
-    source,
-    source_ref: sourceRef,
-    payment_method: paymentMethod,
-    payment_status: paymentStatus,
+  // RPC-only ledger write (F-C-F-005): idempotent on (source, source_ref)
+  const rpcArgs = {
+    p_farm_id: farmId,
+    p_batch_id: batchId,
+    p_category: category,
+    p_description: description,
+    p_amount_pesewas: toPesewas(amount),
+    p_buyer: buyer || null,
+    p_date: date || ledgerDate(),
+    p_source: source,
+    p_source_ref: sourceRef,
+    p_payment_method: paymentMethod,
+    p_payment_status: paymentStatus,
   };
 
   if (isOffline()) {
-    const tempId = crypto.randomUUID();
-    await queueWrite('revenue', 'insert', tempId, insertData as unknown as Record<string, unknown>);
+    await queueRpc('record_manual_revenue', rpcArgs, `${source}:${sourceRef}`);
     toast.success('Revenue recorded (offline — will sync)');
     return;
   }
 
-  const { error } = await supabase.from('revenue').upsert(insertData, { onConflict: 'source,source_ref', ignoreDuplicates: true });
+  const { error } = await supabase.rpc('record_manual_revenue', rpcArgs);
 
   if (error) {
     const isDup = error.code === '23505' || /duplicate|unique/i.test(error.message);
